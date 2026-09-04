@@ -100,20 +100,13 @@ unsigned select_ptx_version(unsigned sm_version, unsigned& ptx_target) {
   return ptx_version;
 }
 
-void host_synchronization_callback(cudaStream_t stream, cudaError_t status,
-                                   void *userData) {
-  
+void host_synchronization_callback(void *userData) {
+
   assert(userData);
   dag_node_ptr* node = static_cast<dag_node_ptr*>(userData);
-  
-  if(status != cudaSuccess) {
-    register_error(__acpp_here(),
-                   error_info{"cuda_queue callback: CUDA returned error code.",
-                              error_code{"CUDA", status}});
-  }
-  else {
-    (*node)->wait();
-  }
+
+  (*node)->wait();
+
   delete node;
 }
 
@@ -491,13 +484,12 @@ result cuda_queue::submit_external_wait_for(const dag_node_ptr& node) {
   assert(user_data);
   *user_data = node;
 
-  auto err = 
-      cudaStreamAddCallback(_stream, host_synchronization_callback,
-                           reinterpret_cast<void *>(user_data), 0);
+  auto err = cudaLaunchHostFunc(_stream, host_synchronization_callback,
+                                reinterpret_cast<void *>(user_data));
 
   if (err != cudaSuccess) {
     return make_error(__acpp_here(),
-                      error_info{"cuda_queue: Couldn't submit stream callback",
+                      error_info{"cuda_queue: Couldn't submit host function",
                                  error_code{"CUDA", err}});
   }
   
