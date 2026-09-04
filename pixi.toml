@@ -1,0 +1,126 @@
+# THE workspace manifest for the NAGA fork of AdaptiveCpp.
+#
+# This file is OURS, not upstream's. It exists so the fork is a pixi source
+# package: development happens inside the package's own build closure rather
+# than in a hand-rolled scratch environment beside it.
+#
+# ---- The two build paths, and why the dev one is different -----------------
+#
+# AdaptiveCpp documents two installations (doc/installing.md):
+#
+#   1. The STANDARD install: build AdaptiveCpp against an existing LLVM.
+#      Minutes. This is what the dev environment does.
+#   2. Building an LLVM toolchain with AdaptiveCpp linked into it
+#      (LLVM_EXTERNAL_PROJECTS=AdaptiveCpp). Hours, and required on Windows.
+#      This is what acpp-toolchain's published packages are built with.
+#
+# The dev environment therefore adds conda-forge's llvmdev/clangdev at the
+# SAME version the nightly lane ships (21.1.8) and takes path 1, so a change
+# can be compiled and measured in minutes. The published packaging keeps path
+# 2 and lives in acpp-toolchain; nothing here replaces it.
+#
+# NOTE the LLVM must be a STOCK one. acpp-llvm-dev-nightly's LLVM was built
+# with AdaptiveCpp linked in, so its CMake export set carries acpp's own
+# targets as IMPORTED -- a standalone acpp build then tries to create targets
+# with the same names and fails to configure.
+[workspace]
+# Single channel, as everywhere else: naga-labs LAYERS conda-forge
+# server-side, so one entry reaches both our packages and all of upstream.
+channels = ["https://prefix.dev/jackm97/naga-labs"]
+name = "naga-acpp"
+platforms = ["linux-64"]
+preview = ["pixi-build"]
+requires-pixi = ">=0.76.1"
+
+# ---- The package ------------------------------------------------------------
+# Version and build-string convention follow the packaging lane: a date
+# version with the LLVM lane in the build string. Identity is provisional --
+# the publishable identity is decided in the packaging session, and this must
+# not be mistaken for it.
+[package]
+name = "naga-acpp"
+version = "2026.09.03"
+publish = false
+
+[package.build]
+backend = { name = "pixi-build-cmake" }
+
+[package.build.config]
+extra-args = [
+  "-DACPP_COMPILER_FEATURE_PROFILE=full",
+  "-DWITH_CPU_BACKEND=ON",
+  "-DWITH_CUDA_BACKEND=ON",
+  "-DWITH_ROCM_BACKEND=OFF",
+  "-DWITH_OPENCL_BACKEND=OFF",
+  "-DWITH_LEVEL_ZERO_BACKEND=OFF",
+]
+
+# What the build needs present at build time. These are what the dev feature
+# below inherits as a closure, which is the whole point: developing in the
+# package's own environment rather than an approximation of it.
+[package.host-dependencies]
+llvmdev = "==21.1.8"
+clangdev = "==21.1.8"
+lld = "==21.1.8"
+cuda-nvcc = ">=12.9,<13"
+cuda-nvvm = ">=12.9,<13"
+cuda-runtime = ">=12.9,<13"
+cuda-cudart-dev = ">=12.9,<13"
+cuda-driver-dev = ">=12.9,<13"
+cuda-cccl = ">=12.9,<13"
+
+[package.build-dependencies]
+cmake = ">=3.28"
+ninja = "*"
+
+# ---- Development ------------------------------------------------------------
+# The dev feature takes the package as a DEV dependency: pixi assembles its
+# dependency closure WITHOUT building it. So the environment carries the
+# toolchain and every dependency the real build uses, and the in-tree cmake
+# build below runs inside exactly that.
+[feature.dev.dev]
+naga-acpp = { path = "." }
+
+[feature.dev.dependencies]
+# The acpp driver is a Python script; without this the compiler is unusable
+# from the dev env even though the build succeeds.
+python = ">=3.10"
+ccache = "*"
+cxx-compiler = "*"
+git = "*"
+nushell = ">=0.106"
+
+[feature.dev.tasks.configure]
+cmd = """
+cmake -S . -B build/dev -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=$PIXI_PROJECT_ROOT/build/install \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DLLVM_DIR=$CONDA_PREFIX/lib/cmake/llvm \
+  -DClang_DIR=$CONDA_PREFIX/lib/cmake/clang \
+  -DACPP_COMPILER_FEATURE_PROFILE=full \
+  -DWITH_CPU_BACKEND=ON \
+  -DWITH_CUDA_BACKEND=ON \
+  -DWITH_ROCM_BACKEND=OFF \
+  -DWITH_OPENCL_BACKEND=OFF \
+  -DWITH_LEVEL_ZERO_BACKEND=OFF \
+  -DCUDAToolkit_ROOT=$CONDA_PREFIX \
+  -DCUDA_TOOLKIT_ROOT_DIR=$CONDA_PREFIX \
+  -DCUDA_DEVICE_LIBS_PATH=$CONDA_PREFIX/nvvm/libdevice
+"""
+description = "Configure the in-tree standalone build (AdaptiveCpp against the env's LLVM)"
+
+[feature.dev.tasks.build]
+cmd = "cmake --build build/dev -j"
+depends-on = ["configure"]
+description = "Build AdaptiveCpp in-tree"
+
+[feature.dev.tasks.install]
+cmd = "cmake --install build/dev"
+depends-on = ["build"]
+description = "Install the in-tree build to build/install, for running reproducers against"
+
+[environments.dev]
+features = ["dev"]
+no-default-feature = true
