@@ -593,9 +593,9 @@ In the current implementation, this property only affects the selected local siz
 ```cpp
 namespace sycl::property::command_group {
 
-template<int Dim>
 struct AdaptiveCpp_retarget {
   AdaptiveCpp_retarget(const device& dev);
+  AdaptiveCpp_retarget(const context& ctx, const device& dev);
 };
 
 }
@@ -609,7 +609,11 @@ struct AdaptiveCpp_retargetable {};
 
 If this property is added to a command group property list, it instructs the AdaptiveCpp runtime to execute the submitted operation on a different device than the one the queue was bound to. This can be useful as a more convenient mechanism to dispatch to multiple devices compared to creating multiple queues.
 
-Using this property does *not* introduce additional overheads compared to using multiple queues. In particular, it does *not* silently lead to the creation of additional backend execution resources such as CUDA streams.
+Operations retargeted this way resolve their USM pointer operands against a context, and that context must be one in which the operands were allocated. Because a queue is constructed with a single context which need not contain the retarget target, the context is taken from the property rather than from the queue: `AdaptiveCpp_retarget(dev)` uses the default context of the target device's platform, while `AdaptiveCpp_retarget(ctx, dev)` names it explicitly, for applications that construct their own contexts and allocate within them. `ctx` must contain `dev`, and an exception is thrown if it does not.
+
+Note that SYCL considers two contexts disjoint even when they contain the same devices, so an allocation made against one context cannot be used with another. Naming the context explicitly is the only way to express which context the operands belong to.
+
+Using this property does *not* introduce additional overheads compared to using multiple queues. For out-of-order queues, no additional backend execution resources such as CUDA streams are created at all; work is distributed across the runtime's pool. An in-order queue owns a dedicated in-order backend queue for ordering reasons, and a retargetable one obtains such a queue for each device it is retargeted to, on first use. This matches what the equivalent set of in-order queues would occupy.
 
 In order to understand this, it is important to realize that because of the design of the AdaptiveCpp runtime, a queue is decoupled from backend objects. Instead, the AdaptiveCpp runtime internally manages a pool of backend execution resources such as CUDA streams, and automatically distributes work across those resources.
 In this design, a queue is nothing more than an interface to AdaptiveCpp runtime functionality. This allows us to efficiently retarget operations submitted to a queue arbitrarily.
