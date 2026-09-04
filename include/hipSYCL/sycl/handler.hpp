@@ -581,8 +581,11 @@ public:
         return queue_dev;
 
       if (alloc_type == usm::alloc::host ||
-          alloc_type == usm::alloc::unknown)
+          alloc_type == usm::alloc::unknown) {
+        if (alloc_type == usm::alloc::unknown)
+          detail::report_foreign_context_operand(ptr, _ctx);
         return detail::get_host_device();
+      }
 
       if(alloc_type == usm::alloc::device)
         // we are dealing with a device allocation

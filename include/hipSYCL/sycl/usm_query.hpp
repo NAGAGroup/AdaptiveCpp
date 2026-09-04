@@ -139,6 +139,45 @@ inline rt::backend_allocator *select_device_allocator(const device &dev) {
       *dev.AdaptiveCpp_runtime()->backends().get(d.get_backend());
   return backend_object.get_allocator(d);
 }
+
+// Report a pointer that ctx does not know but another device owns: an operand
+// from a foreign context. Unknown pointers are usually ordinary host memory,
+// so only a positive claim from a device outside ctx is diagnosable. The host
+// backend is not asked, since it claims every address.
+inline bool report_foreign_context_operand(const void *ptr, const context &ctx) {
+  rt::runtime *rt = ctx.AdaptiveCpp_runtime();
+  const rt::unique_device_list &ctx_devs = detail::extract_context_devices(ctx);
+
+  bool found = false;
+  rt->backends().for_each_backend([&](rt::backend *b) {
+    if (found)
+      return;
+    if (b->get_hardware_platform() == rt::hardware_platform::cpu)
+      return;
+
+    rt::backend_hardware_manager *hw = b->get_hardware_manager();
+    for (std::size_t i = 0; i < hw->get_num_devices(); ++i) {
+      rt::device_id d{b->get_backend_descriptor(), static_cast<int>(i)};
+      if (ctx_devs.contains_device(d))
+        continue;
+
+      rt::pointer_info info;
+      if (b->get_allocator(d)->query_pointer(ptr, info).is_success()) {
+        rt::register_error(rt::make_error(
+            __acpp_here(),
+            rt::error_info{
+                "usm: operand belongs to a device outside the context this "
+                "operation resolves against; using an allocation from another "
+                "context is not defined behaviour",
+                rt::error_type::invalid_parameter_error}));
+        found = true;
+        return;
+      }
+    }
+  });
+
+  return found;
+}
 }
 
 namespace usm {

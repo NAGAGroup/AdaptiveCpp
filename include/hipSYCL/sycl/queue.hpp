@@ -67,10 +67,22 @@ struct AdaptiveCpp_prefer_group_size : public detail::cg_property{
 };
 
 struct AdaptiveCpp_retarget : public detail::cg_property{
+  // Operands are resolved against ctx; the queue's context need not contain
+  // dev. Defaults to the target's platform default context.
   AdaptiveCpp_retarget(const device& d)
-  : dev{d} {}
+  : dev{d}, ctx{d.get_platform().khr_get_default_context()} {}
+
+  AdaptiveCpp_retarget(const context& c, const device& d)
+  : dev{d}, ctx{c} {
+    if(!detail::extract_context_devices(c).contains_device(
+           detail::extract_rt_device(d)))
+      throw exception{make_error_code(errc::invalid),
+                      "AdaptiveCpp_retarget: the provided context does not "
+                      "contain the device that was retargeted to"};
+  }
 
   const sycl::device dev;
+  const sycl::context ctx;
 };
 
 struct AdaptiveCpp_prefer_execution_lane : public detail::cg_property{
@@ -398,7 +410,10 @@ public:
     std::lock_guard<std::mutex> lock{_impl->lock};
 
     rt::execution_hints hints = _impl->default_hints;
-    
+
+    // The context this command group's operands are resolved against.
+    context cg_context = get_context();
+
     if(prop_list.has_property<property::command_group::AdaptiveCpp_retarget>()) {
       if(!_impl->is_retargetable)
         throw exception{make_error_code(errc::invalid),
@@ -406,16 +421,20 @@ public:
                         "extension with a queue that is not constructed with "
                         "AdaptiveCpp_retargetable property"};
 
-      rt::device_id dev = detail::extract_rt_device(
-          prop_list.get_property<property::command_group::AdaptiveCpp_retarget>()
-              .dev);
+      const auto& retarget =
+          prop_list.get_property<property::command_group::AdaptiveCpp_retarget>();
+      rt::device_id dev = detail::extract_rt_device(retarget.dev);
 
       if(!detail::extract_context_devices(_impl->ctx).contains_device(dev)) {
+        cg_context = retarget.ctx;
+
         HIPSYCL_DEBUG_WARNING
             << "queue: Warning: Retargeting operation for a device that is not "
-               "part of the queue's context. This can cause terrible problems if the "
-               "operation uses USM allocations that were allocated using the "
-               "queue's context."
+               "part of the queue's context. The operation will resolve its "
+               "USM pointer operands against the retarget context (the target "
+               "device's default context, unless one was named), so any USM "
+               "allocations it uses must belong to that context and not to the "
+               "queue's."
             << std::endl;
       }
 
@@ -439,7 +458,7 @@ public:
     // Should always have node_group hint from default hints
     assert(hints.has_hint<rt::hints::node_group>());
 
-    handler cgh{get_context(),
+    handler cgh{cg_context,
                 _impl->handler,
                 hints,
                 _impl->requires_runtime.get(),
