@@ -723,6 +723,29 @@ public:
                     "mem_advise() is not yet supported"};
   }
 
+#ifdef ACPP_EXT_ASYNC_HOST
+  template <class HostFunction>
+  void async_host(HostFunction f) {
+    auto op = rt::make_operation<rt::async_host_operation>(std::move(f));
+
+    // An in-order queue orders its operations through its backend queue, which
+    // this operation does not run on, so mark the work already submitted there.
+    if(_execution_hints.has_hint<rt::hints::prefer_executor>()) {
+      rt::backend_executor *executor =
+          _execution_hints.get_hint<rt::hints::prefer_executor>()->get_executor();
+      if(executor && executor->is_inorder_queue()) {
+        auto *inorder = static_cast<rt::inorder_executor *>(executor);
+        static_cast<rt::async_host_operation *>(op.get())->set_preceding_event(
+            inorder->get_queue()->insert_event());
+      }
+    }
+
+    rt::dag_node_ptr node = create_task(std::move(op), _execution_hints);
+
+    _command_group_nodes.push_back(node);
+  }
+#endif
+
 
   template <class InteropFunction>
   void AdaptiveCpp_enqueue_custom_operation(InteropFunction f) {
@@ -1202,10 +1225,12 @@ private:
            hints.get_hint<rt::hints::bind_to_device>()->get_device_id()))
       is_dedicated_in_order_queue = true;
 
+    // Host operations are run by the runtime rather than the queue's executor,
+    // so they cannot be submitted to it directly.
     if (uses_buffers ||
         has_non_instant_dependency || is_unbound ||
         !is_dedicated_in_order_queue ||
-        op->is_requirement()) {
+        op->is_requirement() || op->is_host_operation()) {
       // traditional submission
       rt::dag_build_guard build{_rt->dag()};
       _contains_non_instant_nodes = true;

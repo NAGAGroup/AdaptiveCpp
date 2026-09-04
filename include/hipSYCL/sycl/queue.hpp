@@ -161,6 +161,10 @@ class queue : public detail::property_carrying_object
     // Note: This must not be a weak_ptr, since in the case of instant submissions,
     // the lifetime of nodes is not guaranteed to exceed task runtime.
     rt::dag_node_ptr previous_submission = nullptr;
+    // The most recent host operation, if the queue is in-order and nothing
+    // submitted since is ordered after it. An in-order queue is otherwise
+    // ordered by its backend queue, which host operations never reach.
+    rt::dag_node_ptr previous_host_submission = nullptr;
     std::mutex lock;
     std::size_t node_group_id = -1;
     std::shared_ptr<rt::backend_executor> dedicated_inorder_executor = nullptr;
@@ -394,6 +398,11 @@ public:
           // We might want to throw a synchronous error here?
           rt::register_error(err);
         }
+
+        // A trailing host operation is on no backend queue, so waiting for the
+        // executor does not wait for it.
+        if(auto last_host = _impl->previous_host_submission)
+          last_host->wait();
       }
     } else {
       _impl->requires_runtime.get()->dag().flush_and_gc();
@@ -900,6 +909,31 @@ public:
     });
   }
 
+#ifdef ACPP_EXT_ASYNC_HOST
+  template <class HostFunction>
+  event async_host(HostFunction f) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.async_host(std::move(f));
+    });
+  }
+
+  template <class HostFunction>
+  event async_host(HostFunction f, event dependency) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependency);
+      cgh.async_host(std::move(f));
+    });
+  }
+
+  template <class HostFunction>
+  event async_host(HostFunction f, const std::vector<event> &dependencies) {
+    return this->submit([&](sycl::handler &cgh) {
+      cgh.depends_on(dependencies);
+      cgh.async_host(std::move(f));
+    });
+  }
+#endif
+
   event prefetch_host(const void *ptr, std::size_t num_bytes) {
     return this->submit([&](sycl::handler &cgh) {
       cgh.prefetch_host(ptr, num_bytes);
@@ -1162,6 +1196,12 @@ private:
       auto previous = _impl->previous_submission;
       if(previous)
         cgh.depends_on(event{previous, _impl->handler});
+    } else if (is_in_order()) {
+      // The backend queue cannot order this against a host operation, so the
+      // dependency has to be stated.
+      auto previous_host = _impl->previous_host_submission;
+      if(previous_host && !previous_host->is_known_complete())
+        cgh.depends_on(event{previous_host, _impl->handler});
     }
     
     cgf(cgh);
@@ -1170,8 +1210,15 @@ private:
     if (is_in_order()) {
       if(_impl->needs_in_order_emulation) {
         _impl->previous_submission = node;
-      } else if(cgh.contains_non_instant_nodes()) {
-        _impl->has_non_instant_operations.store(true, std::memory_order_relaxed);
+      } else {
+        if(cgh.contains_non_instant_nodes())
+          _impl->has_non_instant_operations.store(true,
+                                                  std::memory_order_relaxed);
+        // Anything submitted after this node is ordered after it, so only the
+        // most recent host operation has to be carried.
+        _impl->previous_host_submission =
+            (node && node->get_operation()->is_host_operation()) ? node
+                                                                 : nullptr;
       }
     }
 
