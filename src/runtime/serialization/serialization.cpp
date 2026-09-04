@@ -133,6 +133,11 @@ void prefetch_operation::dump(std::ostream& ostr, int indentation) const {
   ostr << "Prefetch: " << _num_bytes << " bytes from " << _ptr;
 }
 
+void async_host_operation::dump(std::ostream &ostr, int indentation) const {
+  ostr << get_indentation(indentation);
+  ostr << "Async host operation";
+}
+
 void memset_operation::dump(std::ostream &ostr, int indentation) const {
   ostr << get_indentation(indentation);
   ostr << "Memset: @" << _ptr << " " << _num_bytes << " bytes of value "

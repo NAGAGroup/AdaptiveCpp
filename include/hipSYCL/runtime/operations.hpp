@@ -49,6 +49,7 @@ class kernel_operation;
 class memcpy_operation;
 class prefetch_operation;
 class memset_operation;
+class async_host_operation;
 
 using node_list_t = common::small_vector<dag_node_ptr, 8>;
 
@@ -59,6 +60,8 @@ public:
   virtual result dispatch_memcpy(memcpy_operation* op, const dag_node_ptr& node) = 0;
   virtual result dispatch_prefetch(prefetch_operation *op, const dag_node_ptr& node) = 0;
   virtual result dispatch_memset(memset_operation* op, const dag_node_ptr& node) = 0;
+  virtual result dispatch_async_host(async_host_operation *op,
+                                     const dag_node_ptr& node) = 0;
   virtual ~operation_dispatcher(){}
 };
 
@@ -71,6 +74,7 @@ public:
   virtual cost_type get_runtime_costs() { return 1.; }
   virtual bool is_requirement() const { return false; }
   virtual bool is_data_transfer() const { return false; }
+  virtual bool is_host_operation() const { return false; }
   virtual void dump(std::ostream&, int = 0) const = 0;
   virtual bool has_preferred_backend(backend_id &preferred_backend,
                                      device_id &preferred_device) const {
@@ -525,6 +529,38 @@ private:
   const void *_ptr;
   std::size_t _num_bytes;
   device_id _target;
+};
+
+/// Host code run by the runtime, ordered in the dag like any other operation.
+class async_host_operation : public operation {
+public:
+  using host_function = std::function<void()>;
+
+  async_host_operation(host_function f) : _f{std::move(f)} {}
+
+  result dispatch(operation_dispatcher *dispatcher,
+                  const dag_node_ptr& node) final override {
+    return dispatcher->dispatch_async_host(this, node);
+  }
+
+  bool is_host_operation() const final override { return true; }
+
+  void run() { _f(); }
+
+  /// An event marking the work an in-order queue had already submitted, which
+  /// orders this operation against work it never shares a queue with.
+  void set_preceding_event(std::shared_ptr<dag_node_event> evt) {
+    _preceding = std::move(evt);
+  }
+
+  const std::shared_ptr<dag_node_event> &get_preceding_event() const {
+    return _preceding;
+  }
+
+  void dump(std::ostream&, int = 0) const override;
+private:
+  host_function _f;
+  std::shared_ptr<dag_node_event> _preceding;
 };
 
 /// USM memset

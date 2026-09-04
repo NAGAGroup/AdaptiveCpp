@@ -52,6 +52,15 @@ public:
     return _queue->submit_memset(*op, node);
   }
 
+  virtual result dispatch_async_host(async_host_operation *op,
+                                     const dag_node_ptr& node) final override {
+    return make_error(
+        __acpp_here(),
+        error_info{"queue_operation_dispatcher: Host operations are run by the "
+                   "runtime, not by a backend queue",
+                   error_type::invalid_parameter_error});
+  }
+
 private:
   inorder_queue* _queue;
 };
@@ -236,7 +245,13 @@ void inorder_executor::submit_inline(
     // Nothing to do if we have to synchronize with
     // an operation that is already known to have completed
     if(!req->is_known_complete()) {
-      if (req->get_assigned_device().get_backend() !=
+      // A requirement that was not issued to a backend queue reaches no queue
+      // this one could be ordered against, whichever device it was assigned.
+      auto *req_executor = req->get_assigned_executor();
+      bool req_is_external =
+          req_executor && !req_executor->is_backend_queue();
+
+      if (req_is_external || req->get_assigned_device().get_backend() !=
           _q->get_device().get_backend()) {
         HIPSYCL_DEBUG_INFO
             << " --> Synchronizes with external node: " << req

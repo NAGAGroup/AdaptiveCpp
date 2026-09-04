@@ -35,6 +35,11 @@ public:
   virtual bool is_outoforder_queue() const = 0;
   virtual bool is_taskgraph() const = 0;
 
+  /// Whether operations submitted here are issued to a backend queue. An
+  /// operation that is not can only be waited for as an external node, since
+  /// it reaches no queue that a backend event could describe.
+  virtual bool is_backend_queue() const { return true; }
+
   virtual void
   submit_directly(const dag_node_ptr& node, operation *op,
                   const node_list_t &reqs) = 0;

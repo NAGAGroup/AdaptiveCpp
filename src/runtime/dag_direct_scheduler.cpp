@@ -165,6 +165,11 @@ select_executor(runtime *rt, dag_node_ptr node, operation *op) {
 
   assert(!op->is_requirement());
 
+  // Host operations are run by the runtime, ordered against the work of the
+  // device they were assigned.
+  if(op->is_host_operation())
+    return std::make_pair(&rt->async_host(), dev);
+
   // If we have been requested to run on a particular executor, do this.
   backend_executor* user_preferred_executor = nullptr;
   if(node->get_execution_hints().has_hint<hints::prefer_executor>()){

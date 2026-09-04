@@ -33,6 +33,7 @@ add_library(acpp-rt SHARED
   device_id.cpp
   operations.cpp
   data.cpp
+  async_host_executor.cpp
   inorder_executor.cpp
   kernel_cache.cpp
   kernel_configuration.cpp
