@@ -213,7 +213,8 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_code_object.cpp)
 
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
-  target_link_libraries(rt-backend-ze PRIVATE acpp-rt -lze_loader)
+  find_library(ACPP_ZE_LOADER_LIBRARY NAMES ze_loader REQUIRED)
+  target_link_libraries(rt-backend-ze PRIVATE acpp-rt ${ACPP_ZE_LOADER_LIBRARY})
 
   target_compile_options(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
