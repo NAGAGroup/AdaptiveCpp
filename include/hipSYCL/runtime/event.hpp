@@ -22,6 +22,14 @@ class dag_node_event
 public:
   virtual bool is_complete() const = 0;
   virtual void wait() = 0;
+
+  /// Whether the operation this event describes has reached the backend
+  /// queue. An event normally cannot exist before it has, so only
+  /// implementations that stand in for an operation still waiting to be
+  /// issued need to override this.
+  virtual bool is_submitted() const { return true; }
+  virtual void wait_for_submission() const {}
+
   virtual ~dag_node_event() {}
 }; 
 

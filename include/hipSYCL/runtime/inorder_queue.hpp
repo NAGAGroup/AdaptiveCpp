@@ -60,6 +60,29 @@ public:
   virtual result submit_queue_wait_for(const dag_node_ptr& evt) = 0;
   virtual result submit_external_wait_for(const dag_node_ptr& node) = 0;
 
+  /// Whether the operation reads its operands when it is issued rather than
+  /// when the queue reaches it, so that submitting it to this queue does not
+  /// order it against work the queue has been told to wait for.
+  ///
+  /// Such an operation must not be issued until its requirements have
+  /// completed. Only the backend can answer this: it depends on the backend's
+  /// own API and on properties of the operands that only it can query.
+  virtual bool needs_completed_requirements(operation &op,
+                                            const node_list_t &reqs) const {
+    return false;
+  }
+
+  /// An event standing in for an operation that has been accepted but not yet
+  /// issued. Backends that never defer a submission do not need one.
+  virtual std::shared_ptr<dag_node_event> create_deferred_event() {
+    return nullptr;
+  }
+
+  /// Give a deferred event the event describing the operation, now that it
+  /// has been issued.
+  virtual void stamp_deferred_event(dag_node_event &deferred,
+                                    std::shared_ptr<dag_node_event> actual) {}
+
   virtual result wait() = 0;
 
   virtual device_id get_device() const = 0;

@@ -478,6 +478,64 @@ result cuda_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   return make_success();
 }
 
+namespace {
+
+bool is_pageable_host_memory(const void *ptr) {
+  cudaPointerAttributes attribs;
+  auto err = cudaPointerGetAttributes(&attribs, ptr);
+  if(err != cudaSuccess) {
+    // Not known to CUDA, so it cannot have been page-locked through it.
+    cudaGetLastError();
+    return true;
+  }
+  return attribs.type == cudaMemoryTypeUnregistered;
+}
+
+}
+
+bool cuda_queue::needs_completed_requirements(operation &op,
+                                              const node_list_t &reqs) const {
+  // cudaMemcpyAsync may stage a pageable host operand into pinned memory
+  // during the call, on the calling thread. Anything enqueued to order the
+  // copy against work from another backend cannot constrain that read, so the
+  // copy must not be issued before that work has completed.
+  memcpy_operation *memcpy_op = cast<memcpy_operation>(&op);
+  if(!memcpy_op)
+    return false;
+
+  bool has_foreign_requirement = false;
+  for(const auto &req : reqs) {
+    if(!req->is_known_complete() && req->get_assigned_device().get_backend() !=
+                                        _dev.get_backend()) {
+      has_foreign_requirement = true;
+      break;
+    }
+  }
+  if(!has_foreign_requirement)
+    return false;
+
+  auto is_pageable_host_operand = [](const memory_location &loc) {
+    return loc.get_device().is_host() &&
+           is_pageable_host_memory(loc.get_access_ptr());
+  };
+
+  return is_pageable_host_operand(memcpy_op->source()) ||
+         is_pageable_host_operand(memcpy_op->dest());
+}
+
+std::shared_ptr<dag_node_event> cuda_queue::create_deferred_event() {
+  return std::make_shared<cuda_deferred_event>();
+}
+
+void cuda_queue::stamp_deferred_event(dag_node_event &deferred,
+                                      std::shared_ptr<dag_node_event> actual) {
+  assert(dynamic_is<cuda_deferred_event>(&deferred));
+  assert(!actual || dynamic_is<cuda_node_event>(actual.get()));
+
+  cast<cuda_deferred_event>(&deferred)->stamp(
+      std::static_pointer_cast<cuda_node_event>(std::move(actual)));
+}
+
 result cuda_queue::submit_external_wait_for(const dag_node_ptr& node) {
 
   dag_node_ptr* user_data = new dag_node_ptr;
