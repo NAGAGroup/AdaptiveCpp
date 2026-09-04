@@ -75,6 +75,14 @@ If two accessors are conflicting, a dependency is established between the comman
 
 Independent command groups may be executed in parallel. For example, this includes the possibility of executing kernels in parallel on the same device, if this is supported by the backend and hardware.
 
+#### Submission
+
+An operation is normally issued to its backend queue on the thread that submits it, and an error encountered while issuing it is reported on that thread.
+
+Some operations read their operands when they are issued rather than when the queue reaches them. Such an operation cannot be ordered against the work it depends on by anything submitted to the queue, so it is issued only once those dependencies have completed, from another thread. Errors encountered while issuing it are then reported asynchronously. Operations submitted after it to the same backend queue are issued the same way, so that they cannot reach the queue before it does.
+
+Whether an operation requires this is backend-specific. On CUDA it applies to a memcpy with a pageable host operand that depends on work from another backend, because the driver may copy such an operand into staging memory during the call, before the stream has reached any dependency it was given. The OpenMP backend never requires it.
+
 #### Comments
 
 * A smaller page size means a finer data management granularity; it may allow for more operations to be executed without dependencies in between them, but may also lead to a larger runtime overhead when tracking data state. The optimal page size is therefore a tradeoff. 
