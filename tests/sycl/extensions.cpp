@@ -512,7 +512,10 @@ BOOST_AUTO_TEST_CASE(cg_property_retarget) {
         target_devices[0],
         sycl::property_list{sycl::property::queue::in_order{},
                             sycl::property::queue::AdaptiveCpp_retargetable{}}};
-    int* ptr = sycl::malloc_device<int>(1, q);
+    // Shared, not device: the retargeted command group runs on the host, and
+    // device allocations are not host-accessible other than where the device
+    // shares addressable memory with it.
+    int* ptr = sycl::malloc_shared<int>(1, q);
     q.memset(ptr, 0, sizeof(int)).wait();
 
     q.parallel_for<class retarget_gpu_kernel>(sycl::range{128}, 
