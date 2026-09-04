@@ -465,6 +465,40 @@ public:
 }
 ```
 
+### `ACPP_EXT_ASYNC_HOST`
+
+Adds `queue::async_host()` and `handler::async_host()`, which run a host callable as part of the dag. The callable is ordered against the other operations of the queue like any other operation, and the returned event completes when it returns.
+
+The callable runs on a thread owned by the runtime. It is therefore not affected by which backends are visible, and does not compete with a device for the resources it uses to run kernels. It is associated with the device the operation was submitted to, or retargeted to, only for the purpose of ordering.
+
+Arguments are handled as in `std::async`: everything the callable refers to must remain valid until it has run, which for a task that is still queued may be long after the enclosing scope has exited.
+
+The callable may not submit work to a queue or wait for it.
+
+#### API Reference
+
+```c++
+namespace sycl {
+class handler {
+public:
+  template <class HostFunction>
+  void async_host(HostFunction f);
+};
+
+class queue {
+public:
+  template <class HostFunction>
+  event async_host(HostFunction f);
+
+  template <class HostFunction>
+  event async_host(HostFunction f, event dependency);
+
+  template <class HostFunction>
+  event async_host(HostFunction f, const std::vector<event> &dependencies);
+};
+}
+```
+
 ### `ACPP_EXT_QUEUE_WAIT_LIST`
 
 Adds a `queue::get_wait_list()` method that returns a vector of `sycl::event` in analogy to `event::get_wait_list()`, such that waiting for all returned events guarantees that all operations submitted to the queue have completed. This can be used to express asynchronous barrier-like semantics when passing the returned vector into handler::depends_on().

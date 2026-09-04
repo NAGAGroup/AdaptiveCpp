@@ -703,6 +703,47 @@ BOOST_AUTO_TEST_CASE(prefetch_host) {
   sycl::free(shared_mem, q);
 }
 #endif
+#ifdef ACPP_EXT_ASYNC_HOST
+BOOST_AUTO_TEST_CASE(async_host) {
+
+  sycl::queue q{sycl::property_list{sycl::property::queue::in_order{}}};
+
+  if (!q.get_device().has(sycl::aspect::usm_shared_allocations))
+    return;
+
+  std::size_t test_size = 1024;
+  int *shared_mem = sycl::malloc_shared<int>(test_size, q);
+  q.memset(shared_mem, 0, test_size * sizeof(int)).wait();
+
+  // The host operation is on no backend queue, so the second kernel can only
+  // be ordered against it by the dag.
+  q.parallel_for<class async_host_before>(
+      sycl::range<1>{test_size},
+      [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
+
+  q.async_host([=]() {
+    for (std::size_t i = 0; i < test_size; ++i)
+      shared_mem[i] += 1;
+  });
+
+  q.parallel_for<class async_host_after>(
+      sycl::range<1>{test_size},
+      [=](sycl::id<1> idx) { shared_mem[idx.get(0)] += 1; });
+  q.wait_and_throw();
+
+  for (std::size_t i = 0; i < test_size; ++i)
+    BOOST_TEST(shared_mem[i] == 3);
+
+  // The returned event completes when the operation has run, not when it was
+  // submitted.
+  std::atomic<bool> has_run{false};
+  auto evt = q.async_host([&]() { has_run = true; });
+  evt.wait();
+  BOOST_TEST(has_run.load());
+
+  sycl::free(shared_mem, q);
+}
+#endif
 #ifdef ACPP_EXT_BUFFER_USM_INTEROP
 BOOST_AUTO_TEST_CASE(buffer_introspection) {
 
