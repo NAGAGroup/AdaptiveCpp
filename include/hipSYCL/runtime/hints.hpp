@@ -39,6 +39,10 @@ public:
     _is_present = true;
   }
 
+  void make_absent() {
+    _is_present = false;
+  }
+
   bool is_present() const {
     return _is_present;
   }
@@ -159,6 +163,14 @@ public:
     if(entry.is_present())
       return &entry;
     return nullptr;
+  }
+
+  // For hints derived from another set, where an inherited hint does not apply.
+  template <class HintT,
+            std::enable_if_t<std::is_base_of_v<hints::execution_hint, HintT>,
+                             int> = 0>
+  void unset_hint() {
+    get_entry<HintT>().make_absent();
   }
 
   template <class HintT> bool has_hint() const {

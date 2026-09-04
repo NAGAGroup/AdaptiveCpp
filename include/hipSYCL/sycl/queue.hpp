@@ -164,6 +164,15 @@ class queue : public detail::property_carrying_object
     std::mutex lock;
     std::size_t node_group_id = -1;
     std::shared_ptr<rt::backend_executor> dedicated_inorder_executor = nullptr;
+
+    // Hints specialized per device for retargetable queues: everything in
+    // default_hints describes the queue except bind_to_device and
+    // prefer_executor, which describe the device. Derived once per device
+    // because create_inorder_executor() returns a new backend queue per call.
+    // Per queue, so that two queues retargeting to the same device do not
+    // share an executor and serialize against each other.
+    std::unordered_map<rt::device_id, rt::execution_hints> hints_by_device;
+    std::vector<std::shared_ptr<rt::backend_executor>> retarget_executors;
   
     // These fields are exclusively hauled around for SYCL 2020 reductions
     // due to the incredible ingenuity of this API...
@@ -438,7 +447,7 @@ public:
             << std::endl;
       }
 
-      hints.set_hint(rt::hints::bind_to_device{dev});
+      hints = get_hints_for_device(dev);
     }
     if (prop_list.has_property<
             property::command_group::AdaptiveCpp_prefer_execution_lane>()) {
@@ -1116,6 +1125,37 @@ private:
     }
   }
 
+  // default_hints specialized for dev, which may not be the queue's device.
+  // Caller must hold _impl->lock.
+  const rt::execution_hints& get_hints_for_device(rt::device_id dev) {
+    auto it = _impl->hints_by_device.find(dev);
+    if(it != _impl->hints_by_device.end())
+      return it->second;
+
+    rt::execution_hints hints = _impl->default_hints;
+    hints.set_hint(rt::hints::bind_to_device{dev});
+    hints.unset_hint<rt::hints::prefer_executor>();
+
+    if(_impl->is_in_order) {
+      int priority = 0;
+      if(this->has_property<property::queue::AdaptiveCpp_priority>())
+        priority = this->get_property<property::queue::AdaptiveCpp_priority>().priority;
+
+      std::shared_ptr<rt::backend_executor> executor =
+          _impl->requires_runtime.get()
+              ->backends()
+              .get(dev.get_backend())
+              ->create_inorder_executor(dev, priority);
+
+      if(executor) {
+        _impl->retarget_executors.push_back(executor);
+        hints.set_hint(rt::hints::prefer_executor{executor});
+      }
+    }
+
+    return _impl->hints_by_device.emplace(dev, std::move(hints)).first->second;
+  }
+
   template <class Cgf>
   rt::dag_node_ptr execute_submission(Cgf cgf, handler &cgh) {
     if (is_in_order() && _impl->needs_in_order_emulation) {
@@ -1233,6 +1273,12 @@ private:
         !_impl->is_retargetable &&
         _impl->default_hints.has_hint<rt::hints::bind_to_device>())
       _impl->needs_in_order_emulation = false;
+
+    if(_impl->default_hints.has_hint<rt::hints::bind_to_device>())
+      _impl->hints_by_device.emplace(
+          _impl->default_hints.get_hint<rt::hints::bind_to_device>()
+              ->get_device_id(),
+          _impl->default_hints);
     
     _impl->kernel_cache = rt::kernel_cache::get();
   }

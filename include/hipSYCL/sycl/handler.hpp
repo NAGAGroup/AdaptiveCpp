@@ -1194,7 +1194,12 @@ private:
     if(hints.has_hint<rt::hints::prefer_executor>()) {
       executor = hints.get_hint<rt::hints::prefer_executor>()->get_executor();
     }
-    if(executor && executor->is_inorder_queue())
+    // Instant submission assigns the node to bind_to_device but runs it on the
+    // preferred executor, without the check dag_direct_scheduler applies. An
+    // executor that cannot serve the device must not take this path.
+    if(executor && executor->is_inorder_queue() && !is_unbound &&
+       executor->can_execute_on_device(
+           hints.get_hint<rt::hints::bind_to_device>()->get_device_id()))
       is_dedicated_in_order_queue = true;
 
     if (uses_buffers ||
