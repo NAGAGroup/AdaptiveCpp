@@ -89,6 +89,9 @@ ccache = "*"
 cxx-compiler = "*"
 git = "*"
 nushell = ">=0.106"
+# tests/ needs Boost.Test; the runtime tests are what a change to submission
+# has to answer to.
+libboost-devel = "*"
 
 [feature.dev.tasks.configure]
 cmd = """
@@ -120,6 +123,25 @@ description = "Build AdaptiveCpp in-tree"
 cmd = "cmake --install build/dev"
 depends-on = ["build"]
 description = "Install the in-tree build to build/install, for running reproducers against"
+
+# The runtime tests exercise scheduling and submission without device
+# compilation, so they build in a fraction of the time the SYCL tests take.
+[feature.dev.tasks.configure-tests]
+cmd = """
+cmake -S tests -B build/tests -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DAdaptiveCpp_DIR=$PIXI_PROJECT_ROOT/build/install/lib/cmake/AdaptiveCpp \
+  -DACPP_TARGETS=generic
+"""
+depends-on = ["install"]
+description = "Configure AdaptiveCpp's own test suite against the in-tree install"
+
+[feature.dev.tasks.rt-tests]
+cmd = "cmake --build build/tests --target rt_tests -j"
+depends-on = ["configure-tests"]
+description = "Build the runtime test suite"
 
 [environments.dev]
 features = ["dev"]
