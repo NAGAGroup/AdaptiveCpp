@@ -478,49 +478,25 @@ result cuda_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   return make_success();
 }
 
-namespace {
-
-bool is_pageable_host_memory(const void *ptr) {
-  cudaPointerAttributes attribs;
-  auto err = cudaPointerGetAttributes(&attribs, ptr);
-  if(err != cudaSuccess) {
-    // Not known to CUDA, so it cannot have been page-locked through it.
-    cudaGetLastError();
-    return true;
-  }
-  return attribs.type == cudaMemoryTypeUnregistered;
-}
-
-}
-
 bool cuda_queue::needs_completed_requirements(operation &op,
                                               const node_list_t &reqs) const {
-  // cudaMemcpyAsync may stage a pageable host operand into pinned memory
-  // during the call, on the calling thread. Anything enqueued to order the
-  // copy against work from another backend cannot constrain that read, so the
-  // copy must not be issued before that work has completed.
-  memcpy_operation *memcpy_op = cast<memcpy_operation>(&op);
-  if(!memcpy_op)
-    return false;
-
-  bool has_foreign_requirement = false;
+  // Any operation with an incomplete requirement from another backend is
+  // submitted only once that requirement has completed.
+  //
+  // Two reasons, either sufficient. cudaMemcpyAsync may stage a pageable host
+  // operand into pinned memory during the call, on the calling thread, so
+  // nothing enqueued afterwards can constrain that read. And expressing the
+  // dependency in the stream means a host function that blocks on foreign
+  // runtime state: nothing guarantees the driver makes progress around an
+  // executing callback, and a context-level call such as module loading can
+  // wait on it indefinitely while the callback waits on work whose own
+  // submission needs a lock the caller holds.
   for(const auto &req : reqs) {
     if(!req->is_known_complete() && req->get_assigned_device().get_backend() !=
-                                        _dev.get_backend()) {
-      has_foreign_requirement = true;
-      break;
-    }
+                                        _dev.get_backend())
+      return true;
   }
-  if(!has_foreign_requirement)
-    return false;
-
-  auto is_pageable_host_operand = [](const memory_location &loc) {
-    return loc.get_device().is_host() &&
-           is_pageable_host_memory(loc.get_access_ptr());
-  };
-
-  return is_pageable_host_operand(memcpy_op->source()) ||
-         is_pageable_host_operand(memcpy_op->dest());
+  return false;
 }
 
 std::shared_ptr<dag_node_event> cuda_queue::create_deferred_event() {
