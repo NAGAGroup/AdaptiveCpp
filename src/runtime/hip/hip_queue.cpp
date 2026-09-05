@@ -39,20 +39,13 @@ namespace rt {
 
 namespace {
 
-void host_synchronization_callback(hipStream_t stream, hipError_t status,
-                                   void *userData) {
-  
+void host_synchronization_callback(void *userData) {
+
   assert(userData);
   dag_node_ptr* node = static_cast<dag_node_ptr*>(userData);
-  
-  if(status != hipSuccess) {
-    register_error(__acpp_here(),
-                   error_info{"hip_queue callback: HIP returned error code.",
-                              error_code{"HIP", status}});
-  }
-  else {
-    (*node)->wait();
-  }
+
+  (*node)->wait();
+
   delete node;
 }
 
@@ -446,19 +439,51 @@ result hip_queue::submit_queue_wait_for(const dag_node_ptr& node) {
   return make_success();
 }
 
+bool hip_queue::needs_completed_requirements(operation &op,
+                                             const node_list_t &reqs) const {
+  // Any operation with an incomplete requirement from another backend is
+  // submitted only once that requirement has completed.
+  //
+  // Two reasons, either sufficient. hipMemcpyAsync may stage a pageable host
+  // operand into staging memory during the call, on the calling thread, so
+  // nothing enqueued afterwards can constrain that read. And expressing the
+  // dependency in the stream means a host function that blocks on foreign
+  // runtime state, which the HIP documentation forbids: a host function "must
+  // not perform synchronization with any operation that may depend on other
+  // processing execution but is not enqueued to run earlier in the stream".
+  for(const auto &req : reqs) {
+    if(!req->is_known_complete() && req->get_assigned_device().get_backend() !=
+                                        _dev.get_backend())
+      return true;
+  }
+  return false;
+}
+
+std::shared_ptr<dag_node_event> hip_queue::create_deferred_event() {
+  return std::make_shared<hip_deferred_event>();
+}
+
+void hip_queue::stamp_deferred_event(dag_node_event &deferred,
+                                     std::shared_ptr<dag_node_event> actual) {
+  assert(dynamic_is<hip_deferred_event>(&deferred));
+  assert(!actual || dynamic_is<hip_node_event>(actual.get()));
+
+  cast<hip_deferred_event>(&deferred)->stamp(
+      std::static_pointer_cast<hip_node_event>(std::move(actual)));
+}
+
 result hip_queue::submit_external_wait_for(const dag_node_ptr& node) {
 
   dag_node_ptr* user_data = new dag_node_ptr;
   assert(user_data);
   *user_data = node;
 
-  auto err = 
-      hipStreamAddCallback(_stream, host_synchronization_callback,
-                           reinterpret_cast<void *>(user_data), 0);
+  auto err = hipLaunchHostFunc(_stream, host_synchronization_callback,
+                               reinterpret_cast<void *>(user_data));
 
   if (err != hipSuccess) {
     return make_error(__acpp_here(),
-                   error_info{"hip_queue: Couldn't submit stream callback",
+                   error_info{"hip_queue: Couldn't submit host function",
                               error_code{"HIP", err}});
   }
   
