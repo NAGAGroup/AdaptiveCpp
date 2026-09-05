@@ -16,6 +16,9 @@
 
 #ifdef _WIN32
 #include <llvm/Support/FileSystem.h>
+#else
+#include <dlfcn.h>
+#include <link.h>
 #endif
 
 namespace hipsycl {
@@ -196,7 +199,26 @@ std::string getLibMvecDir() {
 
   if (common::filesystem::exists(lib_mvec_redistributable_path)) {
     path = lib_path;
-  } else if (common::filesystem::exists(lib_mvec_path)) {
+  }
+#ifndef _WIN32
+  // libmvec is glibc: the copy the dynamic loader resolves is the one that
+  // matches libc at runtime. LIB_MVEC_DIR is find_library()'s answer on the
+  // build machine and need not exist on the target.
+  if (path.empty()) {
+    if (void *handle = dlopen("libmvec.so.1", RTLD_LAZY | RTLD_LOCAL)) {
+      link_map *map = nullptr;
+      if (dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0 && map && map->l_name &&
+          map->l_name[0] != '\0') {
+        std::string p{map->l_name};
+        auto pos = p.find_last_of('/');
+        if (pos != std::string::npos && pos > 0)
+          path = p.substr(0, pos);
+      }
+      dlclose(handle);
+    }
+  }
+#endif
+  if (path.empty() && common::filesystem::exists(lib_mvec_path)) {
     path = replacePathPlaceholders(LIB_MVEC_DIR);
   }
 #endif

@@ -478,7 +478,13 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
         LldInvocation.push_back(mvecDir);
         LldInvocation.push_back("--rpath");
         LldInvocation.push_back(mvecDir);
-        LldInvocation.push_back("-lmvec");
+        // -lmvec wants the unversioned dev symlink; a runtime machine has
+        // only the glibc SONAME. Link whichever this directory has.
+        if (common::filesystem::exists(
+                common::filesystem::join_path(mvecDir, "libmvec.so.1")))
+          LldInvocation.push_back("-l:libmvec.so.1");
+        else
+          LldInvocation.push_back("-lmvec");
 #if LLVM_VERSION_MAJOR > 20
         OptInvocation.push_back("-vector-library=LIBMVEC");
 #else
