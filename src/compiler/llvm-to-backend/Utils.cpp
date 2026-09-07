@@ -16,7 +16,8 @@
 
 #ifdef _WIN32
 #include <llvm/Support/FileSystem.h>
-#else
+#endif
+#ifdef __linux__
 #include <dlfcn.h>
 #include <link.h>
 #endif
@@ -200,7 +201,7 @@ std::string getLibMvecDir() {
   if (common::filesystem::exists(lib_mvec_redistributable_path)) {
     path = lib_path;
   }
-#ifndef _WIN32
+#ifdef __linux__
   // libmvec is glibc: the copy the dynamic loader resolves is the one that
   // matches libc at runtime. LIB_MVEC_DIR is find_library()'s answer on the
   // build machine and need not exist on the target.
