@@ -475,8 +475,19 @@ class acpp_config:
       'cuda-path': option("--acpp-cuda-path", "ACPP_CUDA_PATH", "default-cuda-path",
 """  The path to the CUDA toolkit installation directory"""),
 
+      'cuda-lib-path': option("--acpp-cuda-lib-path", "ACPP_CUDA_LIB_PATH", "default-cuda-lib-path",
+"""  The path to the directory containing the CUDA libraries.
+    Defaults to lib64 (lib/x64 on Windows) inside the CUDA toolkit installation
+    directory, which is where a CUDA installer places them. Distributions that
+    lay the toolkit out differently need to set this."""),
+
       'rocm-path': option("--acpp-rocm-path", "ACPP_ROCM_PATH", "default-rocm-path",
 """  The path to the ROCm installation directory"""),
+
+      'rocm-lib-path': option("--acpp-rocm-lib-path", "ACPP_ROCM_LIB_PATH", "default-rocm-lib-path",
+"""  The path to the directory containing the ROCm libraries.
+    Defaults to lib inside the ROCm installation directory. Distributions that
+    lay ROCm out differently need to set this."""),
 
       'gpu-arch': option("--acpp-gpu-arch", "ACPP_GPU_ARCH", "default-gpu-arch",
 """  (deprecated) The GPU architecture that should be targeted when compiling for GPUs.
@@ -750,23 +761,18 @@ class acpp_config:
   def _get_rocm_substitution_vars(self):
     return {
       'ACPP_ROCM_PATH' : self.rocm_path,
-      'ACPP_ROCM_LIB_PATH' : os.path.join(self.rocm_path, "lib"),
+      'ACPP_ROCM_LIB_PATH' : self.rocm_lib_path,
       'ACPP_PATH' : self.acpp_installation_path,
       'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
     }
 
   def _get_cuda_substitution_vars(self):
-    vars = {
+    return {
       'ACPP_CUDA_PATH' : self.cuda_path,
+      'ACPP_CUDA_LIB_PATH' : self.cuda_lib_path,
       'ACPP_PATH' : self.acpp_installation_path,
       'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
     }
-    if sys.platform.startswith("win32"):
-      vars['ACPP_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib", "x64")
-    else:
-      vars['ACPP_CUDA_LIB_PATH'] = os.path.join(self.cuda_path, "lib64")
-
-    return vars
 
   def _get_omp_substitution_vars(self):
     return {
@@ -1034,8 +1040,24 @@ class acpp_config:
     return self._retrieve_option("cuda-path")
 
   @property
+  def cuda_lib_path(self):
+    path = self._retrieve_option("cuda-lib-path", allow_unset=True)
+    if path:
+      return path
+    if sys.platform.startswith("win32"):
+      return os.path.join(self.cuda_path, "lib", "x64")
+    return os.path.join(self.cuda_path, "lib64")
+
+  @property
   def rocm_path(self):
     return self._retrieve_option("rocm-path")
+
+  @property
+  def rocm_lib_path(self):
+    path = self._retrieve_option("rocm-lib-path", allow_unset=True)
+    if path:
+      return path
+    return os.path.join(self.rocm_path, "lib")
 
   @property
   def clang_path(self):
