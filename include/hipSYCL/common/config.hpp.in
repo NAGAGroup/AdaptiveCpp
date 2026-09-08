@@ -21,7 +21,10 @@
 #define HIPSYCL_VERSION_MINOR ACPP_VERSION_MINOR
 #define HIPSYCL_VERSION_PATCH ACPP_VERSION_PATCH
 
-#define HIPSYCL_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
+// Empty when ACPP_OMIT_RECORDED_INSTALL_PREFIX is set. Both readers treat this
+// as a fallback behind the run-time lookup and guard it with is_directory, so
+// an empty value costs nothing on a normal installation.
+#define HIPSYCL_INSTALL_PREFIX "@ACPP_RECORDED_INSTALL_PREFIX@"
 #define HIPSYCL_RT_LIBRARY_NAME "@HIPSYCL_RT_LIBRARY_OUTPUT_NAME@"
 #define HIPSYCL_COMMON_LIBRARY_NAME "@HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME@"
 

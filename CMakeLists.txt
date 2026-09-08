@@ -512,6 +512,15 @@ set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
 set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL
   "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
 
+set(ACPP_OMIT_RECORDED_INSTALL_PREFIX false CACHE BOOL
+  "Whether to leave HIPSYCL_INSTALL_PREFIX empty rather than compiling CMAKE_INSTALL_PREFIX into the binaries. The prefix is only a fallback - get_lib_directory() asks the dynamic loader where this library actually is, and both readers guard the fallback with a directory check - so a redistributable build can omit it and avoid recording the build machine's layout in a shipped artifact.")
+
+if(ACPP_OMIT_RECORDED_INSTALL_PREFIX)
+  set(ACPP_RECORDED_INSTALL_PREFIX "")
+else()
+  set(ACPP_RECORDED_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
+endif()
+
 set(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS false CACHE BOOL
   "Whether to omit the settings that name paths outside the AdaptiveCpp installation - the clang and host compiler executables, clang's include directory, and the CUDA and ROCm installation directories - from the configuration files. They must then be supplied through their environment variables or command line arguments. Intended for redistributable packages, where a path recorded at build time does not exist on the user's machine.")
 
@@ -764,9 +773,53 @@ else()
   set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend")
 endif()
 
-# TODO OpenMP is poorly handled.
-# - We copy both omp and gomp instead of checking what we need
-# - Won't work with AdaptiveCpp-in-LLVM builds
+# The libraries below that are NOT part of the AdaptiveCpp installation are
+# named by their find_library() result, which is a path on the build machine.
+# For a redistributable package that path is doubly wrong: it need not exist on
+# the user's machine, and it discloses the layout of ours.
+#
+# ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS already governs exactly this class in
+# the generated configuration files; the deployment manifests are the same
+# question and now follow the same switch. What is omitted is what the user is
+# told to resolve for themselves: doc/deployment.md documents an ldd pass over
+# the deployment tree for precisely these transitive dependencies.
+#
+# libmvec is absent from both branches on purpose. It is part of glibc, so the
+# only correct copy is whatever the loader resolves in the process doing the
+# JIT; getLibMvecDir() asks the loader directly. Deploying one would risk
+# pairing a libmvec with a libc it was not built against.
+# Each fragment carries its own leading comma, so the manifest stays valid JSON
+# whichever combination is selected.
+if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
+  set(ACPP_CORE_DEPLOYMENT_EXTERNAL_LIBS "")
+else()
+  # TODO OpenMP is poorly handled.
+  # - We copy both omp and gomp instead of checking what we need
+  set(ACPP_CORE_DEPLOYMENT_EXTERNAL_LIBS ",
+  \"${NUMA_LIBRARY}\" : \"/\",
+  \"${OpenMP_omp_LIBRARY}\" : \"/\",
+  \"${OpenMP_gomp_LIBRARY}\" : \"/\",
+  \"${LIBSLEEF}\" : \"/\",
+  \"${LIBAMATH}\" : \"/\",
+  \"${LIBSVML}\" : \"/\",
+  \"${LIBINTLC}\" : \"/\"")
+endif()
+
+# libLLVM is a runtime dependency whichever way AdaptiveCpp was built - the
+# llvm-to-backend libraries link it and the JIT needs it. The test is on
+# LLVM_LIBRARY itself rather than on a flag that implies it: when AdaptiveCpp is
+# built as part of LLVM there is no find_package(LLVM) to set it, and the entry
+# then collapsed to an empty key that the driver discards on read, so libLLVM
+# was silently never deployed. In that configuration libLLVM is installed
+# beside our own libraries, so it is named the way they are.
+if(LLVM_LIBRARY)
+  set(ACPP_CORE_DEPLOYMENT_LLVM_LIB ",
+  \"${LLVM_LIBRARY}\" : \"/\"")
+else()
+  set(ACPP_CORE_DEPLOYMENT_LLVM_LIB ",
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:LLVM\" : \"/\"")
+endif()
+
 set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-rt\" : \"/\",
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-common\" : \"/\",
@@ -777,26 +830,26 @@ set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
   \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
   \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
-  \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
-  \"${NUMA_LIBRARY}\" : \"/\",
-  \"${LLVM_LIBRARY}\" : \"/\",
-  \"${OpenMP_omp_LIBRARY}\" : \"/\",
-  \"${OpenMP_gomp_LIBRARY}\" : \"/\",
-  \"${LIBSLEEF}\" : \"/\",
-  \"${LIBMVEC}\" : \"/\",
-  \"${LIBAMATH}\" : \"/\",
-  \"${LIBSVML}\" : \"/\",
-  \"${LIBINTLC}\" : \"/\"
+  \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\"${ACPP_CORE_DEPLOYMENT_EXTERNAL_LIBS}${ACPP_CORE_DEPLOYMENT_LLVM_LIB}
 }
 ")
 
 #TODO cudart for older cmake versions?
+# libdevice and cudart come from the CUDA installation, not ours, so they are
+# named by a build-machine path and follow the same switch as the core
+# manifest's external libraries.
+if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
+  set(ACPP_CUDA_DEPLOYMENT_EXTERNAL_LIBS "")
+else()
+  set(ACPP_CUDA_DEPLOYMENT_EXTERNAL_LIBS ",
+  \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\",
+  \"${CUDA_cudart_LIBRARY}\" : \"/\"")
+endif()
+
 set(ACPP_CUDA_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
   \"${ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
-  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\",
-  \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\",
-  \"${CUDA_cudart_LIBRARY}\" : \"/\"
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\"${ACPP_CUDA_DEPLOYMENT_EXTERNAL_LIBS}
 }
 ")
 
@@ -810,28 +863,45 @@ if(WITH_ROCM_BACKEND)
   find_library(HSAKMT_LIBRARY hsakmt HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
   find_library(ROCPROFILERREGISTER_LIBRARY rocprofiler-register HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
 endif()
-set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
-  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc\" : \"/hipSYCL/bitcode/\",
+# The device bitcode and the five ROCm libraries live in the ROCm installation,
+# not ours, so they are named by build-machine paths and follow the same switch.
+if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
+  set(ACPP_HIP_DEPLOYMENT_EXTERNAL_LIBS "")
+else()
+  set(ACPP_HIP_DEPLOYMENT_EXTERNAL_LIBS ",
   \"${ROCM_DEVICE_LIBS_PATH}/*\" : \"/hipSYCL/ext/bitcode/amdgcn/\",
   \"${HIPRTC_LIBRARY}\" : \"/\",
   \"${AMDHIP64_LIBRARY}\" : \"/\",
   \"${HSARUNTIME64_LIBRARY}\" : \"/\",
   \"${AMDCOMGR_LIBRARY}\" : \"/\",
   \"${HSAKMT_LIBRARY}\" : \"/\",
-  \"${ROCPROFILERREGISTER_LIBRARY}\" : \"/\"
+  \"${ROCPROFILERREGISTER_LIBRARY}\" : \"/\"")
+endif()
+
+set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
+  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
+  \"${ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
+  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc\" : \"/hipSYCL/bitcode/\"${ACPP_HIP_DEPLOYMENT_EXTERNAL_LIBS}
 }
 ")
 
 # TODO Looks like llvm-spirv sets up spirv-tools dependency if it finds
 # it on the system -> look into explicitly disabling this?
+# The ICD loader is not part of our installation; same switch. Note that
+# doc/deployment.md already tells users AdaptiveCpp only handles the loader and
+# that the driver is theirs to install.
+if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
+  set(ACPP_OCL_DEPLOYMENT_EXTERNAL_LIBS "")
+else()
+  set(ACPP_OCL_DEPLOYMENT_EXTERNAL_LIBS ",
+  \"${OpenCL_LIBRARIES}\" : \"/\"")
+endif()
+
 set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
   \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
   \"${ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
   \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
-  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\",
-  \"${OpenCL_LIBRARIES}\" : \"/\"
+  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\"${ACPP_OCL_DEPLOYMENT_EXTERNAL_LIBS}
 }
 ")
 

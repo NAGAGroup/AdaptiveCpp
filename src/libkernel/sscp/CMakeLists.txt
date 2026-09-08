@@ -45,10 +45,18 @@ function(libkernel_generate_bitcode_library)
     set(depfile_args DEPFILE ${target_output_file}.d)
   endif()
 
+  # These bitcode files are installed and shipped, and clang records the input
+  # path it was given as each module's identifier - so without this the absolute
+  # path of the build tree ends up inside every .bc we distribute. This command
+  # builds its own argument list rather than using CMAKE_CXX_FLAGS, so LLVM's
+  # LLVM_USE_RELATIVE_PATHS_IN_FILES does not reach it and the map is applied
+  # here directly.
+  set(file_prefix_map -ffile-prefix-map=${HIPSYCL_SOURCE_DIR}/=)
+
   add_custom_command(
       OUTPUT ${target_output_file}
       COMMAND ${CLANG_EXECUTABLE_PATH} ${target_flag} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
-                    -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific}
+                    -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific} ${file_prefix_map}
                     -MMD -MT ${target_output_file} -MF ${target_output_file}.d
                     -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${target_depends}
