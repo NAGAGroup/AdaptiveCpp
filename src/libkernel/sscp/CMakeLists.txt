@@ -46,19 +46,24 @@ function(libkernel_generate_bitcode_library)
   endif()
 
   # These bitcode files are installed and shipped, and clang records the input
-  # path it was given as each module's identifier - so without this the absolute
-  # path of the build tree ends up inside every .bc we distribute. This command
-  # builds its own argument list rather than using CMAKE_CXX_FLAGS, so LLVM's
-  # LLVM_USE_RELATIVE_PATHS_IN_FILES does not reach it and the map is applied
-  # here directly.
-  set(file_prefix_map -ffile-prefix-map=${HIPSYCL_SOURCE_DIR}/=)
+  # path it was handed as each module's identifier - so an absolute path here
+  # puts the build machine's layout inside every .bc we distribute.
+  #
+  # -ffile-prefix-map does not help: it rewrites __FILE__, debug info and
+  # coverage paths, not the module identifier. The input itself has to be
+  # relative. It is made relative to CMAKE_CURRENT_BINARY_DIR rather than by
+  # setting WORKING_DIRECTORY, because a custom command already runs there and
+  # -MMD then writes depfile paths that Ninja resolves against the same
+  # directory; moving the working directory would silently break that.
+  file(RELATIVE_PATH source_relative
+       ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/${source})
 
   add_custom_command(
       OUTPUT ${target_output_file}
       COMMAND ${CLANG_EXECUTABLE_PATH} ${target_flag} -fno-exceptions -fno-rtti -O3 -emit-llvm -std=c++17 -DHIPSYCL_SSCP_LIBKERNEL_LIBRARY
-                    -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific} ${file_prefix_map}
+                    -I ${HIPSYCL_SOURCE_DIR}/include ${additional} ${platform_specific}
                     -MMD -MT ${target_output_file} -MF ${target_output_file}.d
-                    -o ${target_output_file} -c ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                    -o ${target_output_file} -c ${source_relative}
       DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${target_depends}
       ${depfile_args}
       VERBATIM)
