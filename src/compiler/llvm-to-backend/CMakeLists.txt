@@ -180,6 +180,18 @@ if(WITH_SSCP_COMPILER)
       TOOL spirv/LLVMToSpirvTool.cpp)
 
     # Install LLVM-SPIRV translator for llvm-to-spirv
+    # The translator is configured by a SEPARATE cmake invocation, which
+    # inherits nothing from this one: not the sysroot, not CMAKE_FIND_ROOT_PATH
+    # and its modes, not the toolchain binaries. Left to itself it searches the
+    # machine, and on a host with a distribution LLVM installed it will find
+    # that one rather than the LLVM being built alongside it.
+    #
+    # Only the caller knows what its environment requires, so this is where it
+    # says so. Empty by default: nothing changes for a build that does not set
+    # it. Use | to separate elements of any value that is itself a list.
+    set(ACPP_SPIRV_CMAKE_ARGS "" CACHE STRING
+      "Additional cmake arguments for the SPIR-V translator sub-build, which inherits nothing from this configure. Separate list elements with | rather than ;.")
+
     if(NOT LLVMSPIRV_BRANCH)
       set(LLVMSPIRV_BRANCH llvm_release_${LLVM_VERSION_MAJOR}0)
     endif()
@@ -206,6 +218,10 @@ if(WITH_SSCP_COMPILER)
     set(LLVMSPIRV_RELATIVE_PATH ${LLVMSPIRV_RELATIVE_INSTALLDIR}/bin/${LLVMSPIRV_EXECUTABLE_NAME})
 
     ExternalProject_Add(LLVMSpirvTranslator
+      # ACPP_SPIRV_CMAKE_ARGS may carry values that are themselves lists, so
+      # the separator has to be something other than the semicolon
+      # ExternalProject_Add uses to split its own arguments.
+      LIST_SEPARATOR |
       GIT_REPOSITORY https://github.com/AdaptiveCpp/SPIRV-LLVM-Translator
       GIT_TAG ${LLVMSPIRV_GIT_TAG}
       GIT_SHALLOW ${LLVMSPIRV_GIT_SHALLOW}
@@ -216,6 +232,7 @@ if(WITH_SSCP_COMPILER)
         -DCMAKE_C_COMPILER:PATH=${CMAKE_C_COMPILER}
         -DCMAKE_CXX_COMPILER:PATH=${CMAKE_CXX_COMPILER}
         -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+        ${ACPP_SPIRV_CMAKE_ARGS}
       CMAKE_CACHE_ARGS
         -DLLVM_SPIRV_BUILD_EXTERNAL:BOOL=YES
         -DLLVM_DIR:PATH=${LLVM_DIR}
