@@ -183,6 +183,18 @@ if(WITH_SSCP_COMPILER)
     if(NOT LLVMSPIRV_BRANCH)
       set(LLVMSPIRV_BRANCH llvm_release_${LLVM_VERSION_MAJOR}0)
     endif()
+    # A branch is resolved when the build runs, so two builds of the same
+    # AdaptiveCpp source can end up with different translators, and nothing
+    # records which one was used. LLVMSPIRV_COMMIT pins it instead. A shallow
+    # clone cannot generally fetch an arbitrary commit, so pinning fetches in
+    # full.
+    if(LLVMSPIRV_COMMIT)
+      set(LLVMSPIRV_GIT_TAG ${LLVMSPIRV_COMMIT})
+      set(LLVMSPIRV_GIT_SHALLOW OFF)
+    else()
+      set(LLVMSPIRV_GIT_TAG origin/${LLVMSPIRV_BRANCH})
+      set(LLVMSPIRV_GIT_SHALLOW ON)
+    endif()
     set(LLVMSPIRV_RELATIVE_INSTALLDIR lib/hipSYCL/ext/llvm-spirv)
     set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/${LLVMSPIRV_RELATIVE_INSTALLDIR})
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
@@ -195,8 +207,8 @@ if(WITH_SSCP_COMPILER)
 
     ExternalProject_Add(LLVMSpirvTranslator
       GIT_REPOSITORY https://github.com/AdaptiveCpp/SPIRV-LLVM-Translator
-      GIT_TAG origin/${LLVMSPIRV_BRANCH}
-      GIT_SHALLOW ON
+      GIT_TAG ${LLVMSPIRV_GIT_TAG}
+      GIT_SHALLOW ${LLVMSPIRV_GIT_SHALLOW}
       GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
       BUILD_ALWAYS OFF
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
