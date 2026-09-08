@@ -512,6 +512,9 @@ set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
 set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL
   "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
 
+set(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS false CACHE BOOL
+  "Whether to omit the settings that name paths outside the AdaptiveCpp installation - the clang and host compiler executables, clang's include directory, and the CUDA and ROCm installation directories - from the configuration files. They must then be supplied through their environment variables or command line arguments. Intended for redistributable packages, where a path recorded at build time does not exist on the user's machine.")
+
 if(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION)
   set(ACPP_CONFIG_FILE_INSTALL_DIR /etc/AdaptiveCpp/)
 else()
@@ -675,6 +678,27 @@ endif()
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 
 
+# Settings that name a path outside the AdaptiveCpp installation. A path
+# recorded here is the one the build machine used, so a redistributable package
+# omits them and supplies them from the environment instead. JSON is unordered,
+# so they are grouped rather than left where they were.
+if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
+  set(ACPP_CORE_CONFIG_PATHS "")
+  set(ACPP_CUDA_CONFIG_PATHS "")
+  set(ACPP_ROCM_CONFIG_PATHS "")
+else()
+  set(ACPP_CORE_CONFIG_PATHS "  \"default-clang\"     : \"${CLANG_INSTALLED_PATH}\",
+  \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
+  \"default-rocm-path\" : \"${ROCM_PATH}\",
+  \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
+")
+  set(ACPP_CUDA_CONFIG_PATHS "  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
+  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
+")
+  set(ACPP_ROCM_CONFIG_PATHS "  \"default-rocm-path\" : \"${ROCM_PATH}\",
+")
+endif()
+
 set(ACPP_CORE_CONFIG_FILE "{
   \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
   \"version-minor\" : \"${ACPP_VERSION_MINOR}\",
@@ -684,14 +708,10 @@ set(ACPP_CORE_CONFIG_FILE "{
   \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
   \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
   \"plugin-with-sscp-compiler\" : \"${WITH_SSCP_COMPILER}\",
-  \"default-clang\"     : \"${CLANG_INSTALLED_PATH}\",
-  \"default-targets\"  : \"${DEFAULT_TARGETS}\",
-  \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
-  \"default-rocm-path\" : \"${ROCM_PATH}\",
+${ACPP_CORE_CONFIG_PATHS}  \"default-targets\"  : \"${DEFAULT_TARGETS}\",
   \"default-use-bootstrap-mode\" : \"false\",
   \"default-is-dryrun\" : \"false\",
   \"default-use-accelerated-cpu\" : \"${WITH_ACCELERATED_CPU}\",
-  \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
   \"default-sequential-link-line\" : \"${SEQUENTIAL_LINK_LINE}\",
   \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",
   \"default-omp-link-line\" : \"${OMP_LINK_LINE}\",
@@ -703,17 +723,14 @@ set(ACPP_CORE_CONFIG_FILE "{
 
 
 set(ACPP_CUDA_CONFIG_FILE "{
-  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
-  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
-  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
+${ACPP_CUDA_CONFIG_PATHS}  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
   \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\"
 }
 ")
 
 
 set(ACPP_ROCM_CONFIG_FILE "{
-  \"default-rocm-path\" : \"${ROCM_PATH}\",
-  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
+${ACPP_ROCM_CONFIG_PATHS}  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
   \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\"
 }
 ")
