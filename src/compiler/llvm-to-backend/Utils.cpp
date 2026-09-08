@@ -191,36 +191,26 @@ std::string getLibMvecDir() {
   if (!path.empty())
     return path;
 
-  const auto lib_path = common::filesystem::get_lib_directory();
-
-#ifdef LIBMVEC_AVAILABLE
-  std::string lib_mvec_redistributable_path =
-      common::filesystem::join_path(lib_path, LIB_MVEC_NAME);
-  std::string lib_mvec_path = common::filesystem::join_path(LIB_MVEC_DIR, LIB_MVEC_NAME);
-
-  if (common::filesystem::exists(lib_mvec_redistributable_path)) {
-    path = lib_path;
-  }
-#ifdef __linux__
-  // libmvec is glibc: the copy the dynamic loader resolves is the one that
-  // matches libc at runtime. LIB_MVEC_DIR is find_library()'s answer on the
-  // build machine and need not exist on the target.
-  if (path.empty()) {
-    if (void *handle = dlopen("libmvec.so.1", RTLD_LAZY | RTLD_LOCAL)) {
-      link_map *map = nullptr;
-      if (dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0 && map && map->l_name &&
-          map->l_name[0] != '\0') {
-        std::string p{map->l_name};
-        auto pos = p.find_last_of('/');
-        if (pos != std::string::npos && pos > 0)
-          path = p.substr(0, pos);
-      }
-      dlclose(handle);
+#if defined(LIBMVEC_AVAILABLE) && defined(__linux__)
+  // libmvec is part of glibc, so the only correct copy is the one the dynamic
+  // loader resolves for this process: it must match the libc the process is
+  // running against. That process is the application being JIT-compiled, not
+  // the build, so asking the loader is the only lookup that can be right.
+  //
+  // Deliberately not consulted: a copy redistributed beside our own libraries,
+  // and the path find_library() reported when AdaptiveCpp was built. Either
+  // can name a libmvec built against a different glibc than the one loaded
+  // here, and neither can be checked from this side.
+  if (void *handle = dlopen("libmvec.so.1", RTLD_LAZY | RTLD_LOCAL)) {
+    link_map *map = nullptr;
+    if (dlinfo(handle, RTLD_DI_LINKMAP, &map) == 0 && map && map->l_name &&
+        map->l_name[0] != '\0') {
+      std::string p{map->l_name};
+      auto pos = p.find_last_of('/');
+      if (pos != std::string::npos && pos > 0)
+        path = p.substr(0, pos);
     }
-  }
-#endif
-  if (path.empty() && common::filesystem::exists(lib_mvec_path)) {
-    path = replacePathPlaceholders(LIB_MVEC_DIR);
+    dlclose(handle);
   }
 #endif
 

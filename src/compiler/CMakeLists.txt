@@ -104,14 +104,12 @@ else()
   endif()
 
   if(LIBMVEC AND LIBMVEC_HAS_REQUIRED_SYMBOLS AND CLANG_SUPPORT_LIBMVEC)
-    get_filename_component(LIB_MVEC_DIR "${LIBMVEC}" DIRECTORY)
-    get_filename_component(LIB_MVEC_NAME_WE "${LIBMVEC}" NAME_WE)
-    get_filename_component(LIB_MVEC_NAME "${LIBMVEC}" NAME)
-
+    # find_library's answer is used to DETECT libmvec here and nowhere else.
+    # Its path is deliberately not compiled in: libmvec is part of glibc, so
+    # the only correct copy is the one the dynamic loader resolves in the
+    # process that is JIT-compiling, which is the user's application and not
+    # this build. getLibMvecDir() asks the loader for it at run time.
     add_definitions(-DLIBMVEC_AVAILABLE)
-    add_definitions(-DLIB_MVEC_DIR="${LIB_MVEC_DIR}")
-    add_definitions(-DLIB_MVEC_NAME_WE="${LIB_MVEC_NAME_WE}")
-    add_definitions(-DLIB_MVEC_NAME="${LIB_MVEC_NAME}")
     set(DEFAULT_VEC_MATH_LIB libmvec)
 
     message( STATUS "LIBMVEC found at ${LIBMVEC}")
