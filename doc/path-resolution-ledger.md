@@ -107,7 +107,7 @@ solved when building the toolchain, or merely tidied afterwards.
 | Surface                            | Count                                                                                                  | Acts in                           | Packager-fixable                      |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------- | ------------------------------------- |
 | cmake cache options                | 69 entries, ~40 distinct                                                                               | building the toolchain            | no                                    |
-| compile definitions carrying paths | 8 (5 in `llvm-to-backend`, 3 in `src/compiler` behind the component branch)                            | building → running an application | **no** — string literals in `.rodata` |
+| compile definitions carrying paths | 13 (6 in `llvm-to-backend` via `target_compile_definitions`, 7 in `src/compiler` via `add_definitions`) | building → running an application | **no** — string literals in `.rodata` |
 | driver options                     | 36, each with flag + env var + config key                                                              | driving the toolchain             | n/a                                   |
 | generated config keys              | 7 path-valued, across three JSON files                                                                 | driving the toolchain             | yes, the files are editable           |
 | deployment manifest entries        | 17 path-valued, across four JSON files                                                                 | driving the toolchain             | yes                                   |
@@ -133,8 +133,10 @@ solved when building the toolchain, or merely tidied afterwards.
 | `ACPP_CUDA_DEVICE_LIBS_PATH`                        | `llvm-to-ptx`     | `LLVMToPtx.cpp:60`          | **no**               |
 | `ACPP_ROCM_DEVICE_LIBS_PATH`                        | `llvm-to-amdgpu`  | `LLVMToAmdgpu.cpp:203`      | **no**               |
 | `ACPP_HIPCC_PATH`                                   | `llvm-to-amdgpu`  | `LLVMToAmdgpu.cpp:66`       | **no**               |
-| `HIPSYCL_CUDA_PATH`                                 | `llvm-to-ptx`     | **none**                    | dead                 |
-| `ACPP_ROCM_PATH`                                    | `llvm-to-amdgpu`  | **none**                    | dead                 |
+| `HIPSYCL_RELATIVE_LLVMSPIRV_PATH`                   | `llvm-to-spirv`   | `LLVMToSpirv.cpp`           | relative by construction |
+| `HIPSYCL_CLSPV_PATH`                                | `llvm-to-clspv`   | Vulkan only, guarded off    | n/a                  |
+| `HIPSYCL_CUDA_PATH`                                 | `llvm-to-ptx`     | **none**                    | deleted `b797df89`   |
+| `ACPP_ROCM_PATH`                                    | `llvm-to-amdgpu`  | **none**                    | deleted `b797df89`   |
 
 ---
 
