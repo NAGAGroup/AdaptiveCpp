@@ -264,8 +264,10 @@ if(WITH_SSCP_COMPILER)
       LIBRARY ptx/LLVMToPtx.cpp
       TOOL ptx/LLVMToPtxTool.cpp)
 
+    # HIPSYCL_CUDA_PATH is not defined here: no translation unit reads it, and
+    # compiling it in put the build machine's CUDA installation path into
+    # libllvm-to-ptx.so as a string literal for nothing.
     target_compile_definitions(llvm-to-ptx PRIVATE
-      -DHIPSYCL_CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
       -DACPP_CUDA_DEVICE_LIBS_PATH="${CUDA_DEVICE_LIBS_PATH}")
   endif()
 
@@ -275,8 +277,10 @@ if(WITH_SSCP_COMPILER)
       LIBRARY amdgpu/LLVMToAmdgpu.cpp
       TOOL amdgpu/LLVMToAmdgpuTool.cpp)
 
+    # ACPP_ROCM_PATH is not defined here, for the same reason as
+    # HIPSYCL_CUDA_PATH above. The name survives elsewhere as a link-line
+    # placeholder and as a driver setting; only the compile definition was dead.
     target_compile_definitions(llvm-to-amdgpu PRIVATE
-      -DACPP_ROCM_PATH="${ROCM_PATH}"
       -DACPP_ROCM_DEVICE_LIBS_PATH="${ROCM_DEVICE_LIBS_PATH}")
 
     find_program(HIPCC_PATH hipcc HINTS ${ROCM_PATH}/bin)
