@@ -204,20 +204,13 @@ function(acpp_emit_manifest src dst)
   endif()
   acpp_fill_manifest_stub(content "libLLVM" "${acpp_manifest_libllvm}")
 
-  # Rows whose source the build did not produce are inapplicable, not missing
-  # (section 8): on Windows the llvm-to-* libraries are linked statically into
-  # the backends and hsa-runtime64 is not linked, so those rows go. Shipping
-  # them would make every deploy there warn about libraries that are correctly
-  # absent. The loader shim rows survive: their names are acpp-loader-*, and
-  # the pattern matches the fronted soname, not the shim.
-  if(WIN32)
-    string(REGEX REPLACE "\n$" "" content "${content}")
-    string(REPLACE "\n" ";" acpp_manifest_lines "${content}")
-    list(FILTER acpp_manifest_lines EXCLUDE REGEX "SHARED_LIB:llvm-to-")
-    list(FILTER acpp_manifest_lines EXCLUDE REGEX "SHARED_LIB:hsa-runtime64")
-    string(REPLACE ";" "\n" content "${acpp_manifest_lines}")
-    set(content "${content}\n")
-  endif()
+  # Rows are never dropped here. The manifest is a source file, and the
+  # installed copy stays a faithful copy of it on every platform: a row whose
+  # source the build did not produce - a library that was statically linked,
+  # like the llvm-to-* backends and hsa-runtime64 on Windows - is accurate
+  # rather than missing, and the deploy step skips it and says so. Dropping
+  # rows here would turn "why was this not deployed" into a diff between two
+  # files instead of a line in the deploy log.
 
   if(content MATCHES "\"stub\"")
     message(FATAL_ERROR "manifest stub left unfilled in ${src}")
