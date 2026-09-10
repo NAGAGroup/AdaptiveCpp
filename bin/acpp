@@ -657,15 +657,10 @@ class acpp_config:
       os.path.join(self.acpp_installation_path,
                   "etc/AdaptiveCpp"))
 
-    # TODO try using some more portable path here
-    global_config_dir = '/etc/AdaptiveCpp'
-
     if self._is_option_set_to_non_default_value("config-file-dir"):
       config_file_directories.append(self._retrieve_option("config-file-dir"))
     elif os.path.exists(install_config_dir):
       config_file_directories.append(install_config_dir)
-    elif os.path.exists(global_config_dir):
-      config_file_directories.append(global_config_dir)
     self._config_db = config_db(config_file_directories)
     self._common_compiler_args = self._get_std_compiler_args()
     self._deployment_db = deployment_db(config_file_directories, self)

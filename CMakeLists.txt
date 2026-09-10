@@ -553,27 +553,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(ACPP_CONFIG_FILE_PATH "${PROJECT_BINARY_DIR}")
-set(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION false CACHE BOOL
-  "Whether to install the AdaptiveCpp configuration files into a global directory (typically, /etc/AdaptiveCpp). This is generally not recommended.")
+# The install prefix is deliberately not recorded in the binaries. The only
+# mechanism for finding the installation is asking the dynamic loader where
+# our own libraries are (get_lib_directory()); a compiled-in fallback would
+# name the machine that built the toolchain, and both readers treat the value
+# as a fallback behind that lookup.
+set(ACPP_RECORDED_INSTALL_PREFIX "")
 
-set(ACPP_OMIT_RECORDED_INSTALL_PREFIX false CACHE BOOL
-  "Whether to leave HIPSYCL_INSTALL_PREFIX empty rather than compiling CMAKE_INSTALL_PREFIX into the binaries. The prefix is only a fallback - get_lib_directory() asks the dynamic loader where this library actually is, and both readers guard the fallback with a directory check - so a redistributable build can omit it and avoid recording the build machine's layout in a shipped artifact.")
-
-if(ACPP_OMIT_RECORDED_INSTALL_PREFIX)
-  set(ACPP_RECORDED_INSTALL_PREFIX "")
-else()
-  set(ACPP_RECORDED_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
-endif()
-
-set(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS false CACHE BOOL
-  "Whether to omit the settings that name paths outside the AdaptiveCpp installation - the clang and host compiler executables, clang's include directory, and the CUDA and ROCm installation directories - from the configuration files. They must then be supplied through their environment variables or command line arguments. Intended for redistributable packages, where a path recorded at build time does not exist on the user's machine.")
-
-if(ACPP_CONFIG_FILE_GLOBAL_INSTALLATION)
-  set(ACPP_CONFIG_FILE_INSTALL_DIR /etc/AdaptiveCpp/)
-else()
-  set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
-endif()
+set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
 
 if(APPLE)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
