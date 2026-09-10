@@ -1,0 +1,32 @@
+{
+  "default-rocm-path": {
+    "value": "stub",
+    "envvar": "ACPP_ROCM_PATH",
+    "is-deployed-to-app": false
+  },
+  "default-rocm-lib-path": {
+    "value": "stub",
+    "envvar": "ACPP_ROCM_LIB_PATH",
+    "is-deployed-to-app": true
+  },
+  "default-rocm-link-line": {
+    "value": "stub",
+    "envvar": "ACPP_ROCM_LINK_LINE",
+    "is-deployed-to-app": false
+  },
+  "default-rocm-cxx-flags": {
+    "value": "stub",
+    "envvar": "ACPP_ROCM_CXX_FLAGS",
+    "is-deployed-to-app": false
+  },
+  "ACPP_ROCM_DEVICE_LIBS_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_ROCM_DEVICE_LIBS_PATH",
+    "is-deployed-to-app": true
+  },
+  "ACPP_HIPCC_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_HIPCC_PATH",
+    "is-deployed-to-app": true
+  }
+}

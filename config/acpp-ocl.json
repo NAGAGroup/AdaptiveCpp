@@ -1,0 +1,7 @@
+{
+  "ACPP_OCL_LIB_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_OCL_LIB_PATH",
+    "is-deployed-to-app": true
+  }
+}

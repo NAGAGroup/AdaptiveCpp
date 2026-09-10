@@ -1,0 +1,32 @@
+{
+  "default-nvcxx": {
+    "value": "stub",
+    "envvar": "ACPP_NVCXX",
+    "is-deployed-to-app": false
+  },
+  "default-cuda-path": {
+    "value": "stub",
+    "envvar": "ACPP_CUDA_PATH",
+    "is-deployed-to-app": false
+  },
+  "default-cuda-lib-path": {
+    "value": "stub",
+    "envvar": "ACPP_CUDA_LIB_PATH",
+    "is-deployed-to-app": true
+  },
+  "default-cuda-link-line": {
+    "value": "stub",
+    "envvar": "ACPP_CUDA_LINK_LINE",
+    "is-deployed-to-app": false
+  },
+  "default-cuda-cxx-flags": {
+    "value": "stub",
+    "envvar": "ACPP_CUDA_CXX_FLAGS",
+    "is-deployed-to-app": false
+  },
+  "ACPP_CUDA_DEVICE_LIBS_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_CUDA_DEVICE_LIBS_PATH",
+    "is-deployed-to-app": true
+  }
+}

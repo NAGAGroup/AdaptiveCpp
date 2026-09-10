@@ -1,0 +1,192 @@
+{
+  "version-major": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "version-minor": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "version-patch": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "version-suffix": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "plugin-linked-into-llvm": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "plugin-llvm-version-major": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "plugin-with-cpu-acceleration": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "plugin-with-sscp-compiler": {
+    "value": "stub",
+    "envvar": null,
+    "is-deployed-to-app": false
+  },
+  "default-clang": {
+    "value": "stub",
+    "envvar": "ACPP_CLANG",
+    "is-deployed-to-app": false
+  },
+  "default-cpu-cxx": {
+    "value": "stub",
+    "envvar": "ACPP_CPU_CXX",
+    "is-deployed-to-app": false
+  },
+  "default-clang-include-path": {
+    "value": "stub",
+    "envvar": "ACPP_CLANG_INCLUDE_PATH",
+    "is-deployed-to-app": false
+  },
+  "default-targets": {
+    "value": "stub",
+    "envvar": "ACPP_TARGETS",
+    "is-deployed-to-app": false
+  },
+  "default-is-dryrun": {
+    "value": "stub",
+    "envvar": "ACPP_DRYRUN",
+    "is-deployed-to-app": false
+  },
+  "default-use-accelerated-cpu": {
+    "value": "stub",
+    "envvar": "ACPP_USE_ACCELERATED_CPU",
+    "is-deployed-to-app": false
+  },
+  "default-sequential-link-line": {
+    "value": "stub",
+    "envvar": "ACPP_SEQUENTIAL_LINK_LINE",
+    "is-deployed-to-app": false
+  },
+  "default-sequential-cxx-flags": {
+    "value": "stub",
+    "envvar": "ACPP_SEQUENTIAL_CXX_FLAGS",
+    "is-deployed-to-app": false
+  },
+  "default-omp-link-line": {
+    "value": "stub",
+    "envvar": "ACPP_OMP_LINK_LINE",
+    "is-deployed-to-app": false
+  },
+  "default-omp-cxx-flags": {
+    "value": "stub",
+    "envvar": "ACPP_OMP_CXX_FLAGS",
+    "is-deployed-to-app": false
+  },
+  "default-is-explicit-multipass": {
+    "value": "stub",
+    "envvar": "ACPP_EXPLICIT_MULTIPASS",
+    "is-deployed-to-app": false
+  },
+  "default-save-temps": {
+    "value": "stub",
+    "envvar": "ACPP_SAVE_TEMPS",
+    "is-deployed-to-app": false
+  },
+  "ACPP_DEPLOYMENT_STRATEGY": {
+    "value": "stub",
+    "envvar": "ACPP_DEPLOYMENT_STRATEGY",
+    "is-deployed-to-app": false
+  },
+  "ACPP_LIBDIR": {
+    "value": "stub",
+    "envvar": "ACPP_LIBDIR",
+    "is-deployed-to-app": false
+  },
+  "ACPP_CLANG_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_CLANG_PATH",
+    "is-deployed-to-app": true
+  },
+  "ACPP_LLC_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_LLC_PATH",
+    "is-deployed-to-app": true
+  },
+  "ACPP_LLD_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_LLD_PATH",
+    "is-deployed-to-app": true
+  },
+  "ACPP_OPT_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_OPT_PATH",
+    "is-deployed-to-app": true
+  },
+  "ACPP_LLC_NAME": {
+    "value": "stub",
+    "envvar": "ACPP_LLC_NAME",
+    "is-deployed-to-app": true
+  },
+  "ACPP_LLD_NAME": {
+    "value": "stub",
+    "envvar": "ACPP_LLD_NAME",
+    "is-deployed-to-app": true
+  },
+  "ACPP_OPT_NAME": {
+    "value": "stub",
+    "envvar": "ACPP_OPT_NAME",
+    "is-deployed-to-app": true
+  },
+  "ACPP_LLVMSPIRV_NAME": {
+    "value": "stub",
+    "envvar": "ACPP_LLVMSPIRV_NAME",
+    "is-deployed-to-app": true
+  },
+  "ACPP_VECTOR_MATH_LIB": {
+    "value": "stub",
+    "envvar": "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY",
+    "is-deployed-to-app": true
+  },
+  "ACPP_SLEEF_DIR": {
+    "value": "stub",
+    "envvar": "ACPP_SLEEF_DIR",
+    "is-deployed-to-app": true
+  },
+  "ACPP_AMATH_DIR": {
+    "value": "stub",
+    "envvar": "ACPP_AMATH_DIR",
+    "is-deployed-to-app": true
+  },
+  "ACPP_SVML_DIR": {
+    "value": "stub",
+    "envvar": "ACPP_SVML_DIR",
+    "is-deployed-to-app": true
+  },
+  "ACPP_LLC_ADDITIONAL_FLAGS": {
+    "value": "stub",
+    "envvar": "ACPP_LLC_ADDITIONAL_FLAGS",
+    "is-deployed-to-app": true
+  },
+  "ACPP_OPT_ADDITIONAL_FLAGS": {
+    "value": "stub",
+    "envvar": "ACPP_OPT_ADDITIONAL_FLAGS",
+    "is-deployed-to-app": true
+  },
+  "ACPP_LLC_HOST_CPU_FLAG": {
+    "value": "stub",
+    "envvar": "ACPP_LLC_HOST_CPU_FLAG",
+    "is-deployed-to-app": true
+  },
+  "ACPP_OPT_HOST_CPU_FLAG": {
+    "value": "stub",
+    "envvar": "ACPP_OPT_HOST_CPU_FLAG",
+    "is-deployed-to-app": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "ACPP_ZE_LIB_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_ZE_LIB_PATH",
+    "is-deployed-to-app": true
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "ACPP_CLSPV_PATH": {
+    "value": "stub",
+    "envvar": "ACPP_CLSPV_PATH",
+    "is-deployed-to-app": true
+  }
+}
