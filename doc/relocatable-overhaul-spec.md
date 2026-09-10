@@ -541,7 +541,7 @@ deployment knowledge (what gets copied, where it goes).
 Like the configuration files, **the manifests are source files in the
 tree**, one per backend, and the install step copies the enabled set and
 fills their stubs. Rows name resources by placeholder — `$ACPP_PATH/...` for
-ours, `$ACPP_CUDA_LIBRARY_DIR/...` for a resource an entry already locates —
+ours, `$ACPP_CUDA_LIB_PATH/...` for a resource an entry already locates —
 so a manifest carries no absolute path from the build machine.
 
 Files are grouped under the base they are relative to, so a base is stated
@@ -732,7 +732,6 @@ Independent of strategy, and in the source rather than in cmake:
   | `SLEEF_AVAILABLE`, `AMATH_AVAILABLE`, `SVML_AVAILABLE` | that a library was present on the build machine |
   | `LIB_SLEEF_DIR`/`_NAME`/`_NAME_WE` and the AMATH, SVML and INTLC triples | where it was and what it was called |
   | `DEFAULT_VEC_MATH_LIB` (compiled into both `src/compiler` and `rt-backend-omp`) | which one was chosen |
-  | `ROCM_CLANG_VERSION_MAJOR`/`MINOR`/`PATCH` | the build machine's ROCm version, inside the compiler component |
   | `ACPP_LLC_ADDITIONAL_FLAGS`, `ACPP_OPT_ADDITIONAL_FLAGS`, and the host CPU flags when `ACPP_HOST_FORCE_MCPU_TARGET` is set | JIT flags a deployed application cannot change |
 
   Three call sites — `LLVMToPtx.cpp` and `LLVMToAmdgpu.cpp` twice — use
@@ -795,8 +794,12 @@ Independent of strategy, and in the source rather than in cmake:
   `HIPSYCL_TOOL_COMPONENT`, `HIPSYCL_RT_HIP_TARGET_ROCM`,
   `HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY`, `ACPP_HIPRTC_LINK`,
   `CL_HPP_TARGET_OPENCL_VERSION`, `VK_ENABLE_BETA_EXTENSIONS`,
-  `HIPSYCL_DEBUG_LEVEL`, the Windows portability trio, and LLVM's own
-  `LLVM_DEFINITIONS`.
+  `HIPSYCL_DEBUG_LEVEL`, the Windows portability trio, LLVM's own
+  `LLVM_DEFINITIONS`, and `ROCM_CLANG_VERSION_MAJOR`/`MINOR`/`PATCH` —
+  which records not the ROCm an application will meet but whether the clang
+  we are *compiled against* is AMD's patched one, and whose every consumer
+  is an `#if` selecting a workaround for a specific AMD clang version
+  (`Frontend.hpp`, `PipelineBuilder.cpp`, `SMCPCompatPass.cpp`).
 - The two-pass resolver, in the driver and in `common::settings`.
 - **The configuration identity a binary carries (P6)**, which is the largest
   single change and touches four surfaces: an `acpp` driver flag taking the
