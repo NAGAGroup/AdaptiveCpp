@@ -141,14 +141,20 @@ if(NOT DEFINED ACPP_LIBDIR)
 endif()
 
 # The clang the driver invokes, and the host C++ compiler for CPU targets.
-# Both are the clang this toolchain builds and installs; the C++ driver is
-# what compiles SYCL. A builder may point the host compiler elsewhere (for
-# example gcc for host code) without touching the device compiler.
+# The device compiler is the clang this toolchain builds and installs. The
+# host compiler follows the ordinary rule of section 5: under `default` the
+# build records the C++ compiler it was built with, so an existing standalone
+# install keeps its behaviour; a builder wanting gcc for host code sets it
+# once at configure time and every strategy records that instead.
 if(NOT DEFINED ACPP_CLANG)
   set(ACPP_CLANG "$ACPP_PATH/bin/clang++")
 endif()
 if(NOT DEFINED ACPP_CPU_CXX)
-  set(ACPP_CPU_CXX "$ACPP_PATH/bin/clang++")
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND CMAKE_CXX_COMPILER)
+    set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
+  else()
+    set(ACPP_CPU_CXX "$ACPP_PATH/bin/clang++")
+  endif()
 endif()
 
 # The clang the JIT invokes when compiling device code while an application
