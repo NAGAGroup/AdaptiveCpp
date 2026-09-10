@@ -144,13 +144,40 @@ choose different names and do not collide. A library that abstracts acpp
 carries its own, and the applications that link it deploy nothing and need
 to know nothing.
 
-**P7. A missing resource is diagnosable, never mysterious.** Where a
-resource is required for an operation, failing to resolve it is an error
-that names the configuration key. Where its absence is a valid state — no
-vector math library was selected, a backend's runtime is not installed on
-this machine — the resolver reports it as unset and the caller decides.
-AdaptiveCpp already ignores a backend it cannot load and continues; that
-behaviour is correct and is preserved.
+**Every object that reaches our runtime has an identity to be asked for.**
+An object that includes a SYCL header is a SYCL object, so it is compiled
+and linked by acpp, so it carries what acpp put there. The case that looks
+like a gap — an application calling a library that wraps acpp — is not one:
+that application includes no SYCL header, nothing of ours is inlined into
+it, and the object at the boundary is the wrapping library, which has an
+identity of its own. The question "what if the caller has none" does not
+arise from either direction.
+
+Because two such objects can share a process, the configuration a binary
+gets is a property of that binary rather than of the process, and the
+runtime holds them per object rather than in one global.
+
+**P7. An unset entry falls back to the platform's own lookup.** A
+configuration entry says *where* a resource is when we know something the
+platform does not. When it says nothing, the answer is not failure — it is
+to resolve the resource the way anything else on the system is resolved:
+
+| the resource is | unset means |
+|---|---|
+| a shared library behind a loader (§8) | `dlopen` it by soname and let the dynamic loader search |
+| an executable we invoke (`llc`, `opt`, `lld`) | invoke it by name and let `$PATH` resolve it |
+| a directory handed to a link invocation | omit the `-L` and let the linker's own search apply |
+
+This is what makes a toolchain work with no configuration at all, which is
+the ordinary case for a system install and for a conda environment where
+everything is already on `$PATH` and in the loader's path.
+
+Failure is still diagnosable when it comes: a resource that is genuinely
+required and resolves nowhere is an error naming the configuration key, and
+a resource whose absence is a valid state — no vector math library selected,
+a backend's runtime not installed — is reported unset and the caller
+decides. AdaptiveCpp already ignores a backend it cannot load and continues;
+that behaviour is correct and is preserved.
 
 **P8. One stem serves every surface.** A resource has one name, from which
 its driver flag, environment variable and configuration key follow
@@ -308,7 +335,22 @@ There are exactly two **core placeholders**:
 - **`$ACPP_PATH`** — the install root. It means the toolchain's install
   directory when driving, and the deployment's root when running. Both are
   discovered at read time, never recorded: the driver from its own location,
-  and a deployed application from where its configuration was found (P6).
+  and a deployed application by walking up from where its configuration was
+  found — which is only an answerable question because of the rule below.
+
+**A configuration containing placeholders lives at the convention location,
+and nowhere else.** An application configuration found at
+`<root>/etc/AdaptiveCpp/<name>` yields its root by arithmetic, because the
+convention fixes how deep it sits. A configuration found anywhere else —
+beside a binary, or through a relative path a maintainer chose — supports no
+such inversion, so it must not contain placeholders at all: it is written
+under the `default` strategy, fully expanded to absolute paths, and
+`$ACPP_PATH` never arises when reading it.
+
+That is what makes both of the odd cases safe. A build tree gets a
+`default`-strategy configuration beside the binary. A command-line user
+generating one in place gets the same. Neither has a root, and neither needs
+one.
 - **`$ACPP_TARGET`** — the target subdirectory name for vendor resources,
   spelled the way CUDA and conda-forge spell it: `x86_64-linux`. It is
   **not** an LLVM triple and not a conda subdir, and the spec borrows the
@@ -434,6 +476,12 @@ uses placeholders throughout.
 - **Deployment is `acpp --acpp-deploy`**, the mechanism and the argument
   syntax that exist today. The driver reads the toolchain configuration; no
   second program is introduced.
+- **`acpp --generate-app-cfg -o <path>` writes an application configuration
+  and nothing else**, for the command-line user who compiled in place and
+  wants one without a deployment. It is `--acpp-deploy` under `default` with
+  the copying removed, which for `default` was almost the whole of it. What
+  it writes is fully expanded to absolute paths, as every configuration
+  outside the convention location is (§6).
 - **`add_sycl_to_target` is the toolchain's own abstraction over it.** It
   adds two custom targets if they do not already exist: an install target
   that runs the deploy into the install directory under the configured
@@ -452,8 +500,12 @@ the binary to its configuration, is derived at configure time, because cmake
 knows both ends.
 
 The configuration's end is ours to choose, so we know it:
-`${CMAKE_INSTALL_SYSCONFDIR}/acpp/`, matching the convention the toolchain
-configuration already uses. The binary's end comes from the target's type —
+`${CMAKE_INSTALL_SYSCONFDIR}/AdaptiveCpp/`, the directory name the toolchain
+configuration already uses. `CMAKE_INSTALL_SYSCONFDIR` is permitted to be
+absolute — a project setting it to `/etc` puts the file outside its own
+prefix, and no relative path from the binary can reach it — so an absolute
+value is an error rather than something to compute against. The binary's end
+comes from the target's type —
 `EXECUTABLE` to `${CMAKE_INSTALL_BINDIR}`, `SHARED_LIBRARY` to
 `${CMAKE_INSTALL_LIBDIR}` — and the embedded value is the relative path
 between them, computed with the consuming project's own `GNUInstallDirs`
@@ -543,14 +595,17 @@ deployment.
 ### Vendor device bitcode
 
 **AdaptiveCpp does not own a vendor's device bitcode unless `full` put it
-there.** The entry that locates it — CUDA's `libdevice.10.bc`, ROCm's
-device library directory — defaults to `$ACPP_PATH/lib/hipSYCL/ext/bitcode/`,
-which is where `full` copies it and where nothing else does. Under `default`
-it expands to the absolute path the build found. Under `bundled` the default
-is a claim about our own tree that only `full` makes true, so a packager
-whose environment supplies the bitcode **overrides the entry** — for conda,
-`$ACPP_PATH/nvvm/libdevice` for CUDA and
-`$ACPP_PATH/targets/$ACPP_TARGET/amdgcn/libdevice` for ROCm.
+there.** The entries that locate it — `ACPP_CUDA_DEVICE_LIBS_PATH` for
+CUDA's `libdevice.10.bc`, `ACPP_ROCM_DEVICE_LIBS_PATH` for ROCm's device
+library directory — default to `$ACPP_PATH/lib/hipSYCL/ext/bitcode/ptx` and
+`.../ext/bitcode/amdgcn`, which is where `full` copies them, where the
+deploy manifests put them, and where nothing else does. Under `default` the
+entry expands to the absolute path the build found. Under `bundled` the
+default is a claim about our own tree that only `full` makes true, so a
+packager whose environment supplies the bitcode **overrides the entry** —
+for conda, `$ACPP_PATH/nvvm/libdevice` for CUDA and
+`$ACPP_PATH/amdgcn/bitcode` for ROCm, which is where conda-forge's
+`rocm-device-libs` puts it.
 
 That is one entry doing the work, and it replaces the symlink the packaging
 lane currently plants to make a relative lookup land on conda's layout.
@@ -683,6 +738,18 @@ Independent of strategy, and in the source rather than in cmake:
   Three call sites — `LLVMToPtx.cpp` and `LLVMToAmdgpu.cpp` twice — use
   their macro raw, without placeholder expansion, and cannot carry a
   relocatable value at all until they are converted.
+
+  **The redist-first branch in each getter is replaced, not kept.** Today
+  `getLLCPath`, `getLLDPath`, `getOptPath`, the three vector-math getters
+  and both device-bitcode getters check a loader-relative
+  `<our libdir>/hipSYCL/ext` location *before* consulting their macro
+  (`Utils.cpp:30-39`). That branch exists because the macro was the only
+  other answer and it was frequently wrong. With a configuration entry in
+  its place the order becomes: **the entry, then the platform's own lookup
+  (P7)** — and the loader-relative probe goes away with the macro it was
+  compensating for. Deployed trees keep working because the deploy step
+  writes the entry; undeployed ones keep working because the platform
+  resolves them.
 
   `ACPP_LLC_HOST_CPU_FLAG` and `ACPP_OPT_HOST_CPU_FLAG` are **not** a
   defect in their default form: they hold `-mcpu=native`, which llc
