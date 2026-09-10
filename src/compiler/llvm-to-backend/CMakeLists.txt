@@ -306,27 +306,13 @@ if(WITH_SSCP_COMPILER)
 
 
   if(WITH_LLVM_TO_HOST)
-    include(CheckCXXCompilerFlag)
-
-    # TODO We assume that if clang -mcpu/march=native works, llc -mcpu=native works too.
-    # We should actually check llc/opt here!
-    if(NOT ACPP_HOST_FORCE_MCPU_TARGET)
-      check_cxx_compiler_flag(-mcpu=native HAS_MCPU_NATIVE)
-      check_cxx_compiler_flag(-march=native HAS_MARCH_NATIVE)
-
-      if(HAS_MCPU_NATIVE OR HAS_MARCH_NATIVE)
-        set(HOST_LLC_CPU_FLAG -mcpu=native)
-        set(HOST_OPT_CPU_FLAG --mcpu=native)
-      else()
-        set(HOST_LLC_CPU_FLAG "")
-        set(HOST_OPT_CPU_FLAG "")
-        message(SEND_ERROR "Could not determine that llc -mcpu=native works. Please provide the CPU that AdaptiveCpp should target at JIT-time using -DACPP_HOST_FORCE_MCPU_TARGET")
-      endif()
-    else()
-      set(HOST_LLC_CPU_FLAG "-mcpu=${ACPP_HOST_FORCE_MCPU_TARGET}")
-      set(HOST_OPT_CPU_FLAG "--mcpu=${ACPP_HOST_FORCE_MCPU_TARGET}")
-    endif()
-    message(STATUS "llvm-to-host: Using llc compilation flag to target native CPU: ${HOST_LLC_CPU_FLAG}")
+    # The CPU flags and additional JIT flags are configuration entries
+    # (ACPP_LLC_HOST_CPU_FLAG and friends in cmake/options.cmake). The default
+    # -mcpu=native is resolved by llc on the machine doing the JIT, so nothing
+    # about the build machine is recorded; pinning a CPU is
+    # -DACPP_LLC_HOST_CPU_FLAG="-mcpu=<cpu>" at configure time, or the entry
+    # at run time.
+    message(STATUS "llvm-to-host: Using llc compilation flag to target native CPU: ${ACPP_LLC_HOST_CPU_FLAG}")
 
     add_hipsycl_llvm_backend(
       BACKEND host
@@ -334,10 +320,10 @@ if(WITH_SSCP_COMPILER)
       TOOL host/LLVMToHostTool.cpp)
 
     target_compile_definitions(llvm-to-host PRIVATE
-      -DACPP_LLC_HOST_CPU_FLAG="${HOST_LLC_CPU_FLAG}"
-      -DACPP_OPT_HOST_CPU_FLAG="${HOST_OPT_CPU_FLAG}"
-      -DACPP_LLC_ADDITIONAL_FLAGS="${HOST_ADDITIONAL_LLC_FLAGS}"
-      -DACPP_OPT_ADDITIONAL_FLAGS="${HOST_ADDITIONAL_OPT_FLAGS}")
+      -DACPP_LLC_HOST_CPU_FLAG="${ACPP_LLC_HOST_CPU_FLAG}"
+      -DACPP_OPT_HOST_CPU_FLAG="${ACPP_OPT_HOST_CPU_FLAG}"
+      -DACPP_LLC_ADDITIONAL_FLAGS="${ACPP_LLC_ADDITIONAL_FLAGS}"
+      -DACPP_OPT_ADDITIONAL_FLAGS="${ACPP_OPT_ADDITIONAL_FLAGS}")
     target_link_libraries(llvm-to-host PRIVATE acpp-clang-cbs)
   endif()
 
