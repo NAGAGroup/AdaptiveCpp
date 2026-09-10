@@ -1,244 +1,431 @@
 # AdaptiveCpp configuration options.
 #
-# Every path AdaptiveCpp resolves is declared here, once. This file is both the
-# implementation and the documentation: if an option is not in this file it does
-# not exist, and a reader should never have to search the cmake tree to find out
-# what is configurable or what a setting does.
+# The one place the cmake options a builder may override are gathered, so they
+# are inspectable together. This is not a registry of configuration keys: the
+# JSON files under config/ are that. Each option here feeds one configuration
+# entry, and the install step fills that entry's stub with the option's value.
 #
-# See doc/relocatable-overhaul-spec.md for the normative rules. In short:
+# Naming: an option carries the ACPP_ stem of the entry it feeds - the key for
+# entries this overhaul adds, the environment variable for the legacy
+# default-* entries, whose keys predate the ACPP_ convention. The one entry
+# whose stem and environment variable differ is ACPP_VECTOR_MATH_LIB, whose
+# environment variable is ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY, the name the
+# runtime parses.
 #
-#   * No path is compiled into a binary. These options decide what gets written
-#     into the toolchain configuration file, which is text and can be corrected
-#     without a rebuild.
-#   * An option exists only for something that can live OUTSIDE our install
-#     tree. Anything we ship - our bitcode, the SPIR-V translator, the Level
-#     Zero and OpenCL loaders - is found relative to our own libraries, and a
-#     knob for it could only ever configure a wrong answer.
-#   * One name serves every surface. The cmake option, the environment variable
-#     and the configuration key are the same string, because the configuration
-#     file format is `<environment-variable>=<value>`.
+# No option here is a cache entry. An unguarded plain set() shadows a -D cache
+# entry, so the builder's value would stop being read; every option is wrapped
+# in if(NOT DEFINED ...), and DEFINED is true for a cache entry as well as a
+# normal variable, so a -D wins everywhere. A second consequence of plain
+# variables: values are recomputed on every configure, so flipping the
+# deployment strategy cannot leave a stale absolute path behind.
 #
-# The three states a setting can be read in are named exactly as the
-# specification names them, and never abbreviated:
+# The value rule (doc/relocatable-overhaul-spec.md, section 5):
+#   * a builder's -D wins verbatim and may itself contain placeholders;
+#   * otherwise, under the `default` strategy, the discovered path when the
+#     corresponding find_* found one;
+#   * otherwise the declared default, in placeholder form.
+# Discovery is one-directional: an option's value never feeds back into the
+# find_* call. For resources the toolchain build itself installs - the LLVM
+# tools, the clang drivers, the SPIR-V translator - the declared default is the
+# install location and no discovery is involved.
 #
-#   building   when building the toolchain    (cmake; this file)
-#   driving    when driving the toolchain     (the acpp driver sets flags)
-#   running    when running an application    (loaders and the JIT)
-#
-# STATES is not decoration. The application configuration file is derived from
-# the toolchain one by taking every option marked `running`, so a missing or
-# wrong value here becomes a missing or wrong value on a user's machine.
+# Include this file after: GNUInstallDirs, the LLVM version variables, backend
+# detection (WITH_*_BACKEND), the CUDA toolkit and OpenCL discovery, the ROCm
+# discovery including the ROCm runtime libraries, the Level Zero loader
+# discovery, and the vector math library discovery. The value rule reads those
+# results; the vendor-asset gate lists them.
 
-include_guard(GLOBAL)
+# ---------------------------------------------------------------------------
+# The deployment strategy (section 7)
+# ---------------------------------------------------------------------------
 
-set(ACPP_DECLARED_OPTIONS "" CACHE INTERNAL "Every option declared by options.cmake")
+if(NOT DEFINED ACPP_DEPLOYMENT_STRATEGY)
+  set(ACPP_DEPLOYMENT_STRATEGY "default")
+endif()
+if(NOT ACPP_DEPLOYMENT_STRATEGY MATCHES "^(default|bundled|full)$")
+  message(FATAL_ERROR
+    "ACPP_DEPLOYMENT_STRATEGY must be one of default, bundled or full, "
+    "not '${ACPP_DEPLOYMENT_STRATEGY}'.")
+endif()
 
-# acpp_option(NAME <var> TYPE <PATH|FILEPATH|STRING> STATES <states...>
-#             [BACKEND <name>] [DEFAULT_FROM <var>] [RELATIVE <path>] DOC <text>)
+# ---------------------------------------------------------------------------
+# Vendor asset redistribution (section 9)
+# ---------------------------------------------------------------------------
 #
-#   NAME         the option, the environment variable, and the config key
-#   TYPE         cmake cache type
-#   STATES       any of: building driving running
-#   BACKEND      only declared when that backend is enabled; omit for core
-#   DEFAULT_FROM the variable holding the discovered value, normally a find_*
-#                result. Kept outside this file so discovery logic stays where
-#                it belongs and this file stays declarative.
-#   RELATIVE     location under the install root, used when the build is
-#                configured to be relocatable. Omit for resources that are not
-#                ours to place.
-#   DOC          one line, shown in the cache and in the generated table
-function(acpp_option)
-  set(one_value NAME TYPE BACKEND DEFAULT_FROM RELATIVE DOC)
-  set(multi_value STATES)
-  cmake_parse_arguments(OPT "" "${one_value}" "${multi_value}" ${ARGN})
+# Configuring `full` means the toolchain's own install tree will contain
+# vendor assets, which is a redistribution decision: NVIDIA's CUDA runtime is
+# governed by the CUDA Toolkit EULA and Intel's Level Zero loader and OpenCL
+# ICD loader by their respective oneAPI redistribution terms. Read those terms
+# before setting the gate below; this comment is the one place a toolchain
+# builder is guaranteed to pass on the way in.
+#
+# The failure message lists the exact files that would be shipped, resolved
+# from the discovery that has already run, so the choice is informed rather
+# than a shrug at a boolean.
 
-  if(NOT OPT_NAME OR NOT OPT_TYPE OR NOT OPT_DOC OR NOT OPT_STATES)
-    message(FATAL_ERROR "acpp_option requires NAME, TYPE, STATES and DOC")
-  endif()
+if(NOT DEFINED ACPP_ALLOW_SHIPPING_VENDOR_ASSETS_WITH_TOOLCHAIN)
+  set(ACPP_ALLOW_SHIPPING_VENDOR_ASSETS_WITH_TOOLCHAIN OFF)
+endif()
 
-  foreach(state IN LISTS OPT_STATES)
-    if(NOT state MATCHES "^(building|driving|running)$")
-      message(FATAL_ERROR
-        "acpp_option(${OPT_NAME}): '${state}' is not a state. Use building, "
-        "driving or running - the names the specification uses.")
+if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "full"
+    AND NOT ACPP_ALLOW_SHIPPING_VENDOR_ASSETS_WITH_TOOLCHAIN)
+  set(ACPP_FULL_VENDOR_ASSETS "")
+  if(WITH_CUDA_BACKEND)
+    if(CUDA_cudart_LIBRARY AND NOT CUDA_cudart_LIBRARY MATCHES "-NOTFOUND$")
+      list(APPEND ACPP_FULL_VENDOR_ASSETS "${CUDA_cudart_LIBRARY}")
     endif()
-  endforeach()
-
-  # The discovered value is the default, so a toolchain built without any
-  # options set behaves exactly as it does today and works on the machine that
-  # built it. Relocatability changes what is written, never how it is read.
-  set(default "")
-  if(OPT_DEFAULT_FROM AND DEFINED ${OPT_DEFAULT_FROM})
-    set(default "${${OPT_DEFAULT_FROM}}")
+    if(CUDA_DEVICE_LIBS_PATH AND NOT CUDA_DEVICE_LIBS_PATH MATCHES "-NOTFOUND$")
+      list(APPEND ACPP_FULL_VENDOR_ASSETS "${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc")
+    endif()
   endif()
+  if(WITH_ROCM_BACKEND)
+    foreach(asset IN ITEMS
+        "${AMDHIP64_LIBRARY}"
+        "${HSARUNTIME64_LIBRARY}"
+        "${AMDCOMGR_LIBRARY}"
+        "${HSAKMT_LIBRARY}"
+        "${ROCPROFILERREGISTER_LIBRARY}"
+        "${HIPRTC_LIBRARY}")
+      if(asset AND NOT asset MATCHES "-NOTFOUND$")
+        list(APPEND ACPP_FULL_VENDOR_ASSETS "${asset}")
+      endif()
+    endforeach()
+    if(ROCM_DEVICE_LIBS_PATH AND NOT ROCM_DEVICE_LIBS_PATH MATCHES "-NOTFOUND$")
+      list(APPEND ACPP_FULL_VENDOR_ASSETS "${ROCM_DEVICE_LIBS_PATH}/*")
+    endif()
+  endif()
+  if(WITH_OPENCL_BACKEND)
+    if(OpenCL_LIBRARIES AND NOT OpenCL_LIBRARIES MATCHES "-NOTFOUND$")
+      list(APPEND ACPP_FULL_VENDOR_ASSETS "${OpenCL_LIBRARIES}")
+    endif()
+  endif()
+  if(WITH_LEVEL_ZERO_BACKEND)
+    if(ACPP_ZE_LOADER_LIBRARY AND NOT ACPP_ZE_LOADER_LIBRARY MATCHES "-NOTFOUND$")
+      list(APPEND ACPP_FULL_VENDOR_ASSETS "${ACPP_ZE_LOADER_LIBRARY}")
+    endif()
+  endif()
+  list(JOIN ACPP_FULL_VENDOR_ASSETS "\n" ACPP_FULL_VENDOR_ASSETS_LINES)
+  message(FATAL_ERROR
+    "ACPP_DEPLOYMENT_STRATEGY=full copies vendor assets into the toolchain's "
+    "own install tree, which is a redistribution decision. The assets "
+    "resolved on this machine are:\n${ACPP_FULL_VENDOR_ASSETS_LINES}\n"
+    "Set ACPP_ALLOW_SHIPPING_VENDOR_ASSETS_WITH_TOOLCHAIN=ON to proceed "
+    "having reviewed the vendors' redistribution terms (see the comment at "
+    "this option's declaration in cmake/options.cmake).")
+endif()
 
-  set(${OPT_NAME} "${default}" CACHE ${OPT_TYPE} "${OPT_DOC}")
+# ---------------------------------------------------------------------------
+# The $ACPP_TARGET placeholder's value (section 6)
+# ---------------------------------------------------------------------------
+#
+# Spelled the way CUDA's own installer and conda-forge spell the target
+# subdirectory. Linux x86_64 is the only platform this tree ships; the
+# spelling for any other platform is deliberately undecided here rather than
+# guessed, and a builder must pass -DACPP_TARGET for one.
 
-  set_property(GLOBAL PROPERTY ACPP_OPTION_${OPT_NAME}_STATES "${OPT_STATES}")
-  set_property(GLOBAL PROPERTY ACPP_OPTION_${OPT_NAME}_RELATIVE "${OPT_RELATIVE}")
-  set_property(GLOBAL PROPERTY ACPP_OPTION_${OPT_NAME}_DOC "${OPT_DOC}")
-  set_property(GLOBAL PROPERTY ACPP_OPTION_${OPT_NAME}_BACKEND "${OPT_BACKEND}")
+if(NOT DEFINED ACPP_TARGET)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+    set(ACPP_TARGET "x86_64-linux")
+  endif()
+endif()
 
-  # Appending to an empty string would leave a leading separator, and so an
-  # empty element for every consumer that iterates the list.
-  if(ACPP_DECLARED_OPTIONS)
-    set(ACPP_DECLARED_OPTIONS "${ACPP_DECLARED_OPTIONS};${OPT_NAME}"
-        CACHE INTERNAL "Every option declared by options.cmake")
+# ---------------------------------------------------------------------------
+# Core
+# ---------------------------------------------------------------------------
+
+# The library directory a deployed application should use, relative to
+# $ACPP_PATH (section 8). Its default is what this toolchain was installed
+# with; a publisher may change it before shipping.
+if(NOT DEFINED ACPP_LIBDIR)
+  set(ACPP_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+endif()
+
+# The clang the driver invokes, and the host C++ compiler for CPU targets.
+# Both are the clang this toolchain builds and installs; the C++ driver is
+# what compiles SYCL. A builder may point the host compiler elsewhere (for
+# example gcc for host code) without touching the device compiler.
+if(NOT DEFINED ACPP_CLANG)
+  set(ACPP_CLANG "$ACPP_PATH/bin/clang++")
+endif()
+if(NOT DEFINED ACPP_CPU_CXX)
+  set(ACPP_CPU_CXX "$ACPP_PATH/bin/clang++")
+endif()
+
+# The clang the JIT invokes when compiling device code while an application
+# runs (section 12). Also the shipped C++ driver.
+if(NOT DEFINED ACPP_CLANG_PATH)
+  set(ACPP_CLANG_PATH "$ACPP_PATH/bin/clang++")
+endif()
+
+# clang's own resource include directory. Standalone builds discover it;
+# component builds install it, and the discovered value is then already the
+# placeholder-form install location.
+if(NOT DEFINED ACPP_CLANG_INCLUDE_PATH)
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+      AND CLANG_INCLUDE_PATH
+      AND NOT CLANG_INCLUDE_PATH MATCHES "-NOTFOUND$")
+    set(ACPP_CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}")
   else()
-    set(ACPP_DECLARED_OPTIONS "${OPT_NAME}"
-        CACHE INTERNAL "Every option declared by options.cmake")
+    set(ACPP_CLANG_INCLUDE_PATH
+      "$ACPP_PATH/${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include")
   endif()
-endfunction()
+endif()
+
+# The LLVM tools the JIT invokes while an application runs (section 12). The
+# paths reference the name entries so the two cannot disagree; the names are
+# unversioned because that is what this toolchain installs.
+if(NOT DEFINED ACPP_LLC_NAME)
+  set(ACPP_LLC_NAME "llc")
+endif()
+if(NOT DEFINED ACPP_LLD_NAME)
+  if(WIN32)
+    set(ACPP_LLD_NAME "lld-link")
+  elseif(APPLE)
+    set(ACPP_LLD_NAME "ld64.lld")
+  else()
+    set(ACPP_LLD_NAME "ld.lld")
+  endif()
+endif()
+if(NOT DEFINED ACPP_OPT_NAME)
+  set(ACPP_OPT_NAME "opt")
+endif()
+if(NOT DEFINED ACPP_LLC_PATH)
+  set(ACPP_LLC_PATH "$ACPP_PATH/bin/$ACPP_LLC_NAME")
+endif()
+if(NOT DEFINED ACPP_LLD_PATH)
+  set(ACPP_LLD_PATH "$ACPP_PATH/bin/$ACPP_LLD_NAME")
+endif()
+if(NOT DEFINED ACPP_OPT_PATH)
+  set(ACPP_OPT_PATH "$ACPP_PATH/bin/$ACPP_OPT_NAME")
+endif()
+
+# The SPIR-V translator binary. Its location is relative by construction
+# (section 11); only the name varies, by platform.
+if(NOT DEFINED ACPP_LLVMSPIRV_NAME)
+  if(WIN32)
+    set(ACPP_LLVMSPIRV_NAME "llvm-spirv.exe")
+  else()
+    set(ACPP_LLVMSPIRV_NAME "llvm-spirv")
+  endif()
+endif()
+
+# Flags for the JIT's llc and opt invocations (section 12). The CPU flag's
+# default is -mcpu=native, which llc and opt resolve on the machine doing the
+# JIT; a builder or a deployed application may pin a concrete CPU instead.
+# The additional-flags entries are empty by default and exist to be set.
+if(NOT DEFINED ACPP_LLC_HOST_CPU_FLAG)
+  set(ACPP_LLC_HOST_CPU_FLAG "-mcpu=native")
+endif()
+if(NOT DEFINED ACPP_OPT_HOST_CPU_FLAG)
+  set(ACPP_OPT_HOST_CPU_FLAG "--mcpu=native")
+endif()
+if(NOT DEFINED ACPP_LLC_ADDITIONAL_FLAGS)
+  set(ACPP_LLC_ADDITIONAL_FLAGS "")
+endif()
+if(NOT DEFINED ACPP_OPT_ADDITIONAL_FLAGS)
+  set(ACPP_OPT_ADDITIONAL_FLAGS "")
+endif()
+
+# Which vector math library the host JIT uses. The build's discovery decides
+# what the installed configuration says - sleef, armpl or svml when present,
+# libmvec or none otherwise - and a deployed application can change it at run
+# time; the enumerated values are the ones the runtime parses. libmvec needs
+# no directory entry because the only correct copy is the one the loader
+# resolves in the running process.
+if(NOT DEFINED ACPP_VECTOR_MATH_LIB)
+  set(ACPP_VECTOR_MATH_LIB "${DEFAULT_VEC_MATH_LIB}")
+endif()
+
+# One directory entry per vector math library (section 12). Each is
+# directory-valued: the library's short name is written into the JIT's link
+# invocation, so only the directory needs resolving. Under `bundled` and
+# `full` the declared default is the toolchain's own library directory,
+# which is also where the deploy manifests put them; under `default` the
+# discovered directory wins.
+foreach(acpp_vml IN ITEMS SLEEF AMATH SVML)
+  if(NOT DEFINED ACPP_${acpp_vml}_DIR)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND LIB${acpp_vml}
+        AND NOT LIB${acpp_vml} MATCHES "-NOTFOUND$")
+      get_filename_component(ACPP_${acpp_vml}_DIR "${LIB${acpp_vml}}" DIRECTORY)
+    else()
+      set(ACPP_${acpp_vml}_DIR "$ACPP_PATH/$ACPP_LIBDIR")
+    endif()
+  endif()
+endforeach()
 
 # ---------------------------------------------------------------------------
-# Core - always declared
-# ---------------------------------------------------------------------------
-
-acpp_option(NAME ACPP_LLVM_BIN_DIR TYPE PATH
-  STATES driving running
-  DEFAULT_FROM LLVM_TOOLS_BINARY_DIR
-  RELATIVE "${CMAKE_INSTALL_BINDIR}"
-  DOC "Directory holding llc, lld and opt")
-
-acpp_option(NAME ACPP_CLANG TYPE FILEPATH
-  STATES driving running
-  DEFAULT_FROM CLANG_C_EXECUTABLE_PATH
-  RELATIVE "${CMAKE_INSTALL_BINDIR}/clang"
-  DOC "The clang C driver")
-
-acpp_option(NAME ACPP_CLANGXX TYPE FILEPATH
-  STATES driving running
-  DEFAULT_FROM CLANG_EXECUTABLE_PATH
-  RELATIVE "${CMAKE_INSTALL_BINDIR}/clang++"
-  DOC "The clang C++ driver. This is what compiles device code, and it must be
-       the C++ driver: pointing it at 'clang' fails in ways that are hard to read")
-
-acpp_option(NAME ACPP_CLANG_INCLUDE_DIR TYPE PATH
-  STATES driving
-  DEFAULT_FROM CLANG_INCLUDE_PATH
-  RELATIVE "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include"
-  DOC "clang's own resource include directory")
-
-acpp_option(NAME ACPP_HOST_CXX TYPE FILEPATH
-  STATES driving
-  DEFAULT_FROM CMAKE_CXX_COMPILER
-  RELATIVE "${CMAKE_INSTALL_BINDIR}/clang++"
-  DOC "Host C++ compiler used when targeting CPUs. Note that 'host' here means
-       CPU rather than device, which is not the autotools sense of the word")
-
-acpp_option(NAME ACPP_VECTOR_MATH_LIB TYPE STRING
-  STATES running
-  DEFAULT_FROM DEFAULT_VEC_MATH_LIB
-  DOC "Which vector math library the host JIT uses: sleef, armpl, svml or none.
-       libmvec is deliberately not selectable - the only correct copy is the one
-       the loader resolves in the process doing the JIT")
-
-acpp_option(NAME ACPP_VECTOR_MATH_LIB_DIR TYPE PATH
-  STATES running
-  DOC "Directory holding the selected vector math library")
-
-acpp_option(NAME ACPP_LIBOMP_PATH TYPE FILEPATH
-  STATES driving running
-  RELATIVE "${CMAKE_INSTALL_LIBDIR}"
-  DOC "The OpenMP runtime")
-
-acpp_option(NAME ACPP_LIBNUMA_PATH TYPE FILEPATH
-  STATES running
-  DOC "libnuma, used by the CPU backend for topology")
-
-# ---------------------------------------------------------------------------
-# CUDA - shaped after FindCUDAToolkit, so a reader who knows that module can
-# guess these. ACPP_CUDA_ROOT alone is enough on a normal installation; the
-# rest exist for distributions that lay the toolkit out differently, which is
-# the common case rather than the exception.
+# CUDA
 # ---------------------------------------------------------------------------
 
 if(WITH_CUDA_BACKEND)
-  acpp_option(NAME ACPP_CUDA_ROOT TYPE PATH BACKEND cuda
-    STATES driving
-    DEFAULT_FROM CUDA_TOOLKIT_ROOT_DIR
-    DOC "CUDA toolkit root. Setting this alone resolves the rest on a layout
-         that matches a vendor installer")
 
-  acpp_option(NAME ACPP_CUDA_COMPILER TYPE FILEPATH BACKEND cuda
-    STATES driving
-    DEFAULT_FROM NVCXX_COMPILER
-    DOC "nvc++, for the nvcxx compilation flow")
+  # The CUDA toolkit root. The in-prefix convention is the target directory,
+  # which lays out bin, include, lib and nvvm exactly as a toolkit root does.
+  if(NOT DEFINED ACPP_CUDA_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND CUDA_TOOLKIT_ROOT_DIR
+        AND NOT CUDA_TOOLKIT_ROOT_DIR MATCHES "-NOTFOUND$")
+      set(ACPP_CUDA_PATH "${CUDA_TOOLKIT_ROOT_DIR}")
+    else()
+      set(ACPP_CUDA_PATH "$ACPP_PATH/targets/$ACPP_TARGET")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_CUDA_LIBRARY_DIR TYPE PATH BACKEND cuda
-    STATES driving running
-    DOC "Directory holding the CUDA runtime libraries. Defaults to lib64 inside
-         the toolkit, which is where an installer puts them and is not where
-         every distribution does")
+  # The directory holding the CUDA runtime libraries. An installer puts them
+  # in lib64 inside the toolkit; conda-forge puts them in the target
+  # directory's lib. This tree finds CUDA with the legacy FindCUDA module,
+  # so the discovered directory is the one containing the found libcudart.
+  if(NOT DEFINED ACPP_CUDA_LIB_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND CUDA_cudart_LIBRARY
+        AND NOT CUDA_cudart_LIBRARY MATCHES "-NOTFOUND$")
+      get_filename_component(ACPP_CUDA_LIB_PATH "${CUDA_cudart_LIBRARY}" DIRECTORY)
+    else()
+      set(ACPP_CUDA_LIB_PATH "$ACPP_PATH/targets/$ACPP_TARGET/lib")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_CUDA_TARGET_DIR TYPE PATH BACKEND cuda
-    STATES driving running
-    DOC "Per-target directory, e.g. targets/x86_64-linux, for layouts that use one")
+  # Where libdevice.10.bc lives. The declared default is where the deploy
+  # step's `full` strategy copies it; a packager whose environment supplies
+  # the bitcode overrides the entry (for conda, $ACPP_PATH/nvvm/libdevice).
+  if(NOT DEFINED ACPP_CUDA_DEVICE_LIBS_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND CUDA_DEVICE_LIBS_PATH
+        AND NOT CUDA_DEVICE_LIBS_PATH MATCHES "-NOTFOUND$")
+      set(ACPP_CUDA_DEVICE_LIBS_PATH "${CUDA_DEVICE_LIBS_PATH}")
+    else()
+      set(ACPP_CUDA_DEVICE_LIBS_PATH "$ACPP_PATH/lib/hipSYCL/ext/bitcode/ptx")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_CUDA_INCLUDE_DIR TYPE PATH BACKEND cuda
-    STATES driving
-    DOC "CUDA headers")
+  # nvc++ for the nvcxx compilation flow. Never shipped by this toolchain,
+  # so the declared default is absent and the environment or the packager
+  # supplies it.
+  if(NOT DEFINED ACPP_NVCXX)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND NVCXX_COMPILER
+        AND NOT NVCXX_COMPILER MATCHES "-NOTFOUND$")
+      set(ACPP_NVCXX "${NVCXX_COMPILER}")
+    else()
+      set(ACPP_NVCXX "")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_CUDA_DEVICELIB_DIR TYPE PATH BACKEND cuda
-    STATES building
-    DEFAULT_FROM CUDA_DEVICE_LIBS_PATH
-    DOC "Directory holding libdevice.10.bc. Read only when building the
-         toolchain: the bitcode is placed beside our own, so at run time it is
-         found relative to us rather than through configuration")
 endif()
 
 # ---------------------------------------------------------------------------
-# ROCm - same shape as CUDA. The individual ROCm libraries (hiprtc,
-# hsa-runtime64, amd_comgr, hsakmt, rocprofiler-register) are not separate
-# options: they live in the library directory, so one entry resolves them all.
+# ROCm
 # ---------------------------------------------------------------------------
 
 if(WITH_ROCM_BACKEND)
-  acpp_option(NAME ACPP_ROCM_ROOT TYPE PATH BACKEND rocm
-    STATES driving
-    DEFAULT_FROM ROCM_PATH
-    DOC "ROCm root")
 
-  acpp_option(NAME ACPP_ROCM_COMPILER TYPE FILEPATH BACKEND rocm
-    STATES driving running
-    DEFAULT_FROM HIPCC_PATH
-    DOC "hipcc")
+  # The ROCm root. The in-prefix convention is the prefix itself, which is
+  # how conda-forge's ROCm packages lay it out.
+  if(NOT DEFINED ACPP_ROCM_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND ROCM_PATH)
+      set(ACPP_ROCM_PATH "${ROCM_PATH}")
+    else()
+      set(ACPP_ROCM_PATH "$ACPP_PATH")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_ROCM_LIBRARY_DIR TYPE PATH BACKEND rocm
-    STATES driving running
-    DOC "Directory holding the ROCm runtime libraries")
+  # The directory holding the ROCm runtime libraries. Under `default` the
+  # discovered directory of the first found runtime library wins; the
+  # convention location is the vendor zone.
+  if(NOT DEFINED ACPP_ROCM_LIB_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND AMDHIP64_LIBRARY
+        AND NOT AMDHIP64_LIBRARY MATCHES "-NOTFOUND$")
+      get_filename_component(ACPP_ROCM_LIB_PATH "${AMDHIP64_LIBRARY}" DIRECTORY)
+    else()
+      set(ACPP_ROCM_LIB_PATH "$ACPP_PATH/targets/$ACPP_TARGET/lib")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_ROCM_TARGET_DIR TYPE PATH BACKEND rocm
-    STATES driving running
-    DOC "Per-target directory, for layouts that use one")
+  # Where the ROCm device bitcode lives. Same shape as the CUDA entry: the
+  # declared default is where `full` copies it, and conda-forge's
+  # rocm-device-libs overrides it with $ACPP_PATH/amdgcn/bitcode.
+  if(NOT DEFINED ACPP_ROCM_DEVICE_LIBS_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND ROCM_DEVICE_LIBS_PATH
+        AND NOT ROCM_DEVICE_LIBS_PATH MATCHES "-NOTFOUND$")
+      set(ACPP_ROCM_DEVICE_LIBS_PATH "${ROCM_DEVICE_LIBS_PATH}")
+    else()
+      set(ACPP_ROCM_DEVICE_LIBS_PATH "$ACPP_PATH/lib/hipSYCL/ext/bitcode/amdgcn")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_ROCM_INCLUDE_DIR TYPE PATH BACKEND rocm
-    STATES driving
-    DOC "ROCm headers")
+  # hipcc, for the ROCm interoperability flow. Never shipped by this
+  # toolchain, so the declared default is absent.
+  if(NOT DEFINED ACPP_HIPCC_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND HIPCC_COMPILER
+        AND NOT HIPCC_COMPILER MATCHES "-NOTFOUND$")
+      set(ACPP_HIPCC_PATH "${HIPCC_COMPILER}")
+    else()
+      set(ACPP_HIPCC_PATH "")
+    endif()
+  endif()
 
-  acpp_option(NAME ACPP_ROCM_DEVICELIB_DIR TYPE PATH BACKEND rocm
-    STATES building
-    DEFAULT_FROM ROCM_DEVICE_LIBS_PATH
-    DOC "Directory holding the ROCm device bitcode. Read only when building the
-         toolchain, for the same reason as the CUDA one")
 endif()
 
 # ---------------------------------------------------------------------------
-# Level Zero and OpenCL declare no options.
-#
-# Both reach their implementations through a loader library - libze_loader and
-# the ICD loader - which we ship alongside AdaptiveCpp. They are found relative
-# to our own libraries, so there is nothing to configure. This is the
-# architecture the CUDA and ROCm backends are being moved towards.
-#
-# The SPIR-V translator and our own device bitcode are likewise ours, built and
-# installed by us, and need no options.
+# OpenCL
 # ---------------------------------------------------------------------------
 
+if(WITH_OPENCL_BACKEND)
+
+  # The directory holding the OpenCL ICD loader. The loader discovers vendor
+  # drivers itself; this locates the loader. The entry is directory-valued
+  # and the manifest deploys the loader into the vendor zone.
+  if(NOT DEFINED ACPP_OCL_LIB_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND OpenCL_LIBRARIES
+        AND NOT OpenCL_LIBRARIES MATCHES "-NOTFOUND$")
+      get_filename_component(ACPP_OCL_LIB_PATH "${OpenCL_LIBRARIES}" DIRECTORY)
+    else()
+      set(ACPP_OCL_LIB_PATH "$ACPP_PATH/targets/$ACPP_TARGET/lib")
+    endif()
+  endif()
+
+endif()
+
 # ---------------------------------------------------------------------------
-# Vulkan - out of scope while the backend is experimental. clspv is found
-# rather than built, so enabling this backend will need an option; it is
-# recorded here so the gap is deliberate rather than forgotten.
-#
-#   acpp_option(NAME ACPP_CLSPV TYPE FILEPATH BACKEND vulkan STATES running ...)
+# Level Zero
 # ---------------------------------------------------------------------------
+
+if(WITH_LEVEL_ZERO_BACKEND)
+
+  # The directory holding libze_loader, the Level Zero loader. Same shape as
+  # the OpenCL entry: the loader discovers drivers, this locates the loader.
+  if(NOT DEFINED ACPP_ZE_LIB_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND ACPP_ZE_LOADER_LIBRARY
+        AND NOT ACPP_ZE_LOADER_LIBRARY MATCHES "-NOTFOUND$")
+      get_filename_component(ACPP_ZE_LIB_PATH "${ACPP_ZE_LOADER_LIBRARY}" DIRECTORY)
+    else()
+      set(ACPP_ZE_LIB_PATH "$ACPP_PATH/targets/$ACPP_TARGET/lib")
+    endif()
+  endif()
+
+endif()
+
+# ---------------------------------------------------------------------------
+# Vulkan - the backend is experimental and OFF by default; the option exists
+# so the gap is recorded rather than forgotten (section 8).
+# ---------------------------------------------------------------------------
+
+if(WITH_VULKAN_BACKEND)
+
+  if(NOT DEFINED ACPP_CLSPV_PATH)
+    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+        AND CLSPV_COMPILER
+        AND NOT CLSPV_COMPILER MATCHES "-NOTFOUND$")
+      set(ACPP_CLSPV_PATH "${CLSPV_COMPILER}")
+    else()
+      set(ACPP_CLSPV_PATH "")
+    endif()
+  endif()
+
+endif()
