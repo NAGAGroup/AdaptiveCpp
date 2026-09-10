@@ -76,10 +76,14 @@ vocabulary has slipped and the sentence is ambiguous.
 
 ## 3. Principles
 
-**P1. No path is compiled into a binary.** Not as a compile definition, not
-as a default, not as a fallback. A path that appears in a shipped artifact
-appears only in a configuration file, which is text and can be corrected
-without a rebuild.
+**P1. No path is compiled into a binary we ship.** Not as a compile
+definition, not as a default, not as a fallback. A path that appears in an
+artifact of the toolchain build appears only in a configuration file, which
+is text and can be corrected without a rebuild.
+
+This governs **building the toolchain**. It says nothing about artifacts the
+toolchain produces: what an application or library compiled with acpp
+carries is its own question, answered by P6.
 
 **P2. There are exactly two configuration files, and they never see each
 other.**
@@ -97,17 +101,48 @@ silently inherit one.
 deploy helper, according to the deployment strategy (§7). A user may
 hand-edit it, and thereby owns the result.
 
-**P5. Everything reached when running an application goes through a
-loader.** No vendor SDK appears as `DT_NEEDED` in any AdaptiveCpp binary. A
-thin loader library per backend reads the application config and loads the
-real implementation. This is the architecture OpenCL and Level Zero already
-use.
+**P5. Everything *redistributable* reached when running an application goes
+through a loader.** No redistributable vendor library appears as
+`DT_NEEDED` in any AdaptiveCpp binary. A thin loader library reads the
+application config and loads the real implementation. This is the
+architecture OpenCL and Level Zero already use.
 
-**P6. Application-side lookup is loader-relative, never
-executable-relative.** Resolution uses `dladdr` on our own symbol, so a SYCL
-application shipped as a shared library — a Python extension module, for
-example — finds its configuration beside the AdaptiveCpp libraries rather
-than beside the host interpreter.
+The exception is a **driver library**, and it is not a compromise. A GPU
+driver's API library — `libcuda.so.1` — is never redistributable and is
+installed with the driver itself, so there is no configuration a user could
+usefully give us and nothing to relocate. `rt-backend-cuda` links it the
+way any application built against a driver API links it, and that is the
+only thing that makes sense. A loader in front of it would wrap the driver
+API surface for no gain.
+
+**P6. A binary compiled by acpp carries the identity of its own
+configuration.** Not its location on any machine — two values, chosen by
+whoever builds it: the configuration's **name**, and a **path to it relative
+to the binary itself**. Both are set through an `acpp` driver flag, surfaced
+as a cmake option through the toolchain's package configuration so that
+`find_package(AdaptiveCpp)` users set it on a target.
+
+The runtime therefore never guesses which configuration belongs to a binary.
+It asks the binary that called into it — executable or shared library, it
+makes no difference — and looks in two places, in order:
+
+1. **The binary's own directory**, for a file of that name. This is what
+   makes a build tree work, where objects and executables are commonly
+   dropped into one directory.
+2. **The relative path**, resolved against the binary's directory. This is
+   the deployed case, and the relative path is the maintainer's statement of
+   how their application or library will sit in an install tree.
+
+The relative path is a choice about *their* layout, made by the person who
+knows it, and it relocates with the tree because it is relative. Nothing
+about the machine that compiled the binary is recorded either way.
+
+The unit this identifies is a **deployment**, not a file: a package shipping
+twenty shared libraries builds them all with one name and one relative path,
+so they share one configuration. Two unrelated packages in the same prefix
+choose different names and do not collide. A library that abstracts acpp
+carries its own, and the applications that link it deploy nothing and need
+to know nothing.
 
 **P7. A missing resource is diagnosable, never mysterious.** Where a
 resource is required for an operation, failing to resolve it is an error
@@ -168,20 +203,34 @@ entry marked `is-deployed-to-app`, writes it under the name in its `envvar`
 field, and sets the value according to the deployment strategy (§7). That is
 the whole derivation; no separate mapping table exists or is needed.
 
-`HIPSYCL_` and `OPENSYCL_` aliases keep working in both files.
+**Existing names are kept.** A key that the driver, the runtime or a
+published package already uses stays spelled the way it is spelled today —
+`ACPP_CPU_CXX` does not become `ACPP_HOST_CXX`. Renaming buys coherence we
+do not need and breaks interfaces we have already shipped.
 
-## 5. Categories
+**Every key this overhaul adds is `ACPP_` only.** The legacy `HIPSYCL_` and
+`OPENSYCL_` prefixes exist where they already exist and gain no ground: no
+new key carries an alias, and no lookup that lacks alias handling today
+grows it. Upstream is moving away from both prefixes and keeps them only to
+avoid breaking what is already deployed; adding alias surface to new keys
+would be moving the other way.
 
-Every option has exactly one category. The category determines how cmake
-populates the default value and whether the cache variable is force-set. It
-does not restrict the user: every entry in a configuration file is
-modifiable text, and all three categories resolve identically when driving
-or running.
+Where an alias already applies to an existing key, it keeps working
+untouched. In practice that means `HIPSYCL_`, since `OPENSYCL_` was the
+project's name for a matter of weeks and is barely present.
 
-**`external-resource`** — a path to something outside our install tree: a
-vendor toolkit, a system library, device bitcode we do not ship. The cache
-variable is not force-set, so a builder can override at configure time. Its
-default is written by one rule, which covers every case:
+## 5. How an entry's value is chosen
+
+Entries are not sorted into kinds. Every entry's value is chosen by one
+rule, whether it names something we ship, something a vendor ships, or a
+choice that is not a path at all.
+
+`options.cmake` is where the cmake options a builder may override are
+gathered, so that they are inspectable in one place rather than scattered
+through the cmake tree. It is not a registry of configuration keys; the JSON
+files are.
+
+### The rule
 
 | strategy | `find_*` found it | `find_*` did not |
 |---|---|---|
@@ -204,17 +253,51 @@ resource on the build machine is irrelevant except in `default`. A value
 that points at nothing is not an error: the resource is simply absent, which
 P7 already covers.
 
-**`behavior`** — a non-path choice: which vector math library to use, which
-deployment strategy to use. The default is a fixed value chosen by this
-specification. Not force-set.
+The rule covers resources we ship as readily as resources we do not. For
+something in our own install tree — our bitcode, the SPIR-V translator, the
+LLVM tools, the clang drivers — the declared default is simply its install
+location in placeholder form, and no discovery is involved. For a
+non-path choice, such as which vector math library to prefer or which
+deployment strategy to use, the declared default is the value this
+specification names. Same rule, fewer moving parts.
 
-**`toolchain-resource`** — a path to something we ship: our bitcode, the
-SPIR-V translator, the LLVM tools, the clang drivers. The default is the
-install location the build itself produced, written with the `$ACPP_PATH`
-placeholder. The cache variable is force-set, because overriding it would be
-lying about where our own install tree places a resource. A builder can
-still alter the install layout through cmake's own install machinery; the
-forced value tracks that layout.
+### What gets no entry at all
+
+**A configuration entry exists to resolve something we look up.** A path we
+pass to a subprocess, a directory we hand to a linker invocation, a library
+we `dlopen` by path — those are lookups, performed by the driver or by our
+own code, and they need somewhere to read the answer from.
+
+**Standard dynamic linkage is not a lookup we perform.** A library that is
+`DT_NEEDED` — libnuma, libomp, libLLVM — is resolved by the dynamic loader
+before our code runs, and it simply has to be present in the run
+environment: in `$CONDA_PREFIX/lib` under conda, in the system library
+directories on a system install. There is no answer for a configuration
+entry to supply, and an entry naming such a library would be a value that
+nothing reads.
+
+Those libraries still appear in a **deploy manifest**, because `full` has to
+copy them into the deployment tree, and the manifest records where they were
+at install the same way it records the toolchain's library directory (§8).
+Deployment knowledge, not resolution knowledge.
+
+Where a compile definition gates code that links such a library —
+`LIB_NUMA_AVAILABLE` is the case in this tree — the definition stays, since
+the code genuinely cannot compile where the library is absent.
+
+**A worry this raises, and why it is not one.** Take a toolchain that was
+not built or installed under `full`, whose owner overrides the strategy to
+`full` when deploying their own application. The manifest names libnuma at a
+location that, on this machine, holds nothing — the library is installed on
+the system rather than beside the toolchain. Deploy skips what it cannot
+find (§7), so the deployed tree simply has no copy of it.
+
+That is the correct outcome. A toolchain built with numa support only makes
+sense on a machine whose dynamic loader can already find libnuma, and the
+deployed application will resolve it the same way, on whatever machine it
+lands on. There is no manual lookup anywhere in our code to go wrong.
+Whether the target machine has libnuma at all is the application packager's
+concern, and not something we can or should control from here.
 
 ## 6. Placeholders and resolution
 
@@ -223,9 +306,9 @@ forced value tracks that layout.
 There are exactly two **core placeholders**:
 
 - **`$ACPP_PATH`** — the install root. It means the toolchain's install
-  directory when driving, and the application's own directory when running.
-  Both are discovered at read time, never recorded: the driver from its own
-  location, our libraries via `dladdr` (P6).
+  directory when driving, and the deployment's root when running. Both are
+  discovered at read time, never recorded: the driver from its own location,
+  and a deployed application from where its configuration was found (P6).
 - **`$ACPP_TARGET`** — the target subdirectory name for vendor resources,
   spelled the way CUDA and conda-forge spell it: `x86_64-linux`. It is
   **not** an LLVM triple and not a conda subdir, and the spec borrows the
@@ -251,8 +334,10 @@ rather than composed: `ACPP_CUDA_LIB_PATH` is
 
 The ban above is what makes two passes sufficient. The same two passes run
 on both sides — in the driver over the toolchain config, and in our
-libraries over the application config — and they are one algorithm
-implemented twice, not two algorithms.
+libraries over the application config. One side is Python and the other is
+C++, so they cannot share code: what is shared is the *specification*, and
+the two implementations are held to it. Where they disagree, this section is
+the arbiter.
 
 ### The chains
 
@@ -346,8 +431,53 @@ uses placeholders throughout.
 - Its summary names bundled **vendor** assets as their own category,
   separate from ours, so whoever ships the result has a concrete list to
   hand their own users (§9).
-- For cmake users, `add_sycl_to_target` arranges deployment so no explicit
-  step is required.
+- **Deployment is `acpp --acpp-deploy`**, the mechanism and the argument
+  syntax that exist today. The driver reads the toolchain configuration; no
+  second program is introduced.
+- **`add_sycl_to_target` is the toolchain's own abstraction over it.** It
+  adds two custom targets if they do not already exist: an install target
+  that runs the deploy into the install directory under the configured
+  strategy, and a build target that runs it into the build directory under
+  `default`, always. A build tree is a deployment for the developer who
+  built it, so it does not need to be relocatable, and copying everything
+  into the build tree and then again into the install tree is waste.
+  Neither target makes an application's cmake a reader of the toolchain
+  configuration — the driver reads it, on the application's behalf, which
+  is driving the toolchain.
+
+### What a cmake user has to set
+
+**`ACPP_APP_CFG_NAME`, and nothing else.** P6's second value, the path from
+the binary to its configuration, is derived at configure time, because cmake
+knows both ends.
+
+The configuration's end is ours to choose, so we know it:
+`${CMAKE_INSTALL_SYSCONFDIR}/acpp/`, matching the convention the toolchain
+configuration already uses. The binary's end comes from the target's type —
+`EXECUTABLE` to `${CMAKE_INSTALL_BINDIR}`, `SHARED_LIBRARY` to
+`${CMAKE_INSTALL_LIBDIR}` — and the embedded value is the relative path
+between them, computed with the consuming project's own `GNUInstallDirs`
+values, since it is their tree.
+
+**For a `MODULE_LIBRARY`, `add_sycl_to_target` refuses to guess and requires
+the destination explicitly.** A module library is a plugin or a language
+extension, which is exactly the case P6 exists for and exactly the case
+where `${CMAKE_INSTALL_LIBDIR}` is *not* where the thing goes. Guessing
+there produces a relative path pointing at nothing, and both search steps
+then fail quietly. The same explicit argument serves any project whose
+layout `GNUInstallDirs` does not describe — `libexec/myapp/`, an application
+bundle — and it is the only knob a normal project never touches.
+
+In the build tree nothing is derived: the configuration is placed at the
+target's own output directory, so P6's first search step finds it. That has
+to be the target's directory rather than a fixed build path, because output
+directories can be set per target and per configuration.
+
+This is deliberately done at configure time rather than at install time. An
+install step could always compute the true destination and patch the value
+into the installed binary, and that is the patchelf-shaped fragility this
+overhaul exists to leave behind: editing linked artifacts after the fact,
+with no way to check the result short of running it.
 
 ## 8. The install layout
 
@@ -397,9 +527,33 @@ The layout has **two zones**:
 - **Ours, at the prefix root** — `$ACPP_PATH/lib/hipSYCL/...`, our runtime
   and backend libraries, our bitcode, the LLVM tools, the SPIR-V
   translator.
+
+The SPIR-V translator belongs to **core**, not to the OpenCL and Level Zero
+components, even though only those backends use it. It is built as part of
+the toolchain, it is tiny, and the two possible confusions are not
+symmetric: someone finding it absent from core asks "this was built with the
+toolchain, why is it not here?", which is an uncomfortable unknown, while
+someone finding it present in a CUDA-only deployment shrugs and leaves it
+alone. An unnecessary inclusion costs nothing; a missing one costs a
+deployment.
 - **Vendor resources, under `$ACPP_PATH/targets/$ACPP_TARGET/`** — the CUDA
-  and ROCm runtime libraries and device bitcode, laid out the way CUDA's own
-  installer and conda-forge lay them out.
+  and ROCm runtime libraries, laid out the way CUDA's own installer and
+  conda-forge lay them out.
+
+### Vendor device bitcode
+
+**AdaptiveCpp does not own a vendor's device bitcode unless `full` put it
+there.** The entry that locates it — CUDA's `libdevice.10.bc`, ROCm's
+device library directory — defaults to `$ACPP_PATH/lib/hipSYCL/ext/bitcode/`,
+which is where `full` copies it and where nothing else does. Under `default`
+it expands to the absolute path the build found. Under `bundled` the default
+is a claim about our own tree that only `full` makes true, so a packager
+whose environment supplies the bitcode **overrides the entry** — for conda,
+`$ACPP_PATH/nvvm/libdevice` for CUDA and
+`$ACPP_PATH/targets/$ACPP_TARGET/amdgcn/libdevice` for ROCm.
+
+That is one entry doing the work, and it replaces the symlink the packaging
+lane currently plants to make a relative lookup land on conda's layout.
 
 The second zone works precisely because **nothing links against it**. Every
 resource there is reached by a `dlopen` on a path resolved from the
@@ -485,7 +639,11 @@ tells their own users what it does.
   environment variable by design
 - `DT_NEEDED` entries on vendor SDKs, and with them the tight version pins
   that downstream packages must carry
-- `default-use-bootstrap-mode`, a generated key with no reader anywhere
+- `default-use-bootstrap-mode`. Searching the whole repository for
+  `bootstrap` returns three hits: the line in `CMakeLists.txt` that
+  generates the key, an unrelated comment in `SyncDependenceAnalysis.cpp`,
+  and a mention of bootstrap builds in `doc/installing.md`. Nothing reads
+  it — in the driver or anywhere else
 
 ## 11. What this does not touch
 
@@ -547,9 +705,18 @@ Independent of strategy, and in the source rather than in cmake:
   `-lamath` and `-vector-library=...`, so the `_NAME` and `_NAME_WE`
   definitions have no reason to exist at all.
 
-  `LIB_NUMA_AVAILABLE` is the exception and stays: `rt-backend-omp` includes
-  `numa.h` and links `${NUMA_LIBRARY}`, so a toolchain built without libnuma
-  genuinely cannot compile that path.
+  The three getters this changes are `getLibSleefDir()`, `getLibAmathDir()`
+  and `getLibSvmlDir()` in `Utils.cpp`; `getLibMvecDir()` is deliberately
+  untouched (§11). `ACPP_VECTOR_MATH_LIB` enumerates what the runtime
+  already parses — `sleef`, `armpl`, `svml`, `libmvec`, `none` — and
+  `libmvec` is selectable while having no directory entry, because the only
+  correct copy is the one the loader resolves in the running process.
+
+  `LIB_NUMA_AVAILABLE` is the exception and stays exactly as it is.
+  `rt-backend-omp` includes `numa.h` and links `${NUMA_LIBRARY}`, so the
+  definition gates code that cannot compile without the library present.
+  Nothing else about numa changes: it needs no configuration entry, because
+  a dynamically linked library is not something we look up (§5).
 
   *Presumed to stay* — each selects which code is compiled, so it cannot
   become a run-time value without compiling both sides. The presumption is
@@ -564,8 +731,21 @@ Independent of strategy, and in the source rather than in cmake:
   `HIPSYCL_DEBUG_LEVEL`, the Windows portability trio, and LLVM's own
   `LLVM_DEFINITIONS`.
 - The two-pass resolver, in the driver and in `common::settings`.
-- Thin loader libraries per backend, so no vendor SDK is `DT_NEEDED`. CUDA
-  needs two, HIP one.
+- **The configuration identity a binary carries (P6)**, which is the largest
+  single change and touches four surfaces: an `acpp` driver flag taking the
+  name and the relative path; a cmake option surfaced through the
+  toolchain's package configuration so `add_sycl_to_target` users set it per
+  target; the embedding itself, which must be **per binary and not per
+  translation unit**, since two translation units of one binary cannot be
+  allowed to disagree; and the lookup in `settings_config_file`, which today
+  finds `acpp-config.cfg` beside the host executable via
+  `get_this_executable_path` and must instead ask the calling binary. A
+  binary carrying no identity falls back to exactly today's behaviour, so
+  nothing that does not opt in changes.
+- Thin loader libraries so that no *redistributable* vendor library is
+  `DT_NEEDED`: `libcudart` for CUDA, the ROCm runtime libraries for HIP,
+  and the OpenCL and Level Zero loaders. `libcuda.so.1` is deliberately not
+  among them (P5).
 - `ACPP_ROCM_CXX_FLAGS` referencing `$ACPP_CLANG_INCLUDE_PATH` instead of
   cmake's `${CLANG_INCLUDE_PATH}`, and the ROCm link line referencing
   `$ACPP_ROCM_PATH` instead of cmake's `${ROCM_PATH}` — the placeholder
@@ -580,10 +760,15 @@ Independent of strategy, and in the source rather than in cmake:
 
 ## 13. Open
 
-- Whether the deploy helper writes `acpp-config.cfg` itself, with the
-  per-application `acpp-config-<name>.cfg` and the environment still
-  overriding it at run time. That is the proposal; it adds no new file and
-  cannot clobber a hand-written one, since the override flag is how a user's
-  entries get in.
-- Whether `core` keeps upstream's per-backend component selection at the
-  command line, or is always everything the enabled backends need.
+- **How deploy learns the name.** P6 has the binary carry it, so the deploy
+  step has to write the file where those binaries will look. Either the name
+  and relative path are given to deploy as arguments and must agree with
+  what was compiled in, or deploy reads the identities out of the binaries
+  it is deploying and writes what they ask for. The second is automatic and
+  cannot disagree with itself.
+- Whether the deploy helper writes the configuration itself, with the
+  environment still overriding it at run time. That is the proposal; the
+  override flag is how a user's own entries get in.
+- Upstream's `acpp-config-<program-name>.cfg`, which selects by the host
+  executable's filename. P6 supersedes what it was for; whether it stays as
+  a legacy path or goes is not settled.
