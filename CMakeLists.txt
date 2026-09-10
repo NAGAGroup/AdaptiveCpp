@@ -101,6 +101,11 @@ set(HIPSYCL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ACPP_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(ACPP_BINARY_ROOT "${CMAKE_CURRENT_BINARY_DIR}")
 
+# Install directory conventions, included early because cmake/options.cmake
+# builds its placeholder defaults from them and the emitter fills manifest
+# stubs with them. The include is idempotent.
+include(GNUInstallDirs)
+
 if(NOT CMAKE_BUILD_TYPE AND NOT ACPP_LLVM_COMPONENT)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -485,6 +490,19 @@ if(WITH_ROCM_BACKEND)
   else()
     message(SEND_ERROR "ROCm device library path not found; please provide the path containing the ROCm bitcode libraries (e.g. ockl.bc) manually using -DROCM_DEVICE_LIBS_PATH")
   endif()
+
+  # The ROCm runtime libraries. The discovered results feed the
+  # ACPP_ROCM_LIB_PATH option, the vendor-asset gate and the deploy manifest
+  # fill; the ROCm backend itself links through ROCM_LIBS and the loader
+  # shims reach these libraries at run time.
+  # TODO Can we unify with the other ROCm detection logic that we already have?
+  find_library(AMDHIP64_LIBRARY amdhip64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
+  if(NOT WIN32)
+    find_library(HSARUNTIME64_LIBRARY hsa-runtime64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
+  endif()
+  find_library(AMDCOMGR_LIBRARY amd_comgr HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+  find_library(HSAKMT_LIBRARY hsakmt HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
+  find_library(ROCPROFILERREGISTER_LIBRARY rocprofiler-register HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
 endif()
 
 
@@ -547,6 +565,107 @@ endif()
 
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
 set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Which filesystem libraries should be searched for")
+
+# Vector math library discovery. This block lives above cmake/options.cmake
+# because the options read DEFAULT_VEC_MATH_LIB and the per-library find_library
+# results; the add_definitions that turn the results into compile definitions
+# remain in src/compiler and read the variables set here. The selection order
+# is load-bearing: libmvec is the default when usable, and the
+# architecture-specific libraries override it.
+if(APPLE OR WIN32)
+  message(WARNING "Usage of vector math library for JIT compilation is not supported on windows and Apple")
+  set(DEFAULT_VEC_MATH_LIB none)
+else()
+
+  #LIBMVEC
+  find_library(LIBMVEC NAMES mvec)
+
+  if(LIBMVEC)
+    #Check that libmvec is recent enough
+    include(CheckFunctionExists)
+    set(CMAKE_REQUIRED_LIBRARIES "${LIBMVEC}")
+    if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+      check_function_exists("_ZGVnN2v_atanhf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    else()
+      check_function_exists("_ZGVdN8v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    endif()
+    unset(CMAKE_REQUIRED_LIBRARIES)
+
+    #Check clang support libmvec
+    set(CLANG_SUPPORT_LIBMVEC true)
+    if(${LLVM_VERSION_MAJOR} LESS 21)
+      #Only clang 21+ support libmvec on aarch64
+      if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+        set(CLANG_SUPPORT_LIBMVEC false)
+      endif()
+    endif()
+  endif()
+
+  if(LIBMVEC AND LIBMVEC_HAS_REQUIRED_SYMBOLS AND CLANG_SUPPORT_LIBMVEC)
+    # find_library's answer is used to DETECT libmvec here and nowhere else.
+    # Its path is deliberately not compiled in: libmvec is part of glibc, so
+    # the only correct copy is the one the dynamic loader resolves in the
+    # process that is JIT-compiling, which is the user's application and not
+    # this build. getLibMvecDir() asks the loader for it at run time.
+    set(DEFAULT_VEC_MATH_LIB libmvec)
+
+    message( STATUS "LIBMVEC found at ${LIBMVEC}")
+  elseif(NOT LIBMVEC)
+    message(STATUS "LIBMVEC was not found")
+  elseif(NOT LIBMVEC_HAS_REQUIRED_SYMBOLS)
+    message(STATUS "LIBMVEC found at ${LIBMVEC}, but does not provide required functions (likely too old)")
+  elseif(NOT CLANG_SUPPORT_LIBMVEC)
+    message(STATUS "LIBMVEC was found at ${LIBMVEC}, but the detected LLVM version (${LLVM_VERSION_MAJOR}) does not support LIBMVEC.")
+  endif()
+
+  #SLEEF
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBSLEEF NAMES sleefgnuabi)
+
+    if(LIBSLEEF)
+      set(DEFAULT_VEC_MATH_LIB sleef)
+
+      message( STATUS "SLEEF found at ${LIBSLEEF}")
+    else()
+      message( STATUS "SLEEF was not found")
+    endif()
+  else()
+    message( STATUS "SLEEF not available on X86")
+  endif()
+
+  #AMATH
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBAMATH NAMES amath)
+
+    if(LIBAMATH)
+      set(DEFAULT_VEC_MATH_LIB armpl)
+
+      message( STATUS "AMATH found at ${LIBAMATH}")
+    else()
+      message( STATUS "AMATH was not found")
+    endif()
+  else()
+    message( STATUS "AMATH not available on X86")
+  endif()
+
+  #SVML
+  if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
+    find_library(LIBSVML NAMES svml)
+    find_library(LIBINTLC NAMES intlc)
+
+    if(LIBSVML AND LIBINTLC )
+      set(DEFAULT_VEC_MATH_LIB svml)
+
+      message( STATUS "SVML found at ${LIBSVML} (INTLC found at ${LIBINTLC})")
+    else()
+      message( STATUS "SVML was not found")
+    endif()
+  else()
+    message( STATUS "SVML not available on AArch64")
+  endif()
+endif()
+
+include(${ACPP_SOURCE_ROOT}/cmake/options.cmake)
 
 ##########################################################
 ## Do not define any variables that might be used by build
@@ -691,228 +810,12 @@ endif()
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 
 
-# Settings that name a path outside the AdaptiveCpp installation. A path
-# recorded here is the one the build machine used, so a redistributable package
-# omits them and supplies them from the environment instead. JSON is unordered,
-# so they are grouped rather than left where they were.
-if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
-  set(ACPP_CORE_CONFIG_PATHS "")
-  set(ACPP_CUDA_CONFIG_PATHS "")
-  set(ACPP_ROCM_CONFIG_PATHS "")
-else()
-  set(ACPP_CORE_CONFIG_PATHS "  \"default-clang\"     : \"${CLANG_INSTALLED_PATH}\",
-  \"default-cpu-cxx\"   : \"${CMAKE_CXX_COMPILER}\",
-  \"default-rocm-path\" : \"${ROCM_PATH}\",
-  \"default-clang-include-path\" : \"${CLANG_INCLUDE_PATH}\",
-")
-  set(ACPP_CUDA_CONFIG_PATHS "  \"default-nvcxx\"     : \"${NVCXX_COMPILER}\",
-  \"default-cuda-path\" : \"${CUDA_TOOLKIT_ROOT_DIR}\",
-")
-  set(ACPP_ROCM_CONFIG_PATHS "  \"default-rocm-path\" : \"${ROCM_PATH}\",
-")
-endif()
-
-set(ACPP_CORE_CONFIG_FILE "{
-  \"version-major\" : \"${ACPP_VERSION_MAJOR}\",
-  \"version-minor\" : \"${ACPP_VERSION_MINOR}\",
-  \"version-patch\" : \"${ACPP_VERSION_PATCH}\",
-  \"version-suffix\" : \"${ACPP_VERSION_SUFFIX}\",
-  \"plugin-linked-into-llvm\" : \"${LLVM_ADAPTIVECPP_LINK_INTO_TOOLS}\",
-  \"plugin-llvm-version-major\" : \"${PLUGIN_LLVM_VERSION_MAJOR}\",
-  \"plugin-with-cpu-acceleration\" : \"${WITH_ACCELERATED_CPU}\",
-  \"plugin-with-sscp-compiler\" : \"${WITH_SSCP_COMPILER}\",
-${ACPP_CORE_CONFIG_PATHS}  \"default-targets\"  : \"${DEFAULT_TARGETS}\",
-  \"default-use-bootstrap-mode\" : \"false\",
-  \"default-is-dryrun\" : \"false\",
-  \"default-use-accelerated-cpu\" : \"${WITH_ACCELERATED_CPU}\",
-  \"default-sequential-link-line\" : \"${SEQUENTIAL_LINK_LINE}\",
-  \"default-sequential-cxx-flags\" : \"${SEQUENTIAL_CXX_FLAGS}\",
-  \"default-omp-link-line\" : \"${OMP_LINK_LINE}\",
-  \"default-omp-cxx-flags\" : \"${OMP_CXX_FLAGS}\",
-  \"default-is-explicit-multipass\" : \"false\",
-  \"default-save-temps\" : \"false\"
-}
-")
-
-
-set(ACPP_CUDA_CONFIG_FILE "{
-${ACPP_CUDA_CONFIG_PATHS}  \"default-cuda-link-line\" : \"${CUDA_LINK_LINE}\",
-  \"default-cuda-cxx-flags\" : \"${CUDA_CXX_FLAGS}\"
-}
-")
-
-
-set(ACPP_ROCM_CONFIG_FILE "{
-${ACPP_ROCM_CONFIG_PATHS}  \"default-rocm-link-line\" : \"${ROCM_LINK_LINE}\",
-  \"default-rocm-cxx-flags\" : \"${ROCM_CXX_FLAGS}\"
-}
-")
-
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-core.json ${ACPP_CORE_CONFIG_FILE})
-if(WITH_CUDA_BACKEND)
-  file(WRITE ${ACPP_BINARY_ROOT}/acpp-cuda.json ${ACPP_CUDA_CONFIG_FILE})
-endif()
-if(WITH_ROCM_BACKEND)
-  file(WRITE ${ACPP_BINARY_ROOT}/acpp-rocm.json ${ACPP_ROCM_CONFIG_FILE})
-endif()
-
-message(STATUS "Numa: ${NUMA_LIBRARY}")
-
-if(WIN32)
-  # libs on windows are under bin/
-  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_PATH/bin")
-  # on windows, these libraries don't exist as they are linked
-  # statically to backends
-  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "")
-  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "")
-  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "")
-  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "")
-  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "")
-else()
-  set(ACPP_DEPLOYMENT_MAIN_LIB_PATH "$ACPP_LIB_PATH")
-  set(ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host")
-  set(ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-ptx")
-  set(ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu")
-  set(ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv")
-  set(ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB "${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend")
-endif()
-
-# The libraries below that are NOT part of the AdaptiveCpp installation are
-# named by their find_library() result, which is a path on the build machine.
-# For a redistributable package that path is doubly wrong: it need not exist on
-# the user's machine, and it discloses the layout of ours.
-#
-# ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS already governs exactly this class in
-# the generated configuration files; the deployment manifests are the same
-# question and now follow the same switch. What is omitted is what the user is
-# told to resolve for themselves: doc/deployment.md documents an ldd pass over
-# the deployment tree for precisely these transitive dependencies.
-#
-# libmvec is absent from both branches on purpose. It is part of glibc, so the
-# only correct copy is whatever the loader resolves in the process doing the
-# JIT; getLibMvecDir() asks the loader directly. Deploying one would risk
-# pairing a libmvec with a libc it was not built against.
-# Each fragment carries its own leading comma, so the manifest stays valid JSON
-# whichever combination is selected.
-if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
-  set(ACPP_CORE_DEPLOYMENT_EXTERNAL_LIBS "")
-else()
-  # TODO OpenMP is poorly handled.
-  # - We copy both omp and gomp instead of checking what we need
-  set(ACPP_CORE_DEPLOYMENT_EXTERNAL_LIBS ",
-  \"${NUMA_LIBRARY}\" : \"/\",
-  \"${OpenMP_omp_LIBRARY}\" : \"/\",
-  \"${OpenMP_gomp_LIBRARY}\" : \"/\",
-  \"${LIBSLEEF}\" : \"/\",
-  \"${LIBAMATH}\" : \"/\",
-  \"${LIBSVML}\" : \"/\",
-  \"${LIBINTLC}\" : \"/\"")
-endif()
-
-# libLLVM is a runtime dependency whichever way AdaptiveCpp was built - the
-# llvm-to-backend libraries link it and the JIT needs it. The test is on
-# LLVM_LIBRARY itself rather than on a flag that implies it: when AdaptiveCpp is
-# built as part of LLVM there is no find_package(LLVM) to set it, and the entry
-# then collapsed to an empty key that the driver discards on read, so libLLVM
-# was silently never deployed. In that configuration libLLVM is installed
-# beside our own libraries, so it is named the way they are.
-if(LLVM_LIBRARY)
-  set(ACPP_CORE_DEPLOYMENT_LLVM_LIB ",
-  \"${LLVM_LIBRARY}\" : \"/\"")
-else()
-  set(ACPP_CORE_DEPLOYMENT_LLVM_LIB ",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:LLVM\" : \"/\"")
-endif()
-
-set(ACPP_CORE_DEPLOYMENT_MANIFEST "{
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-rt\" : \"/\",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/SHARED_LIB:acpp-common\" : \"/\",
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-omp\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_LLVM_TO_HOST_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
-  \"${ACPP_DEPLOYMENT_LLVM_TO_BACKEND_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
-  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-full.bc\" : \"/hipSYCL/bitcode/\",
-  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc\" : \"/hipSYCL/bitcode/\",
-  \"${ACPP_LLC_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
-  \"${ACPP_OPT_PATH}\" : \"/hipSYCL/ext/llvm/bin/\",
-  \"${ACPP_LLD_PATH}\" : \"/hipSYCL/ext/llvm/bin/\"${ACPP_CORE_DEPLOYMENT_EXTERNAL_LIBS}${ACPP_CORE_DEPLOYMENT_LLVM_LIB}
-}
-")
-
-#TODO cudart for older cmake versions?
-# libdevice and cudart come from the CUDA installation, not ours, so they are
-# named by a build-machine path and follow the same switch as the core
-# manifest's external libraries.
-if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
-  set(ACPP_CUDA_DEPLOYMENT_EXTERNAL_LIBS "")
-else()
-  set(ACPP_CUDA_DEPLOYMENT_EXTERNAL_LIBS ",
-  \"${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc\" : \"/hipSYCL/ext/bitcode/ptx\",
-  \"${CUDA_cudart_LIBRARY}\" : \"/\"")
-endif()
-
-set(ACPP_CUDA_DEPLOYMENT_MANIFEST "{
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-cuda\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_LLVM_TO_PTX_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
-  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-ptx-full.bc\" : \"/hipSYCL/bitcode/\"${ACPP_CUDA_DEPLOYMENT_EXTERNAL_LIBS}
-}
-")
-
-# TODO Can we unify with the other ROCm detection logic that we already have?
-if(WITH_ROCM_BACKEND)
-  find_library(AMDHIP64_LIBRARY amdhip64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
-  if(NOT WIN32)
-    find_library(HSARUNTIME64_LIBRARY hsa-runtime64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
-  endif()
-  find_library(AMDCOMGR_LIBRARY amd_comgr HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
-  find_library(HSAKMT_LIBRARY hsakmt HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
-  find_library(ROCPROFILERREGISTER_LIBRARY rocprofiler-register HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
-endif()
-# The device bitcode and the five ROCm libraries live in the ROCm installation,
-# not ours, so they are named by build-machine paths and follow the same switch.
-if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
-  set(ACPP_HIP_DEPLOYMENT_EXTERNAL_LIBS "")
-else()
-  set(ACPP_HIP_DEPLOYMENT_EXTERNAL_LIBS ",
-  \"${ROCM_DEVICE_LIBS_PATH}/*\" : \"/hipSYCL/ext/bitcode/amdgcn/\",
-  \"${HIPRTC_LIBRARY}\" : \"/\",
-  \"${AMDHIP64_LIBRARY}\" : \"/\",
-  \"${HSARUNTIME64_LIBRARY}\" : \"/\",
-  \"${AMDCOMGR_LIBRARY}\" : \"/\",
-  \"${HSAKMT_LIBRARY}\" : \"/\",
-  \"${ROCPROFILERREGISTER_LIBRARY}\" : \"/\"")
-endif()
-
-set(ACPP_HIP_DEPLOYMENT_MANIFEST "{
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-hip\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_LLVM_TO_AMDGPU_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
-  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc\" : \"/hipSYCL/bitcode/\"${ACPP_HIP_DEPLOYMENT_EXTERNAL_LIBS}
-}
-")
-
-# TODO Looks like llvm-spirv sets up spirv-tools dependency if it finds
-# it on the system -> look into explicitly disabling this?
-# The ICD loader is not part of our installation; same switch. Note that
-# doc/deployment.md already tells users AdaptiveCpp only handles the loader and
-# that the driver is theirs to install.
-if(ACPP_CONFIG_FILE_OMIT_ENVIRONMENT_PATHS)
-  set(ACPP_OCL_DEPLOYMENT_EXTERNAL_LIBS "")
-else()
-  set(ACPP_OCL_DEPLOYMENT_EXTERNAL_LIBS ",
-  \"${OpenCL_LIBRARIES}\" : \"/\"")
-endif()
-
-set(ACPP_OCL_DEPLOYMENT_MANIFEST "{
-  \"${ACPP_DEPLOYMENT_MAIN_LIB_PATH}/hipSYCL/SHARED_LIB:rt-backend-ocl\" : \"/hipSYCL\",
-  \"${ACPP_DEPLOYMENT_LLVM_TO_SPIRV_LIB}\" : \"/hipSYCL/llvm-to-backend/\",
-  \"$ACPP_LIB_PATH/hipSYCL/bitcode/libkernel-sscp-spirv-full.bc\" : \"/hipSYCL/bitcode/\",
-  \"$ACPP_LIB_PATH/hipSYCL/ext/llvm-spirv/bin/llvm-spirv\" : \"/hipSYCL/ext/llvm-spirv/bin/\"${ACPP_OCL_DEPLOYMENT_EXTERNAL_LIBS}
-}
-")
-
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json ${ACPP_CORE_DEPLOYMENT_MANIFEST})
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json ${ACPP_CUDA_DEPLOYMENT_MANIFEST})
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json ${ACPP_HIP_DEPLOYMENT_MANIFEST})
-file(WRITE ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json ${ACPP_OCL_DEPLOYMENT_MANIFEST})
+# The toolchain configuration files and the deploy manifests are source files
+# under config/; the emitter copies the enabled set and fills their install
+# stubs. It is included here, after add_subdirectory(src) and after the link
+# lines above, because the fills read the OpenMP, NUMA and LLVM library
+# results that src finds and the link-line and default-target variables.
+include(${ACPP_SOURCE_ROOT}/cmake/emitter.cmake)
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -978,21 +881,38 @@ install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
 install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
 
-install(FILES ${ACPP_BINARY_ROOT}/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+install(FILES ${ACPP_BINARY_ROOT}/config/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 if(WITH_CUDA_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 endif()
 if(WITH_ROCM_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
+if(WITH_OPENCL_BACKEND)
+  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
+if(WITH_LEVEL_ZERO_BACKEND)
+  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-ze.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
+if(WITH_VULKAN_BACKEND)
+  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-vulkan.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 endif()
 
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+if(WITH_CUDA_BACKEND)
+  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+endif()
+if(WITH_ROCM_BACKEND)
+  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-hip.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+endif()
+if(WITH_OPENCL_BACKEND)
+  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+endif()
+if(WITH_LEVEL_ZERO_BACKEND)
+  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-ze.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+endif()
 
 include(CMakePackageConfigHelpers)
-include(GNUInstallDirs)
 
 
 
