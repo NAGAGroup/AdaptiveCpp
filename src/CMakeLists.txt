@@ -1,5 +1,3 @@
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
 if(NOT APPLE AND NOT WIN32)
   # symbolic functions causes references in our libraries to be resolved
   # to definitions within the libraries themselves, if possible.
