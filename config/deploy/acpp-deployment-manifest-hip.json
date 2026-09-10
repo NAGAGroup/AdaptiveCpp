@@ -16,7 +16,7 @@
   },
   "rocm-libs": {
     "source": "$ACPP_ROCM_LIB_PATH",
-    "destination": "$ACPP_PATH/targets/$ACPP_TARGET/lib",
+    "destination": "targets/$ACPP_TARGET/lib",
     "files": [
       "SHARED_LIB:amdhip64",
       "SHARED_LIB:hsa-runtime64",
@@ -28,7 +28,7 @@
   },
   "rocm-bitcode": {
     "source": "$ACPP_ROCM_DEVICE_LIBS_PATH",
-    "destination": "$ACPP_PATH/lib/hipSYCL/ext/bitcode/amdgcn",
+    "destination": "lib/hipSYCL/ext/bitcode/amdgcn",
     "files": [
       "*"
     ]

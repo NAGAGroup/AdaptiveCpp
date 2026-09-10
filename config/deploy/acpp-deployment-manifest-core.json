@@ -15,7 +15,7 @@
   },
   "llvm-tools": {
     "source": "$ACPP_PATH/bin",
-    "destination": "$ACPP_PATH/bin",
+    "destination": "bin",
     "files": [
       "$ACPP_LLC_NAME",
       "$ACPP_OPT_NAME",

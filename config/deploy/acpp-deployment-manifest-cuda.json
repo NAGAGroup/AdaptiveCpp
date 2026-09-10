@@ -11,14 +11,14 @@
   },
   "cuda-libs": {
     "source": "$ACPP_CUDA_LIB_PATH",
-    "destination": "$ACPP_PATH/targets/$ACPP_TARGET/lib",
+    "destination": "targets/$ACPP_TARGET/lib",
     "files": [
       "SHARED_LIB:cudart"
     ]
   },
   "cuda-bitcode": {
     "source": "$ACPP_CUDA_DEVICE_LIBS_PATH",
-    "destination": "$ACPP_PATH/lib/hipSYCL/ext/bitcode/ptx",
+    "destination": "lib/hipSYCL/ext/bitcode/ptx",
     "files": [
       "libdevice.10.bc"
     ]

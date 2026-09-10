@@ -11,7 +11,7 @@
   },
   "ze-loader": {
     "source": "$ACPP_ZE_LIB_PATH",
-    "destination": "$ACPP_PATH/targets/$ACPP_TARGET/lib",
+    "destination": "targets/$ACPP_TARGET/lib",
     "files": [
       "SHARED_LIB:ze_loader"
     ]
