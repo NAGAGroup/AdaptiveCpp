@@ -50,9 +50,22 @@ endfunction()
 
 # Expand the core placeholders under the `default` strategy, refuse a
 # surviving stub, and write the result.
+#
+# Under `default`, section 7 requires that no placeholder survive, so both of
+# section 6's passes run here: entry references are expanded against the
+# filled values first, and the core placeholders afterwards - which also
+# resolves any core placeholder a referenced value carried in. The names of
+# the referenceable entries are passed as extra arguments, because they differ
+# per file: the core file's tool paths reference the name entries and the
+# vector math directories reference ACPP_LIBDIR, the cuda link line references
+# ACPP_CUDA_LIB_PATH, the ROCm link line ACPP_ROCM_PATH. Under `bundled` and
+# `full` nothing is expanded: the driver's read-time resolver does both passes.
 function(acpp_finish_config content_var src dst)
   set(content "${${content_var}}")
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
+    foreach(ref IN LISTS ARGN)
+      string(REGEX REPLACE "\\$${ref}" "${${ref}}" content "${content}")
+    endforeach()
     string(REPLACE "$ACPP_PATH" "${CMAKE_INSTALL_PREFIX}" content "${content}")
     string(REPLACE "$ACPP_TARGET" "${ACPP_TARGET}" content "${content}")
   endif()
@@ -111,7 +124,8 @@ function(acpp_emit_config_core src dst)
   acpp_fill_entry(content "ACPP_LLC_HOST_CPU_FLAG" "${ACPP_LLC_HOST_CPU_FLAG}")
   acpp_fill_entry(content "ACPP_OPT_HOST_CPU_FLAG" "${ACPP_OPT_HOST_CPU_FLAG}")
 
-  acpp_finish_config(content "${src}" "${dst}")
+  acpp_finish_config(content "${src}" "${dst}"
+    ACPP_LIBDIR ACPP_LLC_NAME ACPP_LLD_NAME ACPP_OPT_NAME ACPP_LLVMSPIRV_NAME)
 endfunction()
 
 function(acpp_emit_config_cuda src dst)
@@ -122,7 +136,7 @@ function(acpp_emit_config_cuda src dst)
   acpp_fill_entry(content "default-cuda-link-line" "${CUDA_LINK_LINE}")
   acpp_fill_entry(content "default-cuda-cxx-flags" "${CUDA_CXX_FLAGS}")
   acpp_fill_entry(content "ACPP_CUDA_DEVICE_LIBS_PATH" "${ACPP_CUDA_DEVICE_LIBS_PATH}")
-  acpp_finish_config(content "${src}" "${dst}")
+  acpp_finish_config(content "${src}" "${dst}" ACPP_CUDA_LIB_PATH)
 endfunction()
 
 function(acpp_emit_config_rocm src dst)
@@ -133,7 +147,7 @@ function(acpp_emit_config_rocm src dst)
   acpp_fill_entry(content "default-rocm-cxx-flags" "${ROCM_CXX_FLAGS}")
   acpp_fill_entry(content "ACPP_ROCM_DEVICE_LIBS_PATH" "${ACPP_ROCM_DEVICE_LIBS_PATH}")
   acpp_fill_entry(content "ACPP_HIPCC_PATH" "${ACPP_HIPCC_PATH}")
-  acpp_finish_config(content "${src}" "${dst}")
+  acpp_finish_config(content "${src}" "${dst}" ACPP_ROCM_PATH)
 endfunction()
 
 function(acpp_emit_config_ocl src dst)
