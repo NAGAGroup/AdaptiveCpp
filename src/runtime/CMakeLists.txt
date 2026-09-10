@@ -219,7 +219,10 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_code_object.cpp)
 
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
-  find_library(ACPP_ZE_LOADER_LIBRARY NAMES ze_loader REQUIRED)
+  # The loader is found in the root CMakeLists, above cmake/options.cmake,
+  # because ACPP_ZE_LIB_PATH and the vendor-asset gate read where it was
+  # found. find results are cache entries, so ACPP_ZE_LOADER_LIBRARY is
+  # visible here.
   target_link_libraries(rt-backend-ze PRIVATE acpp-rt ${ACPP_ZE_LOADER_LIBRARY})
 
   target_compile_options(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})

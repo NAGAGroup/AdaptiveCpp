@@ -283,10 +283,13 @@ if(WITH_SSCP_COMPILER)
     target_compile_definitions(llvm-to-amdgpu PRIVATE
       -DACPP_ROCM_DEVICE_LIBS_PATH="${ROCM_DEVICE_LIBS_PATH}")
 
-    find_program(HIPCC_PATH hipcc HINTS ${ROCM_PATH}/bin)
-    if(HIPCC_PATH)
+    # hipcc is found in the root CMakeLists, above cmake/options.cmake; the
+    # legacy fallback there may already have found it while deciding whether
+    # ROCm is available at all. find results are cache entries, so
+    # HIPCC_COMPILER is visible here.
+    if(HIPCC_COMPILER)
       target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DACPP_HIPCC_PATH="${HIPCC_PATH}")
+        -DACPP_HIPCC_PATH="${HIPCC_COMPILER}")
     endif()
 
     find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)

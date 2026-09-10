@@ -491,6 +491,14 @@ if(WITH_ROCM_BACKEND)
     message(SEND_ERROR "ROCm device library path not found; please provide the path containing the ROCm bitcode libraries (e.g. ockl.bc) manually using -DROCM_DEVICE_LIBS_PATH")
   endif()
 
+  # hipcc, for the ROCm interoperability flow. The legacy fallback above may
+  # already have found it while deciding whether ROCm is available at all;
+  # this covers the case where HIP was found through its cmake packages and
+  # that probe never ran. One discovery, one name.
+  if(NOT HIPCC_COMPILER)
+    find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH} ${ROCM_PATH}/bin)
+  endif()
+
   # The ROCm runtime libraries. The discovered results feed the
   # ACPP_ROCM_LIB_PATH option, the vendor-asset gate and the deploy manifest
   # fill; the ROCm backend itself links through ROCM_LIBS and the loader
@@ -516,6 +524,21 @@ if(WITH_CUDA_BACKEND)
   else()
     message(SEND_ERROR "CUDA device library path not found; please provide the path containing the CUDA bitcode libraries (libdevice.10.bc) manually using -DCUDA_DEVICE_LIBS_PATH")
   endif()
+endif()
+
+if(WITH_LEVEL_ZERO_BACKEND)
+  # The Level Zero loader: the backend links it, and ACPP_ZE_LIB_PATH and the
+  # vendor-asset gate read where it was found. The find used to live beside
+  # the backend target in src/runtime; find results are cache entries, so the
+  # target_link_libraries there keeps reading this one.
+  find_library(ACPP_ZE_LOADER_LIBRARY NAMES ze_loader REQUIRED)
+endif()
+
+if(WITH_VULKAN_BACKEND)
+  # clspv, for the Vulkan backend's llvm-to-clspv target. The find used to
+  # live beside the target in src/compiler/llvm-to-backend; ACPP_CLSPV_PATH
+  # reads it here instead.
+  find_program(CLSPV_COMPILER NAMES clspv REQUIRED)
 endif()
 
 
