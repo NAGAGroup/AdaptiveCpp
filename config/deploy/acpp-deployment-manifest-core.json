@@ -1,0 +1,55 @@
+{
+  "deployed-libs": {
+    "toolchain-libdir": "stub",
+    "destination": "$ACPP_LIBDIR",
+    "files": [
+      "SHARED_LIB:acpp-rt",
+      "SHARED_LIB:acpp-common",
+      "hipSYCL/SHARED_LIB:rt-backend-omp",
+      "hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-host",
+      "hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-backend",
+      "hipSYCL/bitcode/libkernel-sscp-host-full.bc",
+      "hipSYCL/bitcode/libkernel-sscp-host-fast-full.bc",
+      "hipSYCL/ext/llvm-spirv/bin/$ACPP_LLVMSPIRV_NAME"
+    ]
+  },
+  "llvm-tools": {
+    "source": "$ACPP_PATH/bin",
+    "destination": "$ACPP_PATH/bin",
+    "files": [
+      "$ACPP_LLC_NAME",
+      "$ACPP_OPT_NAME",
+      "$ACPP_LLD_NAME"
+    ]
+  },
+  "external-libs": {
+    "destination": "$ACPP_LIBDIR",
+    "paths": {
+      "libnuma": "stub",
+      "openmp": "stub",
+      "libLLVM": "stub"
+    }
+  },
+  "sleef": {
+    "source": "$ACPP_SLEEF_DIR",
+    "destination": "$ACPP_LIBDIR",
+    "files": [
+      "SHARED_LIB:sleefgnuabi"
+    ]
+  },
+  "amath": {
+    "source": "$ACPP_AMATH_DIR",
+    "destination": "$ACPP_LIBDIR",
+    "files": [
+      "SHARED_LIB:amath"
+    ]
+  },
+  "svml": {
+    "source": "$ACPP_SVML_DIR",
+    "destination": "$ACPP_LIBDIR",
+    "files": [
+      "SHARED_LIB:svml",
+      "SHARED_LIB:intlc"
+    ]
+  }
+}

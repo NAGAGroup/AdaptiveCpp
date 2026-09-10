@@ -1,0 +1,19 @@
+{
+  "deployed-libs": {
+    "toolchain-libdir": "stub",
+    "destination": "$ACPP_LIBDIR",
+    "files": [
+      "hipSYCL/SHARED_LIB:rt-backend-ocl",
+      "hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv",
+      "hipSYCL/bitcode/libkernel-sscp-spirv-full.bc",
+      "hipSYCL/vendor-loaders/opencl/SHARED_LIB:acpp-loader-ocl"
+    ]
+  },
+  "ocl-loader": {
+    "source": "$ACPP_OCL_LIB_PATH",
+    "destination": "$ACPP_PATH/targets/$ACPP_TARGET/lib",
+    "files": [
+      "SHARED_LIB:OpenCL"
+    ]
+  }
+}

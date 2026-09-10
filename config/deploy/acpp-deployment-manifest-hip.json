@@ -1,0 +1,36 @@
+{
+  "deployed-libs": {
+    "toolchain-libdir": "stub",
+    "destination": "$ACPP_LIBDIR",
+    "files": [
+      "hipSYCL/SHARED_LIB:rt-backend-hip",
+      "hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-amdgpu",
+      "hipSYCL/bitcode/libkernel-sscp-amdgpu-amdhsa-full.bc",
+      "hipSYCL/vendor-loaders/amd/SHARED_LIB:acpp-loader-amdhip64",
+      "hipSYCL/vendor-loaders/amd/SHARED_LIB:acpp-loader-hsa-runtime64",
+      "hipSYCL/vendor-loaders/amd/SHARED_LIB:acpp-loader-amd-comgr",
+      "hipSYCL/vendor-loaders/amd/SHARED_LIB:acpp-loader-hsakmt",
+      "hipSYCL/vendor-loaders/amd/SHARED_LIB:acpp-loader-rocprofiler-register",
+      "hipSYCL/vendor-loaders/amd/SHARED_LIB:acpp-loader-hiprtc"
+    ]
+  },
+  "rocm-libs": {
+    "source": "$ACPP_ROCM_LIB_PATH",
+    "destination": "$ACPP_PATH/targets/$ACPP_TARGET/lib",
+    "files": [
+      "SHARED_LIB:amdhip64",
+      "SHARED_LIB:hsa-runtime64",
+      "SHARED_LIB:amd_comgr",
+      "SHARED_LIB:hsakmt",
+      "SHARED_LIB:rocprofiler-register",
+      "SHARED_LIB:hiprtc"
+    ]
+  },
+  "rocm-bitcode": {
+    "source": "$ACPP_ROCM_DEVICE_LIBS_PATH",
+    "destination": "$ACPP_PATH/lib/hipSYCL/ext/bitcode/amdgcn",
+    "files": [
+      "*"
+    ]
+  }
+}

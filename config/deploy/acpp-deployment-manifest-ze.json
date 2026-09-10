@@ -1,0 +1,19 @@
+{
+  "deployed-libs": {
+    "toolchain-libdir": "stub",
+    "destination": "$ACPP_LIBDIR",
+    "files": [
+      "hipSYCL/SHARED_LIB:rt-backend-ze",
+      "hipSYCL/llvm-to-backend/SHARED_LIB:llvm-to-spirv",
+      "hipSYCL/bitcode/libkernel-sscp-spirv-full.bc",
+      "hipSYCL/vendor-loaders/level-zero/SHARED_LIB:acpp-loader-ze"
+    ]
+  },
+  "ze-loader": {
+    "source": "$ACPP_ZE_LIB_PATH",
+    "destination": "$ACPP_PATH/targets/$ACPP_TARGET/lib",
+    "files": [
+      "SHARED_LIB:ze_loader"
+    ]
+  }
+}
