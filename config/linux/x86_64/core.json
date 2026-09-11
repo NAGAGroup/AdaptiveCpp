@@ -1,15 +1,15 @@
 {
-  "libdir": {
-    "value": "@ACPP_LIBDIR@",
-    "envvar": "ACPP_LIBDIR"
+  "acpp-libdir": {
+    "value": "@CMAKE_INSTALL_LIBDIR@"
   },
-  "toolchain-libdir": {
-    "value": "@ACPP_TOOLCHAIN_LIBDIR@",
-    "envvar": null
+  "llvm-libdir": {
+    "value": "@LLVM_LIBDIR@"
   },
-  "libexec-dir": {
-    "value": "@ACPP_LIBEXEC_DIR@",
-    "envvar": "ACPP_LIBEXEC_DIR"
+  "llvm-deploy-path": {
+    "value": "@ACPP_LLVM_DEPLOY_PATH@"
+  },
+  "libomp-deploy-path": {
+    "value": "@ACPP_LIBOMP_DEPLOY_PATH@"
   },
   "default-strategy-app-cfg-dir": {
     "value": "@ACPP_DEFAULT_STRATEGY_APP_CFG_DIR@",
@@ -21,37 +21,27 @@
   },
 
   "version-major": {
-    "value": "@ACPP_VERSION_MAJOR@",
-    "envvar": null
+    "value": "@ACPP_VERSION_MAJOR@"
   },
   "version-minor": {
-    "value": "@ACPP_VERSION_MINOR@",
-    "envvar": null
+    "value": "@ACPP_VERSION_MINOR@"
   },
   "version-patch": {
-    "value": "@ACPP_VERSION_PATCH@",
-    "envvar": null
+    "value": "@ACPP_VERSION_PATCH@"
   },
   "version-suffix": {
-    "value": "@ACPP_VERSION_SUFFIX@",
-    "envvar": null
+    "value": "@ACPP_VERSION_SUFFIX@"
   },
   "llvm-version-major": {
-    "value": "@LLVM_VERSION_MAJOR@",
-    "envvar": "ACPP_LLVM_VERSION_MAJOR"
+    "value": "@LLVM_VERSION_MAJOR@"
   },
   "plugin-linked-into-llvm": {
-    "value": "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@",
-    "envvar": null
+    "value": "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@"
   },
 
   "llvm-path": {
     "value": "@ACPP_LLVM_PATH@",
     "envvar": "ACPP_LLVM_PATH"
-  },
-  "libllvm-path": {
-    "value": "@ACPP_LIBLLVM_PATH@",
-    "envvar": "ACPP_LIBLLVM_PATH"
   },
   "libomp-path": {
     "value": "@ACPP_LIBOMP_PATH@",
@@ -62,19 +52,27 @@
     "envvar": "ACPP_LIBNUMA_PATH"
   },
 
-  "clang-device-cmplr": {
-    "value": "@ACPP_CLANG_DEVICE_CMPLR@",
-    "envvar": "ACPP_CLANG_DEVICE_CMPLR",
-    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/clang++"
+  "device-clang-cmplr": {
+    "value": "@ACPP_TOOLCHAIN_DEVICE_CMPLR@",
+    "envvar": "ACPP_CLANG",
+    "app": {
+      "var": "ACPP_CLANG",
+      "value": "@ACPP_APP_DEVICE_CMPLR@",
+      "runtime-configurable": true
+    }
   },
   "cpu-cxx": {
     "value": "@ACPP_CPU_CXX@",
     "envvar": "ACPP_CPU_CXX"
   },
   "clang-include-path": {
-    "value": "@ACPP_CLANG_INCLUDE_PATH@",
+    "value": "@ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH@",
     "envvar": "ACPP_CLANG_INCLUDE_PATH",
-    "deployed-as": "$ACPP_PATH/{{ libdir }}/clang/{{ llvm-version-major }}/include"
+    "app": {
+      "var": "ACPP_CLANG_INCLUDE_PATH",
+      "value": "@ACPP_APP_CLANG_INCLUDE_PATH@",
+      "runtime-configurable": false
+    }
   },
   "plugin-path": {
     "value": "@ACPP_PLUGIN_PATH@",
@@ -82,66 +80,114 @@
   },
 
   "llc": {
-    "value": "@ACPP_LLC@",
+    "value": "@ACPP_TOOLCHAIN_LLC@",
     "envvar": "ACPP_LLC",
-    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/llc"
+    "app": {
+      "var": "ACPP_LLC",
+      "value": "@ACPP_APP_LLC@",
+      "runtime-configurable": false
+    }
   },
   "opt": {
-    "value": "@ACPP_OPT@",
+    "value": "@ACPP_TOOLCHAIN_OPT@",
     "envvar": "ACPP_OPT",
-    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/opt"
+    "app": {
+      "var": "ACPP_OPT",
+      "value": "@ACPP_APP_OPT@",
+      "runtime-configurable": false
+    }
   },
   "lld": {
-    "value": "@ACPP_LLD@",
+    "value": "@ACPP_TOOLCHAIN_LLD@",
     "envvar": "ACPP_LLD",
-    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/ld.lld"
+    "app": {
+      "var": "ACPP_LLD",
+      "value": "@ACPP_APP_LLD@",
+      "runtime-configurable": false
+    }
   },
   "llvm-spirv": {
-    "value": "@ACPP_LLVMSPIRV@",
+    "value": "@ACPP_TOOLCHAIN_LLVMSPIRV@",
     "envvar": "ACPP_LLVMSPIRV",
-    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/llvm-spirv"
+    "app": {
+      "var": "ACPP_LLVMSPIRV",
+      "value": "@ACPP_APP_LLVMSPIRV@",
+      "runtime-configurable": false
+    }
   },
 
   "jit-host-llc-cpu-flag": {
     "value": "@ACPP_JIT_HOST_LLC_CPU_FLAG@",
     "envvar": "ACPP_JIT_HOST_LLC_CPU_FLAG",
-    "deployed-as": "{{ jit-host-llc-cpu-flag }}"
+    "app": {
+      "var": "ACPP_JIT_HOST_LLC_CPU_FLAG",
+      "value": "{{ jit-host-llc-cpu-flag }}",
+      "runtime-configurable": true
+    }
   },
   "jit-host-opt-cpu-flag": {
     "value": "@ACPP_JIT_HOST_OPT_CPU_FLAG@",
     "envvar": "ACPP_JIT_HOST_OPT_CPU_FLAG",
-    "deployed-as": "{{ jit-host-opt-cpu-flag }}"
+    "app": {
+      "var": "ACPP_JIT_HOST_OPT_CPU_FLAG",
+      "value": "{{ jit-host-opt-cpu-flag }}",
+      "runtime-configurable": true
+    }
   },
   "jit-host-llc-flags": {
     "value": "@ACPP_JIT_HOST_LLC_FLAGS@",
     "envvar": "ACPP_JIT_HOST_LLC_FLAGS",
-    "deployed-as": "{{ jit-host-llc-flags }}"
+    "app": {
+      "var": "ACPP_JIT_HOST_LLC_FLAGS",
+      "value": "{{ jit-host-llc-flags }}",
+      "runtime-configurable": true
+    }
   },
   "jit-host-opt-flags": {
     "value": "@ACPP_JIT_HOST_OPT_FLAGS@",
     "envvar": "ACPP_JIT_HOST_OPT_FLAGS",
-    "deployed-as": "{{ jit-host-opt-flags }}"
+    "app": {
+      "var": "ACPP_JIT_HOST_OPT_FLAGS",
+      "value": "{{ jit-host-opt-flags }}",
+      "runtime-configurable": true
+    }
   },
 
   "vector-math-lib": {
     "value": "@ACPP_VECTOR_MATH_LIB@",
-    "envvar": "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY",
-    "deployed-as": "{{ vector-math-lib }}"
+    "envvar": "ACPP_VECTOR_MATH_LIB",
+    "app": {
+      "var": "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY",
+      "value": "{{ vector-math-lib }}",
+      "runtime-configurable": true
+    }
   },
   "sleef-dir": {
-    "value": "@ACPP_SLEEF_DIR@",
+    "value": "@ACPP_TOOLCHAIN_SLEEF_DIR@",
     "envvar": "ACPP_SLEEF_DIR",
-    "deployed-as": "$ACPP_PATH/{{ libdir }}"
+    "app": {
+      "var": "ACPP_SLEEF_DIR",
+      "value": "@ACPP_APP_SLEEF_DIR@",
+      "runtime-configurable": true
+    }
   },
   "amath-dir": {
-    "value": "@ACPP_AMATH_DIR@",
+    "value": "@ACPP_TOOLCHAIN_AMATH_DIR@",
     "envvar": "ACPP_AMATH_DIR",
-    "deployed-as": "$ACPP_PATH/{{ libdir }}"
+    "app": {
+      "var": "ACPP_AMATH_DIR",
+      "value": "@ACPP_APP_AMATH_DIR@",
+      "runtime-configurable": true
+    }
   },
   "svml-dir": {
-    "value": "@ACPP_SVML_DIR@",
+    "value": "@ACPP_TOOLCHAIN_SVML_DIR@",
     "envvar": "ACPP_SVML_DIR",
-    "deployed-as": "$ACPP_PATH/{{ libdir }}"
+    "app": {
+      "var": "ACPP_SVML_DIR",
+      "value": "@ACPP_APP_SVML_DIR@",
+      "runtime-configurable": true
+    }
   },
 
   "targets": {
