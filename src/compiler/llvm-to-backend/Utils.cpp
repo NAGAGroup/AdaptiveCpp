@@ -11,6 +11,7 @@
 
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/settings.hpp"
 
 #include <llvm/Support/Program.h>
 
@@ -119,20 +120,7 @@ std::string getLibSleefDir() {
   if (!path.empty())
     return path;
 
-  const auto lib_path = common::filesystem::get_lib_directory();
-
-#ifdef SLEEF_AVAILABLE
-  std::string lib_sleef_redistributable_path =
-      common::filesystem::join_path(lib_path, LIB_SLEEF_NAME);
-  std::string lib_sleef_path = common::filesystem::join_path(LIB_SLEEF_DIR, LIB_SLEEF_NAME);
-
-  if (common::filesystem::exists(lib_sleef_redistributable_path)) {
-    path = lib_path;
-  } else if (common::filesystem::exists(lib_sleef_path)) {
-    path = replacePathPlaceholders(LIB_SLEEF_DIR);
-  }
-#endif
-
+  common::try_retrieve_settings_variable("sleef_dir", path);
   return path;
 }
 
@@ -141,20 +129,7 @@ std::string getLibAmathDir() {
   if (!path.empty())
     return path;
 
-  const auto lib_path = common::filesystem::get_lib_directory();
-
-#ifdef AMATH_AVAILABLE
-  std::string lib_amath_redistributable_path =
-      common::filesystem::join_path(lib_path, LIB_AMATH_NAME);
-  std::string lib_amath_path = common::filesystem::join_path(LIB_AMATH_DIR, LIB_AMATH_NAME);
-
-  if (common::filesystem::exists(lib_amath_redistributable_path)) {
-    path = lib_path;
-  } else if (common::filesystem::exists(lib_amath_path)) {
-    path = replacePathPlaceholders(LIB_AMATH_DIR);
-  }
-#endif
-
+  common::try_retrieve_settings_variable("amath_dir", path);
   return path;
 }
 
@@ -163,26 +138,7 @@ std::string getLibSvmlDir() {
   if (!path.empty())
     return path;
 
-  const auto lib_path = common::filesystem::get_lib_directory();
-
-#ifdef SVML_AVAILABLE
-  std::string lib_svml_redistributable_path =
-      common::filesystem::join_path(lib_path, LIB_SVML_NAME);
-  std::string lib_svml_path = common::filesystem::join_path(LIB_SVML_DIR, LIB_SVML_NAME);
-
-  std::string lib_intlc_redistributable_path =
-      common::filesystem::join_path(lib_path, LIB_INTLC_NAME);
-  std::string lib_intlc_path = common::filesystem::join_path(LIB_SVML_DIR, LIB_INTLC_NAME);
-
-  if (common::filesystem::exists(lib_svml_redistributable_path) &&
-      common::filesystem::exists(lib_intlc_redistributable_path)) {
-    path = lib_path;
-  } else if (common::filesystem::exists(lib_svml_path) &&
-             common::filesystem::exists(lib_intlc_path)) {
-    path = replacePathPlaceholders(LIB_SVML_DIR);
-  }
-#endif
-
+  common::try_retrieve_settings_variable("svml_dir", path);
   return path;
 }
 
@@ -191,7 +147,7 @@ std::string getLibMvecDir() {
   if (!path.empty())
     return path;
 
-#if defined(LIBMVEC_AVAILABLE) && defined(__linux__)
+#if defined(__linux__)
   // libmvec is part of glibc, so the only correct copy is the one the dynamic
   // loader resolves for this process: it must match the libc the process is
   // running against. That process is the application being JIT-compiled, not

@@ -77,53 +77,21 @@ endif()
 # its checks, LIBSLEEF, LIBAMATH, LIBSVML, LIBINTLC, DEFAULT_VEC_MATH_LIB) are
 # inherited here. What remains in this file is the macro side: the compile
 # definitions the compiler sources consume, derived from those results.
-if(LIBMVEC AND LIBMVEC_HAS_REQUIRED_SYMBOLS AND CLANG_SUPPORT_LIBMVEC)
-  add_definitions(-DLIBMVEC_AVAILABLE)
-endif()
-
-  #SLEEF
-  if(LIBSLEEF)
-    get_filename_component(LIB_SLEEF_DIR "${LIBSLEEF}" DIRECTORY)
-    get_filename_component(LIB_SLEEF_NAME_WE "${LIBSLEEF}" NAME_WE)
-    get_filename_component(LIB_SLEEF_NAME "${LIBSLEEF}" NAME)
-
-    add_definitions(-DSLEEF_AVAILABLE)
-    add_definitions(-DLIB_SLEEF_DIR="${LIB_SLEEF_DIR}")
-    add_definitions(-DLIB_SLEEF_NAME_WE="${LIB_SLEEF_NAME_WE}")
-    add_definitions(-DLIB_SLEEF_NAME="${LIB_SLEEF_NAME}")
-  endif()
-
-  #AMATH
-  if(LIBAMATH)
-    get_filename_component(LIB_AMATH_DIR "${LIBAMATH}" DIRECTORY)
-    get_filename_component(LIB_AMATH_NAME_WE "${LIBAMATH}" NAME_WE)
-    get_filename_component(LIB_AMATH_NAME "${LIBAMATH}" NAME)
-
-    add_definitions(-DAMATH_AVAILABLE)
-    add_definitions(-DLIB_AMATH_DIR="${LIB_AMATH_DIR}")
-    add_definitions(-DLIB_AMATH_NAME_WE="${LIB_AMATH_NAME_WE}")
-    add_definitions(-DLIB_AMATH_NAME="${LIB_AMATH_NAME}")
-  endif()
-
-  #SVML
-  if(LIBSVML AND LIBINTLC )
-    get_filename_component(LIB_SVML_DIR "${LIBSVML}" DIRECTORY)
-    get_filename_component(LIB_SVML_NAME_WE "${LIBSVML}" NAME_WE)
-    get_filename_component(LIB_SVML_NAME "${LIBSVML}" NAME)
-
-    add_definitions(-DSVML_AVAILABLE)
-    add_definitions(-DLIB_SVML_DIR="${LIB_SVML_DIR}")
-    add_definitions(-DLIB_SVML_NAME_WE="${LIB_SVML_NAME_WE}")
-    add_definitions(-DLIB_SVML_NAME="${LIB_SVML_NAME}")
-
-    get_filename_component(LIB_INTLC_DIR "${LIBINTLC}" DIRECTORY)
-    get_filename_component(LIB_INTLC_NAME_WE "${LIBINTLC}" NAME_WE)
-    get_filename_component(LIB_INTLC_NAME "${LIBINTLC}" NAME)
-
-    add_definitions(-DLIB_INTLC_DIR="${LIB_INTLC_DIR}")
-    add_definitions(-DLIB_INTLC_NAME_WE="${LIB_INTLC_NAME_WE}")
-    add_definitions(-DLIB_INTLC_NAME="${LIB_INTLC_NAME}")
-  endif()
+# The vector math libraries have no compile definitions and no availability
+# macros. Every code path compiles unconditionally: the guarded code only ever
+# built a link line, so none of these libraries has to be present to compile
+# the one that uses it. Which library a kernel uses is decided when the
+# application runs, and where it lives is a configuration entry the JIT reads
+# through common::settings - ACPP_SLEEF_DIR, ACPP_AMATH_DIR, ACPP_SVML_DIR.
+#
+# libmvec is the exception and needs no entry either: it is part of glibc, so
+# the only correct copy is the one the dynamic loader resolves for the running
+# process, which getLibMvecDir() asks it for directly.
+#
+# The discovery results (LIBSLEEF, LIBAMATH, LIBSVML, LIBINTLC, LIBMVEC) are
+# still used - by the options that seed those configuration entries, and by
+# the deploy manifests that copy the libraries - but nothing reaches the
+# compiler sources any more.
 
 if(DEFAULT_VEC_MATH_LIB)
   add_definitions(-DDEFAULT_VEC_MATH_LIB=${DEFAULT_VEC_MATH_LIB})

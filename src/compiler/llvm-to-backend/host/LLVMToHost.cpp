@@ -396,15 +396,53 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   std::string svmlDir;
   std::string mvecDir;
 
+  // Every vector math library's code path is compiled unconditionally. Which
+  // one a kernel uses is decided when the application runs, by the
+  // configuration, so a build cannot narrow the choice: the guarded code only
+  // ever builds a link line, and needs none of these libraries present to
+  // compile. Where each one lives is a configuration entry, which the deploy
+  // step writes to match wherever the library was actually put.
+  //
+  // libmvec is the fallback rather than a peer. It is part of glibc, so the
+  // only correct copy is the one the loader resolves for this process, and it
+  // is the one library that is present wherever the application runs.
+  auto applyLibmvec = [&]() -> bool {
+    mvecDir = getLibMvecDir();
+    if (mvecDir.empty())
+      return false;
+
+    LldInvocation.push_back("-L");
+    LldInvocation.push_back(mvecDir);
+    LldInvocation.push_back("--rpath");
+    LldInvocation.push_back(mvecDir);
+    // -lmvec wants the unversioned dev symlink; a runtime machine has
+    // only the glibc SONAME. Link whichever this directory has.
+    if (common::filesystem::exists(
+            common::filesystem::join_path(mvecDir, "libmvec.so.1")))
+      LldInvocation.push_back("-l:libmvec.so.1");
+    else
+      LldInvocation.push_back("-lmvec");
+#if LLVM_VERSION_MAJOR > 20
+    OptInvocation.push_back("-vector-library=LIBMVEC");
+#else
+    OptInvocation.push_back("-vector-library=LIBMVEC-X86");
+#endif
+
+    HIPSYCL_DEBUG_INFO << "LLVMToHost: Using LIBMVEC found at " << mvecDir << "\n";
+    return true;
+  };
+
+  bool VectorMathApplied = false;
+
   switch (VectorMathLibary) {
 
     case host_vector_math_library::none:
       HIPSYCL_DEBUG_INFO << "LLVMToHost: ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY is set to none"
                         << "\". Compiling kernel without vector math library" << "\n";
+      VectorMathApplied = true;
       break;
 
     case host_vector_math_library::sleef:
-#ifdef SLEEF_AVAILABLE
       sleefDir = getLibSleefDir();
       if (!sleefDir.empty()) {
         LldInvocation.push_back("-L");
@@ -415,18 +453,11 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
         OptInvocation.push_back("-vector-library=sleefgnuabi");
 
         HIPSYCL_DEBUG_INFO << "LLVMToHost: Using SLEEF found at " << sleefDir << "\n";
-      } else {
-        HIPSYCL_DEBUG_WARNING
-            << "LLVMToHost: Could not find libsleef. Kernel will be compiled without it.\n";
+        VectorMathApplied = true;
       }
-#else
-      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting SLEEF but AdaptiveCpp was compiled without "
-                               "its support. Kernel will be compiled without it.\n";
-#endif
       break;
 
     case host_vector_math_library::armpl:
-#ifdef AMATH_AVAILABLE
       amathDir = getLibAmathDir();
       if (!amathDir.empty()) {
         LldInvocation.push_back("-L");
@@ -437,18 +468,11 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
         OptInvocation.push_back("-vector-library=ArmPL");
 
         HIPSYCL_DEBUG_INFO << "LLVMToHost: Using ARMPL found at " << amathDir << "\n";
-      } else {
-        HIPSYCL_DEBUG_WARNING
-            << "LLVMToHost: Could not find libamath. Kernel will be compiled without it.\n";
+        VectorMathApplied = true;
       }
-#else
-      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting ARMPL but AdaptiveCpp was compiled without "
-                               "its support. Kernel will be compiled without it.\n";
-#endif
       break;
 
     case host_vector_math_library::svml:
-#ifdef SVML_AVAILABLE
       svmlDir = getLibSvmlDir();
       if (!svmlDir.empty()) {
         LldInvocation.push_back("-L");
@@ -460,51 +484,29 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
         OptInvocation.push_back("-vector-library=SVML");
 
         HIPSYCL_DEBUG_INFO << "LLVMToHost: Using SVML found at " << svmlDir << "\n";
-      } else {
-        HIPSYCL_DEBUG_WARNING << "LLVMToHost: Could not find libsvml and libintlc library. Kernel "
-                                 "will be compiled without it.\n";
+        VectorMathApplied = true;
       }
-#else
-      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting SVML but AdaptiveCpp was compiled without "
-                               "its support. Kernel will be compiled without it.\n";
-#endif
-    break;
+      break;
 
     case host_vector_math_library::libmvec:
-#ifdef LIBMVEC_AVAILABLE
-      mvecDir = getLibMvecDir();
-      if (!mvecDir.empty()) {
-        LldInvocation.push_back("-L");
-        LldInvocation.push_back(mvecDir);
-        LldInvocation.push_back("--rpath");
-        LldInvocation.push_back(mvecDir);
-        // -lmvec wants the unversioned dev symlink; a runtime machine has
-        // only the glibc SONAME. Link whichever this directory has.
-        if (common::filesystem::exists(
-                common::filesystem::join_path(mvecDir, "libmvec.so.1")))
-          LldInvocation.push_back("-l:libmvec.so.1");
-        else
-          LldInvocation.push_back("-lmvec");
-#if LLVM_VERSION_MAJOR > 20
-        OptInvocation.push_back("-vector-library=LIBMVEC");
-#else
-        OptInvocation.push_back("-vector-library=LIBMVEC-X86");
-#endif
-
-        HIPSYCL_DEBUG_INFO << "LLVMToHost: Using LIBMVEC found at " << mvecDir << "\n";
-      } else {
+      VectorMathApplied = applyLibmvec();
+      if (!VectorMathApplied)
         HIPSYCL_DEBUG_WARNING
             << "LLVMToHost: Could not find LIBMVEC. Kernel will be compiled without it.\n";
-      }
-#else
-      HIPSYCL_DEBUG_WARNING << "LLVMToHost: Requesting LIBMVEC but AdaptiveCpp was compiled "
-                               "without its support. Kernel will be compiled without it.\n";
-#endif
       break;
 
     default:
       break;
 
+  }
+
+  if (!VectorMathApplied) {
+    HIPSYCL_DEBUG_WARNING << "LLVMToHost: The configured vector math library was not found where "
+                             "the configuration says it is; falling back to LIBMVEC.\n";
+    if (!applyLibmvec())
+      HIPSYCL_DEBUG_WARNING
+          << "LLVMToHost: LIBMVEC is unavailable too. Kernel will be compiled without a vector "
+             "math library.\n";
   }
 
   const llvm::StringRef AdditionalLlcFlags = ACPP_LLC_ADDITIONAL_FLAGS;
