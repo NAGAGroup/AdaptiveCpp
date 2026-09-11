@@ -1,31 +1,45 @@
 # Core options - linux, x86_64.
 #
-# Core is everything that is not vendor-specific: the AdaptiveCpp runtime and
-# common libraries, the LLVM toolchain we either build or depend on, the host
-# JIT, and the driver's own behaviour. Vendor-specific paths and flags live in
-# the per-flow files beside this one.
+# Core is everything not vendor-specific: the AdaptiveCpp runtime and common
+# libraries, the LLVM toolchain we either build or depend on, the host JIT,
+# and the driver's own behaviour.
 #
-# Every option here feeds exactly one toolchain configuration entry, whose
-# source file carries @THIS_OPTION@ as its value and is filled by
-# configure_file at install. Nothing else fills a configuration entry.
+# Include AFTER cmake/discovery.cmake, which runs every find_* up front. The
+# values below read those results, so they are only correct once it has run.
 #
-# Three rules govern every option:
+# ---------------------------------------------------------------------------
+# What is an option here, and what is not
+# ---------------------------------------------------------------------------
 #
-#   * Guarded plain set(), never CACHE. An unguarded plain set() shadows a -D
-#     cache entry so the builder's value stops being read; DEFINED is true for
-#     a cache entry as well, so the guard lets -D win everywhere. Plain
-#     variables also recompute on every configure, so flipping the deployment
-#     strategy cannot leave a stale absolute path behind.
+# No FACTS are computed in this file. Where this build put our libraries, what
+# LLVM's own library directory is, the versions - those go straight from their
+# cmake variable into the configuration's @VAR@ stub, because nothing here
+# chooses them.
 #
-#   * The value rule: a builder's -D wins verbatim; otherwise, under the
-#     `default` strategy, the discovered path when the corresponding find_*
-#     found one; otherwise the declared default in placeholder form.
+# What is left divides in two.
 #
-#   * Under any strategy that writes placeholders - bundled and both full*
-#     modes - a -D path must be RELATIVE to the install root, and is rejected
-#     if it is absolute. An absolute value there produces a toolchain that
-#     claims to be relocatable and is not, discovered by whoever moves the
-#     prefix. `default` is the strategy for absolute paths.
+#   * DEPLOY PATHS are the publisher's choice, made once at configure time.
+#     They say where something lands in a deployed application, and because
+#     our libraries are linked with a RUNPATH that has to reach them, they are
+#     baked into binaries as well as written to the configuration. Discovery
+#     never touches them: they describe a layout we are choosing, not a
+#     machine we are inspecting.
+#
+#   * RESOURCE VALUES say where a particular thing is. Each has two sides -
+#     what the driver uses when compiling, and what a deployed application's
+#     JIT uses - because those are different facts: the driver runs from the
+#     toolchain on a developer's machine, the JIT runs from the deployment on
+#     someone else's.
+#
+# A resource value is builder-overridable ONLY under `default`. Choosing any
+# other strategy is a commitment that this toolchain package contains what it
+# needs, so its paths follow from the deploy layout rather than being set one
+# at a time. Users of the installed toolchain can still override any of them
+# through the environment, at the moment they use it.
+#
+# Guarded plain set(), never CACHE: an unguarded plain set() shadows a -D
+# cache entry so the builder's value stops being read, and DEFINED is true for
+# a cache entry as well, so the guard lets -D win.
 
 include_guard(GLOBAL)
 
@@ -33,36 +47,74 @@ include_guard(GLOBAL)
 # Helpers
 # ---------------------------------------------------------------------------
 
-# Reject an absolute -D under a placeholder-writing strategy.
+# A deploy path is relative to the install root by construction. An absolute
+# one would produce a toolchain that claims to be relocatable and is not.
 function(acpp_require_relative name)
-  if(DEFINED ${name} AND NOT ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
+  if(DEFINED ${name})
     if(IS_ABSOLUTE "${${name}}")
       message(FATAL_ERROR
-        "${name} must be relative to the install root under the "
-        "${ACPP_DEPLOYMENT_STRATEGY} strategy - the toolchain would not be "
-        "relocatable otherwise. Use the `default` strategy for absolute paths.")
+        "${name} is a location inside a deployment and must be relative to "
+        "its root.")
     endif()
     if("${${name}}" MATCHES "\\$ACPP_PATH")
       message(FATAL_ERROR
-        "${name} must not contain \$ACPP_PATH; it is prepended for you.")
+        "${name} must not contain \$ACPP_PATH; it is prepended where needed.")
     endif()
   endif()
 endfunction()
 
+# Refuse a resource value outside `default`, and say where the real knob is.
+function(acpp_default_strategy_only name)
+  if(DEFINED ${name} AND NOT ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
+    message(FATAL_ERROR
+      "-D${name} is only accepted under the `default` deployment strategy.\n"
+      "Choosing ${ACPP_DEPLOYMENT_STRATEGY} is a commitment that this "
+      "toolchain package contains what it needs, so individual paths follow "
+      "from the deploy layout - set ACPP_LLVM_DEPLOY_PATH or "
+      "ACPP_LIBOMP_DEPLOY_PATH instead.\n"
+      "A user of the installed toolchain can still override this through its "
+      "environment variable.")
+  endif()
+endfunction()
+
+# Declare the two sides of one resource.
+#
+# Under `default` both are the discovered absolute path: nothing is deployed,
+# so an application uses the toolchain's own copy. Under the other strategies
+# they are the same relative location seen from two roots - the toolchain's
+# when driving, the deployment's when running.
+macro(acpp_declare_resource stem discovered relative)
+  acpp_default_strategy_only(ACPP_TOOLCHAIN_${stem})
+  acpp_default_strategy_only(ACPP_APP_${stem})
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+      AND NOT "${discovered}" STREQUAL ""
+      AND NOT "${discovered}" MATCHES "-NOTFOUND$")
+    if(NOT DEFINED ACPP_TOOLCHAIN_${stem})
+      set(ACPP_TOOLCHAIN_${stem} "${discovered}")
+    endif()
+    if(NOT DEFINED ACPP_APP_${stem})
+      set(ACPP_APP_${stem} "${discovered}")
+    endif()
+  else()
+    if(NOT DEFINED ACPP_TOOLCHAIN_${stem})
+      set(ACPP_TOOLCHAIN_${stem} "{{ toolchain-path }}/${relative}")
+    endif()
+    if(NOT DEFINED ACPP_APP_${stem})
+      # \$ so cmake does not try to read $ACPP_PATH/{{ ... }} as a variable
+      # reference; the written value is a literal $ACPP_PATH.
+      set(ACPP_APP_${stem} "\$ACPP_PATH/${relative}")
+    endif()
+  endif()
+endmacro()
+
 # ---------------------------------------------------------------------------
-# The deployment strategy, and the redistribution gate
+# Controls
 # ---------------------------------------------------------------------------
 #
 # The strategy decides two things and nothing more: the initial values written
-# into the installed toolchain configuration, and whether `cmake --install`
-# copies external assets into the tree. It says nothing about how a later
-# deployment behaves - by then the configuration may have been edited or
-# overridden by environment variables.
-#
-#   default              absolute values; install copies nothing
-#   bundled              placeholder values; install copies nothing
-#   full-permissive-only placeholder values; install copies permissive assets
-#   full                 placeholder values; install copies everything
+# into the installed configuration, and whether `cmake --install` copies
+# external assets into the tree. It says nothing about how a later deployment
+# behaves - by then the configuration may have been edited or overridden.
 
 if(NOT DEFINED ACPP_DEPLOYMENT_STRATEGY)
   set(ACPP_DEPLOYMENT_STRATEGY "default")
@@ -74,181 +126,113 @@ if(NOT ACPP_DEPLOYMENT_STRATEGY MATCHES "^(default|bundled|full-permissive-only|
 endif()
 
 # Copying NON-PERMISSIVE vendor assets into our own install tree is a
-# redistribution decision. NVIDIA's CUDA runtime is governed by the CUDA
-# Toolkit EULA, Intel's SVML and Level Zero loader by their oneAPI
-# redistribution terms. A packager setting this is undertaking to have read
-# those terms and to pass the obligation on to their own users; this comment
-# is the one place they are guaranteed to pass on the way in.
+# redistribution decision. A packager setting this undertakes to have read the
+# vendors' terms and to pass the obligation on to their own users; this
+# comment is the one place they are guaranteed to pass on the way in.
 #
-# Permissive assets - SLEEF, libnuma, LLVM itself - need no gate, which is
-# why `full-permissive-only` exists: a packager who wants a self-contained
-# toolchain should not have to opt into a legal decision they are not making.
+# Permissive assets - SLEEF, libnuma, LLVM itself - need no gate, which is why
+# `full-permissive-only` exists: wanting a self-contained toolchain should not
+# require opting into a legal decision you are not making.
 if(NOT DEFINED ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN)
   set(ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN OFF)
 endif()
 
 # ---------------------------------------------------------------------------
-# Layout
+# Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
 
-# There is no vendor-zone option. Vendor libraries deploy beside our own,
-# because that is the only place the backends' RUNPATH reaches: it is
-# $ORIGIN/../, and the backends live in <libdir>/hipSYCL/. A zone under
-# targets/<platform-arch>/ would require baking that subdirectory name into
-# every binary at link time. See doc/vendor-library-linkage.md.
-
-# The library directory a DEPLOYED application uses, relative to its own root.
-# A preference, changeable after install.
-acpp_require_relative(ACPP_LIBDIR)
-if(NOT DEFINED ACPP_LIBDIR)
-  set(ACPP_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+# Where the LLVM unit lands. LLVM travels whole: its binaries find libLLVM
+# through their own RUNPATH, so the bin-to-libdir relationship has to survive
+# the move. A conda packager sets this to "." so LLVM lands in the prefix's
+# own bin and lib.
+acpp_require_relative(ACPP_LLVM_DEPLOY_PATH)
+if(NOT DEFINED ACPP_LLVM_DEPLOY_PATH)
+  set(ACPP_LLVM_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext")
 endif()
 
-# Where THIS toolchain put its own libraries - lib, lib64, whatever the
-# distribution chose. A fact about the install, not a preference, which is why
-# it has no environment variable: overriding where files already are is
-# meaningless.
-if(NOT DEFINED ACPP_TOOLCHAIN_LIBDIR)
-  set(ACPP_TOOLCHAIN_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+# Where libomp lands. It defaults to travelling with LLVM, because LLVM's own
+# libomp is normally what we have; a packager using libgomp instead points
+# this at our library directory.
+acpp_require_relative(ACPP_LIBOMP_DEPLOY_PATH)
+if(NOT DEFINED ACPP_LIBOMP_DEPLOY_PATH)
+  set(ACPP_LIBOMP_DEPLOY_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}")
 endif()
 
-# Where deployed executables go. Upstream's convention is a private directory
-# that does not clash with the install root's bin; conda packagers set this to
-# "bin", where it is the same thing.
-acpp_require_relative(ACPP_LIBEXEC_DIR)
-if(NOT DEFINED ACPP_LIBEXEC_DIR)
-  set(ACPP_LIBEXEC_DIR "hipSYCL/ext/bin")
-endif()
-
-# Where the deploy step writes application configurations under the `default`
-# strategy, where nothing is copied and the application's tree holds none of
-# our libraries. The default covers the common case - a user compiling for
-# themselves - and a distribution maintainer building in `default` mode sets
-# it to the system configuration directory instead.
+# Where the deploy step writes application configurations under `default`,
+# where nothing is copied and the application's tree holds none of our
+# libraries. The default covers a user compiling for themselves; a
+# distribution maintainer building in `default` mode points it at the system
+# configuration directory.
 #
-# Deliberately NOT subject to acpp_require_relative: this is the one path that
-# is meant to be absolute and to point outside the install tree. It concerns
-# `default` deployments only, which make no relocatability claim.
+# Deliberately NOT subject to acpp_require_relative: this is the one path
+# meant to be absolute and to point outside the tree.
 if(NOT DEFINED ACPP_DEFAULT_STRATEGY_APP_CFG_DIR)
   set(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs")
 endif()
 
 # ---------------------------------------------------------------------------
-# Provenance - read by the deploy step, never by an application
+# Where things are - the roots
+# ---------------------------------------------------------------------------
+
+acpp_declare_resource(LLVM_PATH "${LLVM_INSTALL_PREFIX}" "{{ llvm-deploy-path }}")
+acpp_declare_resource(LIBOMP_PATH "${ACPP_DISCOVERED_LIBOMP_DIR}" "{{ libomp-deploy-path }}")
+
+# libnuma is an ordinary shared library with no internal structure to
+# preserve, so it needs no deploy path of its own: it goes beside our
+# libraries, where the loader finds it.
+acpp_declare_resource(LIBNUMA_PATH "${ACPP_DISCOVERED_LIBNUMA_DIR}" "{{ acpp-libdir }}")
+
+# ---------------------------------------------------------------------------
+# The device compiler and the LLVM executables
 # ---------------------------------------------------------------------------
 #
-# These answer "where do I copy from", which is a different question from
-# "what do I invoke". Separating them is what lets an exe entry be a bare name
-# meaning "resolve on PATH" while full* still knows where the real binary is.
+# The device compiler is used by the multipass flows AND by the generic JIT,
+# which is exactly why it has two sides: the driver invokes it from the
+# toolchain while compiling, the JIT invokes it from the deployment while an
+# application runs, and those need not be the same binary.
 
-# The LLVM installation whose binaries full* copies.
-acpp_require_relative(ACPP_LLVM_PATH)
-if(NOT DEFINED ACPP_LLVM_PATH)
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND LLVM_INSTALL_PREFIX)
-    set(ACPP_LLVM_PATH "${LLVM_INSTALL_PREFIX}")
-  else()
-    set(ACPP_LLVM_PATH "{{ toolchain-path }}")
-  endif()
-endif()
+acpp_declare_resource(DEVICE_CMPLR "${CLANG_EXECUTABLE_PATH}"
+                      "{{ llvm-deploy-path }}/bin/clang++")
+acpp_declare_resource(LLC "${LLVM_TOOLS_BINARY_DIR}/llc"
+                      "{{ llvm-deploy-path }}/bin/llc")
+acpp_declare_resource(OPT "${LLVM_TOOLS_BINARY_DIR}/opt"
+                      "{{ llvm-deploy-path }}/bin/opt")
+acpp_declare_resource(LLD "${LLVM_TOOLS_BINARY_DIR}/ld.lld"
+                      "{{ llvm-deploy-path }}/bin/ld.lld")
+acpp_declare_resource(LLVMSPIRV "${LLVM_TOOLS_BINARY_DIR}/llvm-spirv"
+                      "{{ llvm-deploy-path }}/bin/llvm-spirv")
 
-# The three libraries resolved by the dynamic loader rather than by us. They
-# get no deployed-as: an application never looks them up, the loader does.
-# They exist here only so the deploy step knows where to copy them from.
-#
-# Under a placeholder strategy they name our own tree, because full* has
-# already copied them there at install and deploy copies out of the tree.
-# Only under `default`, where nothing was copied, do they name where the
-# build found them.
-acpp_require_relative(ACPP_LIBLLVM_PATH)
-if(NOT DEFINED ACPP_LIBLLVM_PATH)
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
-      AND LLVM_LIBRARY AND NOT LLVM_LIBRARY MATCHES "-NOTFOUND$")
-    get_filename_component(ACPP_LIBLLVM_PATH "${LLVM_LIBRARY}" DIRECTORY)
-  else()
-    set(ACPP_LIBLLVM_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}")
-  endif()
-endif()
+# clang's resource include directory. The JIT's HIP compilation needs it, so
+# it has two sides like the compiler itself.
+acpp_declare_resource(CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}"
+  "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include")
 
-acpp_require_relative(ACPP_LIBOMP_PATH)
-if(NOT DEFINED ACPP_LIBOMP_PATH)
-  set(acpp_found_libomp "")
-  if(OpenMP_omp_LIBRARY)
-    set(acpp_found_libomp "${OpenMP_omp_LIBRARY}")
-  elseif(OpenMP_gomp_LIBRARY)
-    set(acpp_found_libomp "${OpenMP_gomp_LIBRARY}")
-  endif()
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND acpp_found_libomp)
-    get_filename_component(ACPP_LIBOMP_PATH "${acpp_found_libomp}" DIRECTORY)
-  else()
-    set(ACPP_LIBOMP_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}")
-  endif()
-endif()
-
-acpp_require_relative(ACPP_LIBNUMA_PATH)
-if(NOT DEFINED ACPP_LIBNUMA_PATH)
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
-      AND NUMA_LIBRARY AND NOT NUMA_LIBRARY MATCHES "-NOTFOUND$")
-    get_filename_component(ACPP_LIBNUMA_PATH "${NUMA_LIBRARY}" DIRECTORY)
-  else()
-    set(ACPP_LIBNUMA_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}")
-  endif()
-endif()
+# The vector math libraries, each directory-valued because the library's short
+# name is written into the JIT's link invocation. They deploy beside our own
+# libraries, having no internal structure to preserve. libmvec needs no entry:
+# it is part of glibc, so the only correct copy is the one the loader resolves
+# in the running process.
+acpp_declare_resource(SLEEF_DIR "${ACPP_DISCOVERED_SLEEF_DIR}" "{{ acpp-libdir }}")
+acpp_declare_resource(AMATH_DIR "${ACPP_DISCOVERED_AMATH_DIR}" "{{ acpp-libdir }}")
+acpp_declare_resource(SVML_DIR  "${ACPP_DISCOVERED_SVML_DIR}"  "{{ acpp-libdir }}")
 
 # ---------------------------------------------------------------------------
-# Compilers and executables - invocation, not provenance
+# Driver-only resources
 # ---------------------------------------------------------------------------
 
-# The DEVICE compiler, used by the multipass flows and by the generic JIT
-# alike. Distinct from the host compiler below: this one compiles kernels.
-acpp_require_relative(ACPP_CLANG_DEVICE_CMPLR)
-  if(NOT DEFINED ACPP_CLANG_DEVICE_CMPLR)
-  set(ACPP_CLANG_DEVICE_CMPLR "{{ llvm-path }}/bin/clang++")
-endif()
-
-# The HOST compiler the driver invokes for CPU code. May be gcc, or anything
-# else with an OpenMP implementation - it does not have to be clang. Under
-# `default` the build records what it was built with, so an existing
-# standalone install keeps its behaviour.
-acpp_require_relative(ACPP_CPU_CXX)
-  if(NOT DEFINED ACPP_CPU_CXX)
+# The host C++ compiler the driver invokes for CPU code. May be gcc, or
+# anything else with an OpenMP implementation - it does not have to be clang.
+# Driver-only, so it has no application side; but it takes the same shape,
+# because under the placeholder strategies the publisher has undertaken to
+# provide a complete toolchain and it makes no sense for the host compiler to
+# come from somewhere else.
+acpp_default_strategy_only(ACPP_CPU_CXX)
+if(NOT DEFINED ACPP_CPU_CXX)
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND CMAKE_CXX_COMPILER)
     set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
   else()
-    set(ACPP_CPU_CXX "{{ llvm-path }}/bin/clang++")
+    set(ACPP_CPU_CXX "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++")
   endif()
-endif()
-
-# clang's own resource include directory.
-acpp_require_relative(ACPP_CLANG_INCLUDE_PATH)
-  if(NOT DEFINED ACPP_CLANG_INCLUDE_PATH)
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
-      AND CLANG_INCLUDE_PATH AND NOT CLANG_INCLUDE_PATH MATCHES "-NOTFOUND$")
-    set(ACPP_CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}")
-  else()
-    set(ACPP_CLANG_INCLUDE_PATH
-        "{{ llvm-path }}/{{ toolchain-libdir }}/clang/{{ llvm-version-major }}/include")
-  endif()
-endif()
-
-# The LLVM executables the JIT invokes while an application runs. Each may be
-# a bare name, in which case the platform resolves it on PATH - which is what
-# a toolchain that does not ship its own LLVM wants. The platform's executable
-# suffix does not appear: this file is the linux one.
-acpp_require_relative(ACPP_LLC)
-  if(NOT DEFINED ACPP_LLC)
-  set(ACPP_LLC "{{ llvm-path }}/bin/llc")
-endif()
-acpp_require_relative(ACPP_OPT)
-  if(NOT DEFINED ACPP_OPT)
-  set(ACPP_OPT "{{ llvm-path }}/bin/opt")
-endif()
-acpp_require_relative(ACPP_LLD)
-  if(NOT DEFINED ACPP_LLD)
-  set(ACPP_LLD "{{ llvm-path }}/bin/ld.lld")
-endif()
-acpp_require_relative(ACPP_LLVMSPIRV)
-  if(NOT DEFINED ACPP_LLVMSPIRV)
-  set(ACPP_LLVMSPIRV "{{ llvm-path }}/bin/llvm-spirv")
 endif()
 
 # The compiler plugin, in plugin builds only. When AdaptiveCpp is linked into
@@ -256,9 +240,9 @@ endif()
 # The driver currently hardcodes "lib" when building this path, which is wrong
 # on any lib64 distribution; this entry is what those sites should read.
 if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_require_relative(ACPP_PLUGIN_PATH)
+  acpp_default_strategy_only(ACPP_PLUGIN_PATH)
   if(NOT DEFINED ACPP_PLUGIN_PATH)
-    set(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}/libacpp-clang.so")
+    set(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ acpp-libdir }}/libacpp-clang.so")
   endif()
 endif()
 
@@ -266,10 +250,11 @@ endif()
 # The host JIT
 # ---------------------------------------------------------------------------
 #
-# Consumed by exactly one file, src/compiler/llvm-to-backend/host/LLVMToHost.cpp
-# - not by the driver, not by the cmake package config, not by the PTX or
-# AMDGPU backends. Hence the jit-host- prefix: these are narrower than the
-# tools they are passed to, which the PTX backend also invokes.
+# Consumed by exactly one file, llvm-to-backend/host/LLVMToHost.cpp - not by
+# the driver, not by the cmake package config, not by the PTX or AMDGPU
+# backends. Hence jit-host-: these are narrower than the tools they are passed
+# to, which the PTX backend also invokes. They name no location, so they have
+# one value that travels unchanged.
 
 if(NOT DEFINED ACPP_JIT_HOST_LLC_CPU_FLAG)
   set(ACPP_JIT_HOST_LLC_CPU_FLAG "-mcpu=native")
@@ -286,29 +271,11 @@ endif()
 
 # Which vector math library the host JIT uses. NOT discovery-derived: several
 # may be present at once and discovery cannot choose between them. The default
-# is the one every glibc system has, and every vector math code path compiles
-# unconditionally, so changing this in an installed configuration - or in a
-# deployed application's - is all that is needed. The runtime falls back to
-# libmvec when the configured library is absent.
+# is the one every glibc system has, every code path compiles unconditionally,
+# and the runtime falls back to libmvec when the configured library is absent.
 if(NOT DEFINED ACPP_VECTOR_MATH_LIB)
   set(ACPP_VECTOR_MATH_LIB "libmvec")
 endif()
-
-# One directory per library. The library's short name is written into the
-# JIT's link invocation, so only the directory needs resolving. libmvec needs
-# no entry: the only correct copy is the one the loader resolves in the
-# running process.
-foreach(acpp_vml IN ITEMS SLEEF AMATH SVML)
-  acpp_require_relative(ACPP_${acpp_vml}_DIR)
-  if(NOT DEFINED ACPP_${acpp_vml}_DIR)
-    if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
-        AND LIB${acpp_vml} AND NOT LIB${acpp_vml} MATCHES "-NOTFOUND$")
-      get_filename_component(ACPP_${acpp_vml}_DIR "${LIB${acpp_vml}}" DIRECTORY)
-    else()
-      set(ACPP_${acpp_vml}_DIR "{{ toolchain-path }}/{{ toolchain-libdir }}")
-    endif()
-  endif()
-endforeach()
 
 # ---------------------------------------------------------------------------
 # Driver behaviour
