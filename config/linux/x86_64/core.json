@@ -1,8 +1,4 @@
 {
-  "target-subdir": {
-    "value": "@ACPP_TARGET_SUBDIR@",
-    "envvar": "ACPP_TARGET_SUBDIR"
-  },
   "libdir": {
     "value": "@ACPP_LIBDIR@",
     "envvar": "ACPP_LIBDIR"

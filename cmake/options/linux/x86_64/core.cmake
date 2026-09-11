@@ -91,12 +91,11 @@ endif()
 # Layout
 # ---------------------------------------------------------------------------
 
-# The vendor zone's subdirectory name, spelled the way CUDA's own installer
-# and conda-forge spell it. Not CUDA-specific: it names the platform and
-# architecture zone that vendor assets are laid out under.
-if(NOT DEFINED ACPP_TARGET_SUBDIR)
-  set(ACPP_TARGET_SUBDIR "x86_64-linux")
-endif()
+# There is no vendor-zone option. Vendor libraries deploy beside our own,
+# because that is the only place the backends' RUNPATH reaches: it is
+# $ORIGIN/../, and the backends live in <libdir>/hipSYCL/. A zone under
+# targets/<platform-arch>/ would require baking that subdirectory name into
+# every binary at link time. See doc/vendor-library-linkage.md.
 
 # The library directory a DEPLOYED application uses, relative to its own root.
 # A preference, changeable after install.
