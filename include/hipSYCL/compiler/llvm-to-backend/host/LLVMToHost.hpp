@@ -45,7 +45,14 @@ protected:
   virtual void migrateKernelProperties(llvm::Function* From, llvm::Function* To) override;
 private:
   std::vector<std::string> KernelNames;
-  host_vector_math_library VectorMathLibary = host_vector_math_library::DEFAULT_VEC_MATH_LIB;
+  // The last-resort default, used only when nothing else said otherwise: the
+  // runtime normally passes this as a build option, having read it from the
+  // application's configuration. libmvec because it is part of glibc and so
+  // is present wherever the application runs - the build machine's discovery
+  // has no business deciding this, since several libraries may be found at
+  // once and the machine that runs the application is not the one that built
+  // the toolchain.
+  host_vector_math_library VectorMathLibary = host_vector_math_library::libmvec;
 };
 
 }

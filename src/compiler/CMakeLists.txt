@@ -93,13 +93,11 @@ endif()
 # the deploy manifests that copy the libraries - but nothing reaches the
 # compiler sources any more.
 
-if(DEFAULT_VEC_MATH_LIB)
-  add_definitions(-DDEFAULT_VEC_MATH_LIB=${DEFAULT_VEC_MATH_LIB})
-  message(STATUS "Will Use ${DEFAULT_VEC_MATH_LIB} as default vector math library")
-else()
-  add_definitions(-DDEFAULT_VEC_MATH_LIB=none)
-  message(STATUS "Will not use any vector math library for JIT compilation")
-endif()
+# No DEFAULT_VEC_MATH_LIB compile definition: which library the JIT uses is
+# read from the application's configuration at run time, and the last-resort
+# default lives in LLVMToHost.hpp. A build machine cannot decide this - it may
+# find several libraries at once, and it is not the machine the application
+# runs on.
 
 if(WITH_ACCELERATED_CPU OR WITH_SSCP_COMPILER)
   set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp
