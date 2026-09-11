@@ -185,13 +185,16 @@ endif()
 # Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
 
-# Where the LLVM unit lands. LLVM travels whole: its binaries find libLLVM
-# through their own RUNPATH, so the bin-to-libdir relationship has to survive
-# the move. A conda packager sets this to "." so LLVM lands in the prefix's
-# own bin and lib.
+# Where the LLVM unit lands. In the linked build AdaptiveCpp is installed
+# into the LLVM prefix, so the toolchain root and the LLVM install root are
+# the same tree and LLVM's bin and lib sit at it: ".". A layout with LLVM
+# under a subtree of our own is the standalone-build shape, which this tree
+# does not build. LLVM travels whole either way: its binaries find libLLVM
+# through their own RUNPATH, so the bin-to-libdir relationship has to
+# survive the move.
 acpp_require_relative(ACPP_LLVM_DEPLOY_PATH)
 if(NOT DEFINED ACPP_LLVM_DEPLOY_PATH)
-  set(ACPP_LLVM_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext")
+  set(ACPP_LLVM_DEPLOY_PATH ".")
 endif()
 
 # Where libomp lands. It defaults to travelling with LLVM, because LLVM's own

@@ -43,8 +43,10 @@ endfunction()
 expect_eq(ACPP_DEPLOYMENT_STRATEGY "default")
 expect_eq(ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN "OFF")
 
-# Deploy paths.
-expect_eq(ACPP_LLVM_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext")
+# Deploy paths. The linked build installs AdaptiveCpp into the LLVM prefix,
+# so the toolchain root and the LLVM root are one tree and LLVM deploys at
+# "." - its bin and lib at the root of whatever tree holds them.
+expect_eq(ACPP_LLVM_DEPLOY_PATH ".")
 expect_eq(ACPP_LIBOMP_DEPLOY_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}")
 expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs")
 
