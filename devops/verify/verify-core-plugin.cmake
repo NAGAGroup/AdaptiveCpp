@@ -10,16 +10,18 @@
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
-# Stand-in for cmake/discovery.cmake, which does not exist yet.
-set(LLVM_INSTALL_PREFIX "/usr/lib/llvm-21")
-set(CLANG_EXECUTABLE_PATH "/usr/lib/llvm-21/bin/clang++")
-set(CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
-set(LLVM_TOOLS_BINARY_DIR "/usr/lib/llvm-21/bin")
+# Stand-in for cmake/discovery.cmake, which runs before the options files
+# and exports every input they declare.
+set(ACPP_DISCOVERED_LLVM_PREFIX "/usr/lib/llvm-21")
+set(ACPP_DISCOVERED_LLVM_BINDIR "/usr/lib/llvm-21/bin")
+set(ACPP_DISCOVERED_LLVM_LIBDIR "lib")
+set(ACPP_DISCOVERED_CLANG "/usr/lib/llvm-21/bin/clang++")
+set(ACPP_DISCOVERED_CLANG_INCLUDE "/usr/lib/llvm-21/lib/clang/21/include")
 set(ACPP_DISCOVERED_LIBOMP_DIR "/usr/lib/llvm-21/lib")
-set(ACPP_DISCOVERED_LIBNUMA_DIR "NUMA_LIBRARY-NOTFOUND")
+set(ACPP_DISCOVERED_LIBNUMA_DIR "")
 set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "/opt/amath/lib")
-set(ACPP_DISCOVERED_SVML_DIR "LIBSVML-NOTFOUND")
+set(ACPP_DISCOVERED_SVML_DIR "")
 
 # The plugin build: AdaptiveCpp added to an existing LLVM, not linked into
 # one we build.

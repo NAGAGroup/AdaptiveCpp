@@ -3,7 +3,7 @@
     "value": "@CMAKE_INSTALL_LIBDIR@"
   },
   "llvm-libdir": {
-    "value": "@LLVM_LIBDIR@"
+    "value": "@ACPP_DISCOVERED_LLVM_LIBDIR@"
   },
   "llvm-deploy-path": {
     "value": "@ACPP_LLVM_DEPLOY_PATH@"

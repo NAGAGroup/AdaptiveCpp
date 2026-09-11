@@ -236,7 +236,7 @@ endif()
 # deployment's shape, so the source is our tree; under `default` it is
 # wherever this build found the thing.
 
-acpp_declare_provenance(ACPP_LLVM_PATH LLVM_INSTALL_PREFIX "${LLVM_INSTALL_PREFIX}" "{{ llvm-deploy-path }}")
+acpp_declare_provenance(ACPP_LLVM_PATH ACPP_DISCOVERED_LLVM_PREFIX "${ACPP_DISCOVERED_LLVM_PREFIX}" "{{ llvm-deploy-path }}")
 acpp_declare_provenance(ACPP_LIBOMP_PATH ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}" "{{ libomp-deploy-path }}")
 
 # libnuma is an ordinary shared library with no internal structure to
@@ -253,20 +253,20 @@ acpp_declare_provenance(ACPP_LIBNUMA_PATH ACPP_DISCOVERED_LIBNUMA_DIR "${ACPP_DI
 # toolchain while compiling, the JIT invokes it from the deployment while an
 # application runs, and those need not be the same binary.
 
-acpp_declare_resource(DEVICE_CMPLR CLANG_EXECUTABLE_PATH "${CLANG_EXECUTABLE_PATH}"
+acpp_declare_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}"
                       "{{ llvm-deploy-path }}/bin/clang++")
-acpp_declare_resource(LLC LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/llc"
+acpp_declare_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc"
                       "{{ llvm-deploy-path }}/bin/llc")
-acpp_declare_resource(OPT LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/opt"
+acpp_declare_resource(OPT ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/opt"
                       "{{ llvm-deploy-path }}/bin/opt")
-acpp_declare_resource(LLD LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/ld.lld"
+acpp_declare_resource(LLD ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/ld.lld"
                       "{{ llvm-deploy-path }}/bin/ld.lld")
-acpp_declare_resource(LLVMSPIRV LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/llvm-spirv"
+acpp_declare_resource(LLVMSPIRV ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llvm-spirv"
                       "{{ llvm-deploy-path }}/bin/llvm-spirv")
 
 # clang's resource include directory. The JIT's HIP compilation needs it, so
 # it has two sides like the compiler itself.
-acpp_declare_resource(CLANG_INCLUDE_PATH CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}"
+acpp_declare_resource(CLANG_INCLUDE_PATH ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_DISCOVERED_CLANG_INCLUDE}"
   "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include")
 
 # The vector math libraries, each directory-valued because the library's short
