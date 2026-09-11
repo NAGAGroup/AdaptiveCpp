@@ -1,0 +1,105 @@
+{
+  "internal": [
+    {
+      "src": "{{ toolchain-path }}/{{ toolchain-libdir }}",
+      "dest": "{{ libdir }}",
+      "files": [
+        "SHARED_LIB:acpp-rt",
+        "SHARED_LIB:acpp-common"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ toolchain-libdir }}/hipSYCL",
+      "dest": "{{ libdir }}/hipSYCL",
+      "files": [
+        "SHARED_LIB:rt-backend-omp"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ toolchain-libdir }}/hipSYCL/llvm-to-backend",
+      "dest": "{{ libdir }}/hipSYCL/llvm-to-backend",
+      "files": [
+        "SHARED_LIB:llvm-to-backend",
+        "SHARED_LIB:llvm-to-host"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ toolchain-libdir }}/hipSYCL/bitcode",
+      "dest": "{{ libdir }}/hipSYCL/bitcode",
+      "files": [
+        "libkernel-sscp-host-full.bc",
+        "libkernel-sscp-host-fast-full.bc"
+      ]
+    }
+  ],
+
+  "llvm": [
+    {
+      "src": "{{ llvm-path }}/bin",
+      "dest": "{{ libexec-dir }}",
+      "files": [
+        "clang++",
+        "llc",
+        "opt",
+        "ld.lld",
+        "llvm-spirv"
+      ]
+    },
+    {
+      "src": "{{ libllvm-path }}",
+      "dest": "{{ libdir }}",
+      "files": [
+        "SHARED_LIB:LLVM"
+      ]
+    },
+    {
+      "src": "{{ libomp-path }}",
+      "dest": "{{ libdir }}",
+      "files": [
+        "SHARED_LIB:omp"
+      ]
+    },
+    {
+      "src": "{{ clang-include-path }}",
+      "dest": "{{ libdir }}/clang/{{ llvm-version-major }}/include",
+      "files": [
+        "*"
+      ]
+    }
+  ],
+
+  "external-permissive": [
+    {
+      "src": "{{ sleef-dir }}",
+      "dest": "{{ libdir }}",
+      "files": [
+        "SHARED_LIB:sleefgnuabi"
+      ]
+    },
+    {
+      "src": "{{ amath-dir }}",
+      "dest": "{{ libdir }}",
+      "files": [
+        "SHARED_LIB:amath"
+      ]
+    },
+    {
+      "src": "{{ libnuma-path }}",
+      "dest": "{{ libdir }}",
+      "files": [
+        "SHARED_LIB:numa"
+      ]
+    }
+  ],
+
+  "external-nonpermissive": [
+    {
+      "src": "{{ svml-dir }}",
+      "dest": "{{ libdir }}",
+      "files": [
+        "SHARED_LIB:svml",
+        "SHARED_LIB:intlc"
+      ]
+    }
+  ]
+}

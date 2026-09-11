@@ -1,0 +1,175 @@
+{
+  "target-subdir": {
+    "value": "@ACPP_TARGET_SUBDIR@",
+    "envvar": "ACPP_TARGET_SUBDIR"
+  },
+  "libdir": {
+    "value": "@ACPP_LIBDIR@",
+    "envvar": "ACPP_LIBDIR"
+  },
+  "toolchain-libdir": {
+    "value": "@ACPP_TOOLCHAIN_LIBDIR@",
+    "envvar": null
+  },
+  "libexec-dir": {
+    "value": "@ACPP_LIBEXEC_DIR@",
+    "envvar": "ACPP_LIBEXEC_DIR"
+  },
+  "default-strategy-app-cfg-dir": {
+    "value": "@ACPP_DEFAULT_STRATEGY_APP_CFG_DIR@",
+    "envvar": "ACPP_DEFAULT_STRATEGY_APP_CFG_DIR"
+  },
+  "deployment-strategy": {
+    "value": "@ACPP_DEPLOYMENT_STRATEGY@",
+    "envvar": "ACPP_DEPLOYMENT_STRATEGY"
+  },
+
+  "version-major": {
+    "value": "@ACPP_VERSION_MAJOR@",
+    "envvar": null
+  },
+  "version-minor": {
+    "value": "@ACPP_VERSION_MINOR@",
+    "envvar": null
+  },
+  "version-patch": {
+    "value": "@ACPP_VERSION_PATCH@",
+    "envvar": null
+  },
+  "version-suffix": {
+    "value": "@ACPP_VERSION_SUFFIX@",
+    "envvar": null
+  },
+  "llvm-version-major": {
+    "value": "@LLVM_VERSION_MAJOR@",
+    "envvar": "ACPP_LLVM_VERSION_MAJOR"
+  },
+  "plugin-linked-into-llvm": {
+    "value": "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@",
+    "envvar": null
+  },
+
+  "llvm-path": {
+    "value": "@ACPP_LLVM_PATH@",
+    "envvar": "ACPP_LLVM_PATH"
+  },
+  "libllvm-path": {
+    "value": "@ACPP_LIBLLVM_PATH@",
+    "envvar": "ACPP_LIBLLVM_PATH"
+  },
+  "libomp-path": {
+    "value": "@ACPP_LIBOMP_PATH@",
+    "envvar": "ACPP_LIBOMP_PATH"
+  },
+  "libnuma-path": {
+    "value": "@ACPP_LIBNUMA_PATH@",
+    "envvar": "ACPP_LIBNUMA_PATH"
+  },
+
+  "clang-device-cmplr": {
+    "value": "@ACPP_CLANG_DEVICE_CMPLR@",
+    "envvar": "ACPP_CLANG_DEVICE_CMPLR",
+    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/clang++"
+  },
+  "cpu-cxx": {
+    "value": "@ACPP_CPU_CXX@",
+    "envvar": "ACPP_CPU_CXX"
+  },
+  "clang-include-path": {
+    "value": "@ACPP_CLANG_INCLUDE_PATH@",
+    "envvar": "ACPP_CLANG_INCLUDE_PATH",
+    "deployed-as": "$ACPP_PATH/{{ libdir }}/clang/{{ llvm-version-major }}/include"
+  },
+  "plugin-path": {
+    "value": "@ACPP_PLUGIN_PATH@",
+    "envvar": "ACPP_PLUGIN_PATH"
+  },
+
+  "llc": {
+    "value": "@ACPP_LLC@",
+    "envvar": "ACPP_LLC",
+    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/llc"
+  },
+  "opt": {
+    "value": "@ACPP_OPT@",
+    "envvar": "ACPP_OPT",
+    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/opt"
+  },
+  "lld": {
+    "value": "@ACPP_LLD@",
+    "envvar": "ACPP_LLD",
+    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/ld.lld"
+  },
+  "llvm-spirv": {
+    "value": "@ACPP_LLVMSPIRV@",
+    "envvar": "ACPP_LLVMSPIRV",
+    "deployed-as": "$ACPP_PATH/{{ libexec-dir }}/llvm-spirv"
+  },
+
+  "jit-host-llc-cpu-flag": {
+    "value": "@ACPP_JIT_HOST_LLC_CPU_FLAG@",
+    "envvar": "ACPP_JIT_HOST_LLC_CPU_FLAG",
+    "deployed-as": "{{ jit-host-llc-cpu-flag }}"
+  },
+  "jit-host-opt-cpu-flag": {
+    "value": "@ACPP_JIT_HOST_OPT_CPU_FLAG@",
+    "envvar": "ACPP_JIT_HOST_OPT_CPU_FLAG",
+    "deployed-as": "{{ jit-host-opt-cpu-flag }}"
+  },
+  "jit-host-llc-flags": {
+    "value": "@ACPP_JIT_HOST_LLC_FLAGS@",
+    "envvar": "ACPP_JIT_HOST_LLC_FLAGS",
+    "deployed-as": "{{ jit-host-llc-flags }}"
+  },
+  "jit-host-opt-flags": {
+    "value": "@ACPP_JIT_HOST_OPT_FLAGS@",
+    "envvar": "ACPP_JIT_HOST_OPT_FLAGS",
+    "deployed-as": "{{ jit-host-opt-flags }}"
+  },
+
+  "vector-math-lib": {
+    "value": "@ACPP_VECTOR_MATH_LIB@",
+    "envvar": "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY",
+    "deployed-as": "{{ vector-math-lib }}"
+  },
+  "sleef-dir": {
+    "value": "@ACPP_SLEEF_DIR@",
+    "envvar": "ACPP_SLEEF_DIR",
+    "deployed-as": "$ACPP_PATH/{{ libdir }}"
+  },
+  "amath-dir": {
+    "value": "@ACPP_AMATH_DIR@",
+    "envvar": "ACPP_AMATH_DIR",
+    "deployed-as": "$ACPP_PATH/{{ libdir }}"
+  },
+  "svml-dir": {
+    "value": "@ACPP_SVML_DIR@",
+    "envvar": "ACPP_SVML_DIR",
+    "deployed-as": "$ACPP_PATH/{{ libdir }}"
+  },
+
+  "targets": {
+    "value": "@ACPP_TARGETS@",
+    "envvar": "ACPP_TARGETS"
+  },
+  "sequential-link-line": {
+    "value": "@ACPP_SEQUENTIAL_LINK_LINE@",
+    "envvar": "ACPP_SEQUENTIAL_LINK_LINE"
+  },
+  "sequential-cxx-flags": {
+    "value": "@ACPP_SEQUENTIAL_CXX_FLAGS@",
+    "envvar": "ACPP_SEQUENTIAL_CXX_FLAGS"
+  },
+  "is-dryrun": {
+    "value": "@ACPP_DRYRUN@",
+    "envvar": "ACPP_DRYRUN"
+  },
+  "save-temps": {
+    "value": "@ACPP_SAVE_TEMPS@",
+    "envvar": "ACPP_SAVE_TEMPS"
+  },
+  "is-explicit-multipass": {
+    "value": "@ACPP_EXPLICIT_MULTIPASS@",
+    "envvar": "ACPP_EXPLICIT_MULTIPASS"
+  }
+}
