@@ -126,6 +126,10 @@ endif()
 # our libraries. The default covers the common case - a user compiling for
 # themselves - and a distribution maintainer building in `default` mode sets
 # it to the system configuration directory instead.
+#
+# Deliberately NOT subject to acpp_require_relative: this is the one path that
+# is meant to be absolute and to point outside the install tree. It concerns
+# `default` deployments only, which make no relocatability claim.
 if(NOT DEFINED ACPP_DEFAULT_STRATEGY_APP_CFG_DIR)
   set(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs")
 endif()
@@ -139,6 +143,7 @@ endif()
 # meaning "resolve on PATH" while full* still knows where the real binary is.
 
 # The LLVM installation whose binaries full* copies.
+acpp_require_relative(ACPP_LLVM_PATH)
 if(NOT DEFINED ACPP_LLVM_PATH)
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND LLVM_INSTALL_PREFIX)
     set(ACPP_LLVM_PATH "${LLVM_INSTALL_PREFIX}")
@@ -150,23 +155,43 @@ endif()
 # The three libraries resolved by the dynamic loader rather than by us. They
 # get no deployed-as: an application never looks them up, the loader does.
 # They exist here only so the deploy step knows where to copy them from.
+#
+# Under a placeholder strategy they name our own tree, because full* has
+# already copied them there at install and deploy copies out of the tree.
+# Only under `default`, where nothing was copied, do they name where the
+# build found them.
+acpp_require_relative(ACPP_LIBLLVM_PATH)
 if(NOT DEFINED ACPP_LIBLLVM_PATH)
-  set(ACPP_LIBLLVM_PATH "${LLVM_LIBRARY}")
-endif()
-if(NOT DEFINED ACPP_LIBOMP_PATH)
-  if(OpenMP_omp_LIBRARY)
-    set(ACPP_LIBOMP_PATH "${OpenMP_omp_LIBRARY}")
-  elseif(OpenMP_gomp_LIBRARY)
-    set(ACPP_LIBOMP_PATH "${OpenMP_gomp_LIBRARY}")
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+      AND LLVM_LIBRARY AND NOT LLVM_LIBRARY MATCHES "-NOTFOUND$")
+    get_filename_component(ACPP_LIBLLVM_PATH "${LLVM_LIBRARY}" DIRECTORY)
   else()
-    set(ACPP_LIBOMP_PATH "")
+    set(ACPP_LIBLLVM_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}")
   endif()
 endif()
-if(NOT DEFINED ACPP_LIBNUMA_PATH)
-  if(NUMA_LIBRARY)
-    set(ACPP_LIBNUMA_PATH "${NUMA_LIBRARY}")
+
+acpp_require_relative(ACPP_LIBOMP_PATH)
+if(NOT DEFINED ACPP_LIBOMP_PATH)
+  set(acpp_found_libomp "")
+  if(OpenMP_omp_LIBRARY)
+    set(acpp_found_libomp "${OpenMP_omp_LIBRARY}")
+  elseif(OpenMP_gomp_LIBRARY)
+    set(acpp_found_libomp "${OpenMP_gomp_LIBRARY}")
+  endif()
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND acpp_found_libomp)
+    get_filename_component(ACPP_LIBOMP_PATH "${acpp_found_libomp}" DIRECTORY)
   else()
-    set(ACPP_LIBNUMA_PATH "")
+    set(ACPP_LIBOMP_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}")
+  endif()
+endif()
+
+acpp_require_relative(ACPP_LIBNUMA_PATH)
+if(NOT DEFINED ACPP_LIBNUMA_PATH)
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+      AND NUMA_LIBRARY AND NOT NUMA_LIBRARY MATCHES "-NOTFOUND$")
+    get_filename_component(ACPP_LIBNUMA_PATH "${NUMA_LIBRARY}" DIRECTORY)
+  else()
+    set(ACPP_LIBNUMA_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}")
   endif()
 endif()
 
@@ -176,7 +201,8 @@ endif()
 
 # The DEVICE compiler, used by the multipass flows and by the generic JIT
 # alike. Distinct from the host compiler below: this one compiles kernels.
-if(NOT DEFINED ACPP_CLANG_DEVICE_CMPLR)
+acpp_require_relative(ACPP_CLANG_DEVICE_CMPLR)
+  if(NOT DEFINED ACPP_CLANG_DEVICE_CMPLR)
   set(ACPP_CLANG_DEVICE_CMPLR "{{ llvm-path }}/bin/clang++")
 endif()
 
@@ -184,7 +210,8 @@ endif()
 # else with an OpenMP implementation - it does not have to be clang. Under
 # `default` the build records what it was built with, so an existing
 # standalone install keeps its behaviour.
-if(NOT DEFINED ACPP_CPU_CXX)
+acpp_require_relative(ACPP_CPU_CXX)
+  if(NOT DEFINED ACPP_CPU_CXX)
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND CMAKE_CXX_COMPILER)
     set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
   else()
@@ -193,7 +220,8 @@ if(NOT DEFINED ACPP_CPU_CXX)
 endif()
 
 # clang's own resource include directory.
-if(NOT DEFINED ACPP_CLANG_INCLUDE_PATH)
+acpp_require_relative(ACPP_CLANG_INCLUDE_PATH)
+  if(NOT DEFINED ACPP_CLANG_INCLUDE_PATH)
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
       AND CLANG_INCLUDE_PATH AND NOT CLANG_INCLUDE_PATH MATCHES "-NOTFOUND$")
     set(ACPP_CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}")
@@ -207,16 +235,20 @@ endif()
 # a bare name, in which case the platform resolves it on PATH - which is what
 # a toolchain that does not ship its own LLVM wants. The platform's executable
 # suffix does not appear: this file is the linux one.
-if(NOT DEFINED ACPP_LLC)
+acpp_require_relative(ACPP_LLC)
+  if(NOT DEFINED ACPP_LLC)
   set(ACPP_LLC "{{ llvm-path }}/bin/llc")
 endif()
-if(NOT DEFINED ACPP_OPT)
+acpp_require_relative(ACPP_OPT)
+  if(NOT DEFINED ACPP_OPT)
   set(ACPP_OPT "{{ llvm-path }}/bin/opt")
 endif()
-if(NOT DEFINED ACPP_LLD)
+acpp_require_relative(ACPP_LLD)
+  if(NOT DEFINED ACPP_LLD)
   set(ACPP_LLD "{{ llvm-path }}/bin/ld.lld")
 endif()
-if(NOT DEFINED ACPP_LLVMSPIRV)
+acpp_require_relative(ACPP_LLVMSPIRV)
+  if(NOT DEFINED ACPP_LLVMSPIRV)
   set(ACPP_LLVMSPIRV "{{ llvm-path }}/bin/llvm-spirv")
 endif()
 
@@ -225,6 +257,7 @@ endif()
 # The driver currently hardcodes "lib" when building this path, which is wrong
 # on any lib64 distribution; this entry is what those sites should read.
 if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+  acpp_require_relative(ACPP_PLUGIN_PATH)
   if(NOT DEFINED ACPP_PLUGIN_PATH)
     set(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ toolchain-libdir }}/libacpp-clang.so")
   endif()
