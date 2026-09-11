@@ -163,9 +163,9 @@ endmacro()
 if(NOT DEFINED ACPP_DEPLOYMENT_STRATEGY)
   set(ACPP_DEPLOYMENT_STRATEGY "default")
 endif()
-if(NOT ACPP_DEPLOYMENT_STRATEGY MATCHES "^(default|bundled|full-permissive-only|full)$")
+if(NOT ACPP_DEPLOYMENT_STRATEGY MATCHES "^(default|managed|full-permissive-only|full)$")
   message(FATAL_ERROR
-    "ACPP_DEPLOYMENT_STRATEGY must be one of default, bundled, "
+    "ACPP_DEPLOYMENT_STRATEGY must be one of default, managed, "
     "full-permissive-only or full, not '${ACPP_DEPLOYMENT_STRATEGY}'.")
 endif()
 
@@ -194,7 +194,7 @@ endif()
 #     alone, so a bundled LLVM unit travels under our library directory
 #
 # A publisher whose tree differs overrides this; the knob describes the tree
-# the publisher produces, and under `bundled` - where the publisher assembles
+# the publisher produces, and under `managed` - where the publisher assembles
 # the tree themselves - the override states where the bundled items actually
 # landed. LLVM travels whole either way: its binaries find libLLVM through
 # their own RUNPATH, so the bin-to-libdir relationship has to survive the
