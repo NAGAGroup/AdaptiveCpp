@@ -16,7 +16,7 @@
 # cmake variable into the configuration's @VAR@ stub, because nothing here
 # chooses them.
 #
-# What is left divides in two.
+# What is left divides in three.
 #
 #   * DEPLOY PATHS are the publisher's choice, made once at configure time.
 #     They say where something lands in a deployed application, and because
@@ -30,6 +30,11 @@
 #     JIT uses - because those are different facts: the driver runs from the
 #     toolchain on a developer's machine, the JIT runs from the deployment on
 #     someone else's.
+#
+#   * PROVENANCE VALUES say where the deploy step copies something from.
+#     They have no application side: the libraries they name are reached
+#     through DT_NEEDED linkage or the LLVM unit's own RUNPATH, so no running
+#     application ever looks them up.
 #
 # A resource value is builder-overridable ONLY under `default`. Choosing any
 # other strategy is a commitment that this toolchain package contains what it
@@ -77,13 +82,32 @@ function(acpp_default_strategy_only name)
   endif()
 endfunction()
 
+# Discovery must have run before any options file. An unset input would
+# otherwise expand empty, and a value built as "${prefix}/llc" would resolve
+# to the root-level "/llc" - which no check on the resulting value can
+# catch. find_* always sets its variable, empty or NOTFOUND when it found
+# nothing, so an undefined input means discovery did not run at all.
+function(acpp_require_discovered name)
+  if(NOT DEFINED ${name})
+    message(FATAL_ERROR
+      "discovery variable ${name} is not set. cmake/discovery.cmake runs "
+      "before the options files and exports every one of these, so an "
+      "options file must never run without it.")
+  endif()
+endfunction()
+
 # Declare the two sides of one resource.
 #
 # Under `default` both are the discovered absolute path: nothing is deployed,
 # so an application uses the toolchain's own copy. Under the other strategies
 # they are the same relative location seen from two roots - the toolchain's
 # when driving, the deployment's when running.
-macro(acpp_declare_resource stem discovered relative)
+#
+# `discovered_var` names the discovery variable the value came from - for the
+# LLVM executables that is the tools directory, and `discovered` joins the
+# file name onto its value.
+macro(acpp_declare_resource stem discovered_var discovered relative)
+  acpp_require_discovered(${discovered_var})
   acpp_default_strategy_only(ACPP_TOOLCHAIN_${stem})
   acpp_default_strategy_only(ACPP_APP_${stem})
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
@@ -103,6 +127,26 @@ macro(acpp_declare_resource stem discovered relative)
       # \$ so cmake does not try to read $ACPP_PATH/{{ ... }} as a variable
       # reference; the written value is a literal $ACPP_PATH.
       set(ACPP_APP_${stem} "\$ACPP_PATH/${relative}")
+    endif()
+  endif()
+endmacro()
+
+# Declare a provenance resource: where the deploy step copies something from.
+# Single-sided by construction - no application ever reads these, so there is
+# no application-side value to compute. The discovery-variable rule is the
+# same as acpp_declare_resource's.
+macro(acpp_declare_provenance var discovered_var discovered relative)
+  acpp_require_discovered(${discovered_var})
+  acpp_default_strategy_only(${var})
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
+      AND NOT "${discovered}" STREQUAL ""
+      AND NOT "${discovered}" MATCHES "-NOTFOUND$")
+    if(NOT DEFINED ${var})
+      set(${var} "${discovered}")
+    endif()
+  else()
+    if(NOT DEFINED ${var})
+      set(${var} "{{ toolchain-path }}/${relative}")
     endif()
   endif()
 endmacro()
@@ -171,16 +215,20 @@ if(NOT DEFINED ACPP_DEFAULT_STRATEGY_APP_CFG_DIR)
 endif()
 
 # ---------------------------------------------------------------------------
-# Where things are - the roots
+# Provenance - where the deploy step copies from
 # ---------------------------------------------------------------------------
+#
+# Under the placeholder strategies the toolchain's own tree already has the
+# deployment's shape, so the source is our tree; under `default` it is
+# wherever this build found the thing.
 
-acpp_declare_resource(LLVM_PATH "${LLVM_INSTALL_PREFIX}" "{{ llvm-deploy-path }}")
-acpp_declare_resource(LIBOMP_PATH "${ACPP_DISCOVERED_LIBOMP_DIR}" "{{ libomp-deploy-path }}")
+acpp_declare_provenance(ACPP_LLVM_PATH LLVM_INSTALL_PREFIX "${LLVM_INSTALL_PREFIX}" "{{ llvm-deploy-path }}")
+acpp_declare_provenance(ACPP_LIBOMP_PATH ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}" "{{ libomp-deploy-path }}")
 
 # libnuma is an ordinary shared library with no internal structure to
 # preserve, so it needs no deploy path of its own: it goes beside our
 # libraries, where the loader finds it.
-acpp_declare_resource(LIBNUMA_PATH "${ACPP_DISCOVERED_LIBNUMA_DIR}" "{{ acpp-libdir }}")
+acpp_declare_provenance(ACPP_LIBNUMA_PATH ACPP_DISCOVERED_LIBNUMA_DIR "${ACPP_DISCOVERED_LIBNUMA_DIR}" "{{ acpp-libdir }}")
 
 # ---------------------------------------------------------------------------
 # The device compiler and the LLVM executables
@@ -191,20 +239,20 @@ acpp_declare_resource(LIBNUMA_PATH "${ACPP_DISCOVERED_LIBNUMA_DIR}" "{{ acpp-lib
 # toolchain while compiling, the JIT invokes it from the deployment while an
 # application runs, and those need not be the same binary.
 
-acpp_declare_resource(DEVICE_CMPLR "${CLANG_EXECUTABLE_PATH}"
+acpp_declare_resource(DEVICE_CMPLR CLANG_EXECUTABLE_PATH "${CLANG_EXECUTABLE_PATH}"
                       "{{ llvm-deploy-path }}/bin/clang++")
-acpp_declare_resource(LLC "${LLVM_TOOLS_BINARY_DIR}/llc"
+acpp_declare_resource(LLC LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/llc"
                       "{{ llvm-deploy-path }}/bin/llc")
-acpp_declare_resource(OPT "${LLVM_TOOLS_BINARY_DIR}/opt"
+acpp_declare_resource(OPT LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/opt"
                       "{{ llvm-deploy-path }}/bin/opt")
-acpp_declare_resource(LLD "${LLVM_TOOLS_BINARY_DIR}/ld.lld"
+acpp_declare_resource(LLD LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/ld.lld"
                       "{{ llvm-deploy-path }}/bin/ld.lld")
-acpp_declare_resource(LLVMSPIRV "${LLVM_TOOLS_BINARY_DIR}/llvm-spirv"
+acpp_declare_resource(LLVMSPIRV LLVM_TOOLS_BINARY_DIR "${LLVM_TOOLS_BINARY_DIR}/llvm-spirv"
                       "{{ llvm-deploy-path }}/bin/llvm-spirv")
 
 # clang's resource include directory. The JIT's HIP compilation needs it, so
 # it has two sides like the compiler itself.
-acpp_declare_resource(CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}"
+acpp_declare_resource(CLANG_INCLUDE_PATH CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}"
   "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include")
 
 # The vector math libraries, each directory-valued because the library's short
@@ -212,9 +260,9 @@ acpp_declare_resource(CLANG_INCLUDE_PATH "${CLANG_INCLUDE_PATH}"
 # libraries, having no internal structure to preserve. libmvec needs no entry:
 # it is part of glibc, so the only correct copy is the one the loader resolves
 # in the running process.
-acpp_declare_resource(SLEEF_DIR "${ACPP_DISCOVERED_SLEEF_DIR}" "{{ acpp-libdir }}")
-acpp_declare_resource(AMATH_DIR "${ACPP_DISCOVERED_AMATH_DIR}" "{{ acpp-libdir }}")
-acpp_declare_resource(SVML_DIR  "${ACPP_DISCOVERED_SVML_DIR}"  "{{ acpp-libdir }}")
+acpp_declare_resource(SLEEF_DIR ACPP_DISCOVERED_SLEEF_DIR "${ACPP_DISCOVERED_SLEEF_DIR}" "{{ acpp-libdir }}")
+acpp_declare_resource(AMATH_DIR ACPP_DISCOVERED_AMATH_DIR "${ACPP_DISCOVERED_AMATH_DIR}" "{{ acpp-libdir }}")
+acpp_declare_resource(SVML_DIR  ACPP_DISCOVERED_SVML_DIR  "${ACPP_DISCOVERED_SVML_DIR}"  "{{ acpp-libdir }}")
 
 # ---------------------------------------------------------------------------
 # Driver-only resources
