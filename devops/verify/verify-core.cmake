@@ -25,6 +25,11 @@ set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "/opt/amath/lib")
 set(ACPP_DISCOVERED_SVML_DIR "LIBSVML-NOTFOUND")
 
+# The linked build this harness covers: AdaptiveCpp built as part of the
+# LLVM toolchain. The plugin build's mode-dependent defaults are covered by
+# verify-core-plugin.cmake.
+set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
+
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 
 function(expect_unset name)
@@ -43,9 +48,7 @@ endfunction()
 expect_eq(ACPP_DEPLOYMENT_STRATEGY "default")
 expect_eq(ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN "OFF")
 
-# Deploy paths. The linked build installs AdaptiveCpp into the LLVM prefix,
-# so the toolchain root and the LLVM root are one tree and LLVM deploys at
-# "." - its bin and lib at the root of whatever tree holds them.
+# Deploy paths. Linked build: one prefix, one tree, LLVM at its root.
 expect_eq(ACPP_LLVM_DEPLOY_PATH ".")
 expect_eq(ACPP_LIBOMP_DEPLOY_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}")
 expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs")
@@ -87,9 +90,10 @@ expect_eq(ACPP_APP_AMATH_DIR "/opt/amath/lib")
 expect_eq(ACPP_TOOLCHAIN_SVML_DIR "{{ toolchain-path }}/{{ acpp-libdir }}")
 expect_eq(ACPP_APP_SVML_DIR "\$ACPP_PATH/{{ acpp-libdir }}")
 
-# Driver-only resources and behaviour.
+# Driver-only resources and behaviour. The compiler plugin exists as a
+# deployable file only in the plugin build.
 expect_eq(ACPP_CPU_CXX "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++")
-expect_eq(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ acpp-libdir }}/libacpp-clang.so")
+expect_unset(ACPP_PLUGIN_PATH)
 expect_eq(ACPP_JIT_HOST_LLC_CPU_FLAG "-mcpu=native")
 expect_eq(ACPP_JIT_HOST_OPT_CPU_FLAG "--mcpu=native")
 expect_eq(ACPP_JIT_HOST_LLC_FLAGS "")

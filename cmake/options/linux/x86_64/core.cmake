@@ -185,16 +185,27 @@ endif()
 # Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
 
-# Where the LLVM unit lands. In the linked build AdaptiveCpp is installed
-# into the LLVM prefix, so the toolchain root and the LLVM install root are
-# the same tree and LLVM's bin and lib sit at it: ".". A layout with LLVM
-# under a subtree of our own is the standalone-build shape, which this tree
-# does not build. LLVM travels whole either way: its binaries find libLLVM
-# through their own RUNPATH, so the bin-to-libdir relationship has to
-# survive the move.
+# Where the LLVM unit lands. AdaptiveCpp comes in two shapes, and this is
+# the one options default that differs between them:
+#
+#   * linked into an LLVM toolchain we build - one prefix, one tree, and
+#     LLVM's bin and lib sit at its root: "."
+#   * a plugin added to an existing LLVM - the toolchain's own tree is ours
+#     alone, so a bundled LLVM unit travels under our library directory
+#
+# A publisher whose tree differs overrides this; the knob describes the tree
+# the publisher produces, and under `bundled` - where the publisher assembles
+# the tree themselves - the override states where the bundled items actually
+# landed. LLVM travels whole either way: its binaries find libLLVM through
+# their own RUNPATH, so the bin-to-libdir relationship has to survive the
+# move.
 acpp_require_relative(ACPP_LLVM_DEPLOY_PATH)
 if(NOT DEFINED ACPP_LLVM_DEPLOY_PATH)
-  set(ACPP_LLVM_DEPLOY_PATH ".")
+  if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+    set(ACPP_LLVM_DEPLOY_PATH ".")
+  else()
+    set(ACPP_LLVM_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext")
+  endif()
 endif()
 
 # Where libomp lands. It defaults to travelling with LLVM, because LLVM's own
