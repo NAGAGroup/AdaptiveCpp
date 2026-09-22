@@ -1,4 +1,4 @@
-# Defaults and mirror check for the windows/aarch64 options, run with
+# Defaults check for the windows/aarch64 options, run with
 # cmake -P:
 #   cmake -P devops/verify/verify-windows-aarch64.cmake
 #

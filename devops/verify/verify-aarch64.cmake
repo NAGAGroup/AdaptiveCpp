@@ -1,4 +1,4 @@
-# Defaults and mirror check for the linux/aarch64 options, run with cmake -P:
+# Defaults check for the linux/aarch64 options, run with cmake -P:
 #   cmake -P devops/verify/verify-aarch64.cmake
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
