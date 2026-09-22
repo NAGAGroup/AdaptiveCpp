@@ -52,10 +52,21 @@ set(ACPP_DISCOVERED_ZE_LIBDIR "")
 set(ACPP_DISCOVERED_ZE_BINDIR "")
 set(ACPP_DISCOVERED_ZE_INCLUDE_DIR "")
 
+set(ACPP_DISCOVERED_VK_FOUND OFF)
+set(ACPP_DISCOVERED_VK_LOADER "")
+set(ACPP_DISCOVERED_VK_PREFIX "")
+set(ACPP_DISCOVERED_VK_LIBDIR "")
+set(ACPP_DISCOVERED_CLSPV_FOUND OFF)
+set(ACPP_DISCOVERED_CLSPV_EXECUTABLE "")
+set(ACPP_DISCOVERED_CLSPV_PREFIX "")
+set(ACPP_DISCOVERED_CLSPV_BINDIR "")
+
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/cuda.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ocl.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ze.cmake)
+include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/vk.cmake)
+include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/clspv.cmake)
 
 # ---- CUDA placeholder ----
 
@@ -84,5 +95,21 @@ expect_eq(ACPP_ZE_BIN_PATH "{{ toolchain-path }}/{{ ze-deploy-path }}/{{ ze-bind
 expect_eq(ACPP_TOOLCHAIN_ZE_DLL_DIR "{{ toolchain-path }}/{{ ze-deploy-path }}/{{ ze-bindir }}")
 expect_eq(ACPP_APP_ZE_DLL_DIR "\$ACPP_PATH/{{ ze-deploy-path }}/{{ ze-bindir }}")
 message(STATUS "windows/x86_64/ze.cmake (placeholder): defaults as declared")
+
+# ---- VK placeholder ----
+
+expect_eq(ACPP_VK_DEPLOY_PATH "{{ acpp-bindir }}/hipSYCL/ext/vk")
+expect_eq(ACPP_VK_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}")
+expect_eq(ACPP_VK_LIB_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}/{{ vk-libdir }}")
+message(STATUS "windows/x86_64/vk.cmake (placeholder): defaults as declared")
+
+# ---- CLSPV placeholder ----
+
+expect_eq(ACPP_CLSPV_DEPLOY_PATH "{{ acpp-bindir }}/hipSYCL/ext/clspv")
+expect_eq(ACPP_CLSPV_PATH "{{ toolchain-path }}/{{ clspv-deploy-path }}")
+expect_eq(ACPP_CLSPV_BIN_PATH "{{ toolchain-path }}/{{ clspv-deploy-path }}/{{ clspv-bindir }}")
+expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ toolchain-path }}/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv.exe")
+expect_eq(ACPP_APP_CLSPV "\$ACPP_PATH/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv.exe")
+message(STATUS "windows/x86_64/clspv.cmake (placeholder): defaults as declared")
 
 message(STATUS "windows/x86_64 (placeholder): all checks passed")

@@ -64,7 +64,7 @@ message(STATUS "windows/aarch64: CUDA arm64 layout needs no file change")
 
 # ---- Mirror check: cmake options files ----
 
-foreach(_f core cuda ocl ze omp)
+foreach(_f core cuda ocl ze omp vk clspv)
   file(READ "${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/${_f}.cmake" _x64)
   file(READ "${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/${_f}.cmake" _arm)
   string(REPLACE "windows, aarch64" "windows, x86_64" _arm_normalized "${_arm}")
@@ -78,7 +78,7 @@ endforeach()
 
 # ---- Mirror check: json files (byte-identical) ----
 
-foreach(_f core cuda ocl ze omp)
+foreach(_f core cuda ocl ze omp vk clspv)
   file(READ "${ACPP_REPO_ROOT}/config/windows/x86_64/${_f}.json" _x64)
   file(READ "${ACPP_REPO_ROOT}/config/windows/aarch64/${_f}.json" _arm)
   if(NOT "${_x64}" STREQUAL "${_arm}")
@@ -87,7 +87,7 @@ foreach(_f core cuda ocl ze omp)
   message(STATUS "mirror: ${_f}.json identical")
 endforeach()
 
-foreach(_f core cuda ocl ze)
+foreach(_f core cuda ocl ze vk clspv)
   file(READ "${ACPP_REPO_ROOT}/config/windows/x86_64/deploy/${_f}.json" _x64)
   file(READ "${ACPP_REPO_ROOT}/config/windows/aarch64/deploy/${_f}.json" _arm)
   if(NOT "${_x64}" STREQUAL "${_arm}")

@@ -62,7 +62,7 @@ message(STATUS "aarch64/core.cmake: defaults as declared (no SVML)")
 
 # ---- Mirror check: cmake options files ----
 
-foreach(_f cuda nvhpc hip ocl ze omp)
+foreach(_f cuda nvhpc hip ocl ze omp vk clspv)
   file(READ "${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/${_f}.cmake" _x86)
   file(READ "${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/${_f}.cmake" _arm)
   string(REPLACE "linux, aarch64" "linux, x86_64" _arm_normalized "${_arm}")
@@ -76,7 +76,7 @@ endforeach()
 
 # ---- Mirror check: json files (byte-identical except core and deploy/core) ----
 
-foreach(_f cuda nvhpc hip ocl ze omp)
+foreach(_f cuda nvhpc hip ocl ze omp vk clspv)
   file(READ "${ACPP_REPO_ROOT}/config/linux/x86_64/${_f}.json" _x86)
   file(READ "${ACPP_REPO_ROOT}/config/linux/aarch64/${_f}.json" _arm)
   if(NOT "${_x86}" STREQUAL "${_arm}")
@@ -85,7 +85,7 @@ foreach(_f cuda nvhpc hip ocl ze omp)
   message(STATUS "mirror: ${_f}.json identical")
 endforeach()
 
-foreach(_f cuda nvhpc hip ocl ze)
+foreach(_f cuda nvhpc hip ocl ze vk clspv)
   file(READ "${ACPP_REPO_ROOT}/config/linux/x86_64/deploy/${_f}.json" _x86)
   file(READ "${ACPP_REPO_ROOT}/config/linux/aarch64/deploy/${_f}.json" _arm)
   if(NOT "${_x86}" STREQUAL "${_arm}")

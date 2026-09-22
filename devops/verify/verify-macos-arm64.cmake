@@ -67,4 +67,34 @@ expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
 expect_eq(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
 message(STATUS "macos/arm64/omp.cmake: defaults as declared")
 
+# ---- VK found ----
+
+set(ACPP_DISCOVERED_VK_FOUND ON)
+set(ACPP_DISCOVERED_VK_LOADER "/opt/vulkansdk/macOS/lib/libvulkan.1.4.0.dylib")
+set(ACPP_DISCOVERED_VK_PREFIX "/opt/vulkansdk/macOS")
+set(ACPP_DISCOVERED_VK_LIBDIR "lib")
+set(ACPP_DISCOVERED_VK_INCLUDE_DIR "/opt/vulkansdk/macOS/include")
+set(ACPP_DISCOVERED_VK_SPIRV_TOOLS_LIBRARY "/opt/vulkansdk/macOS/lib/libSPIRV-Tools.a")
+
+include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/vk.cmake)
+
+expect_eq(ACPP_VK_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/vk")
+expect_eq(ACPP_VK_PATH "/opt/vulkansdk/macOS")
+expect_eq(ACPP_VK_LIB_PATH "/opt/vulkansdk/macOS/lib")
+message(STATUS "macos/arm64/vk.cmake: found defaults as declared")
+
+# ---- CLSPV found ----
+
+set(ACPP_DISCOVERED_CLSPV_FOUND ON)
+set(ACPP_DISCOVERED_CLSPV_EXECUTABLE "/opt/vulkansdk/macOS/bin/clspv")
+set(ACPP_DISCOVERED_CLSPV_PREFIX "/opt/vulkansdk/macOS")
+set(ACPP_DISCOVERED_CLSPV_BINDIR "bin")
+
+include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/clspv.cmake)
+
+expect_eq(ACPP_CLSPV_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/clspv")
+expect_eq(ACPP_TOOLCHAIN_CLSPV "/opt/vulkansdk/macOS/bin/clspv")
+expect_eq(ACPP_APP_CLSPV "/opt/vulkansdk/macOS/bin/clspv")
+message(STATUS "macos/arm64/clspv.cmake: found defaults as declared")
+
 message(STATUS "macos/arm64: all checks passed")

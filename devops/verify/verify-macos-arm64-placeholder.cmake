@@ -24,6 +24,13 @@ set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 set(ACPP_DEPLOYMENT_STRATEGY "managed")
 
+set(ACPP_DISCOVERED_VK_FOUND OFF)
+set(ACPP_DISCOVERED_VK_PREFIX "")
+set(ACPP_DISCOVERED_VK_LIBDIR "")
+set(ACPP_DISCOVERED_CLSPV_FOUND OFF)
+set(ACPP_DISCOVERED_CLSPV_PREFIX "")
+set(ACPP_DISCOVERED_CLSPV_BINDIR "")
+
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 
 expect_eq(ACPP_TOOLCHAIN_LLD "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/ld64.lld")
@@ -32,5 +39,14 @@ expect_eq(ACPP_APP_LLD "\$ACPP_PATH/{{ llvm-deploy-path }}/bin/ld64.lld")
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/omp.cmake)
 
 expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
+
+include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/vk.cmake)
+include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/clspv.cmake)
+
+expect_eq(ACPP_VK_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}")
+expect_eq(ACPP_VK_LIB_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}/{{ vk-libdir }}")
+expect_eq(ACPP_CLSPV_PATH "{{ toolchain-path }}/{{ clspv-deploy-path }}")
+expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ toolchain-path }}/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "\$ACPP_PATH/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv")
 
 message(STATUS "macos/arm64 (placeholder): all checks passed")

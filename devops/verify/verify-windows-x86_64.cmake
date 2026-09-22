@@ -134,6 +134,38 @@ expect_eq(ACPP_OMP_LINK_LINE "-fopenmp")
 expect_eq(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
 message(STATUS "windows/x86_64/omp.cmake: defaults as declared")
 
+# ---- VK found ----
+
+set(ACPP_DISCOVERED_VK_FOUND ON)
+set(ACPP_DISCOVERED_VK_LOADER "C:/VulkanSDK/1.4.0/Lib/vulkan-1.lib")
+set(ACPP_DISCOVERED_VK_PREFIX "C:/VulkanSDK/1.4.0")
+set(ACPP_DISCOVERED_VK_LIBDIR "Lib")
+set(ACPP_DISCOVERED_VK_INCLUDE_DIR "C:/VulkanSDK/1.4.0/Include")
+set(ACPP_DISCOVERED_VK_SPIRV_TOOLS_LIBRARY "C:/VulkanSDK/1.4.0/Lib/SPIRV-Tools.lib")
+
+include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/vk.cmake)
+
+expect_eq(ACPP_VK_DEPLOY_PATH "{{ acpp-bindir }}/hipSYCL/ext/vk")
+expect_eq(ACPP_VK_PATH "C:/VulkanSDK/1.4.0")
+expect_eq(ACPP_VK_LIB_PATH "C:/VulkanSDK/1.4.0/Lib")
+message(STATUS "windows/x86_64/vk.cmake: found defaults as declared")
+
+# ---- CLSPV found ----
+
+set(ACPP_DISCOVERED_CLSPV_FOUND ON)
+set(ACPP_DISCOVERED_CLSPV_EXECUTABLE "C:/VulkanSDK/1.4.0/Bin/clspv.exe")
+set(ACPP_DISCOVERED_CLSPV_PREFIX "C:/VulkanSDK/1.4.0")
+set(ACPP_DISCOVERED_CLSPV_BINDIR "Bin")
+
+include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/clspv.cmake)
+
+expect_eq(ACPP_CLSPV_DEPLOY_PATH "{{ acpp-bindir }}/hipSYCL/ext/clspv")
+expect_eq(ACPP_CLSPV_PATH "C:/VulkanSDK/1.4.0")
+expect_eq(ACPP_CLSPV_BIN_PATH "C:/VulkanSDK/1.4.0/Bin")
+expect_eq(ACPP_TOOLCHAIN_CLSPV "C:/VulkanSDK/1.4.0/Bin/clspv.exe")
+expect_eq(ACPP_APP_CLSPV "C:/VulkanSDK/1.4.0/Bin/clspv.exe")
+message(STATUS "windows/x86_64/clspv.cmake: found defaults as declared")
+
 # ---- Mirror: omp.cmake and omp.json are identical to linux x86_64's ----
 
 file(READ "${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/omp.cmake" _linux_omp)
