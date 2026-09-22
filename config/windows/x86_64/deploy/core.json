@@ -1,0 +1,68 @@
+{
+  "internal": [
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-bindir }}",
+      "dest": "{{ acpp-bindir }}",
+      "files": [
+        "SHARED_LIB:acpp-rt",
+        "SHARED_LIB:acpp-common"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL",
+      "dest": "{{ acpp-bindir }}/hipSYCL",
+      "files": [
+        "SHARED_LIB:rt-backend-omp"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "dest": "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "files": [
+        "SHARED_LIB:llvm-to-backend",
+        "SHARED_LIB:llvm-to-host",
+        "SHARED_LIB:llvm-to-spirv"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files": [
+        "libkernel-sscp-host-full.bc",
+        "libkernel-sscp-host-fast-full.bc"
+      ]
+    }
+  ],
+
+  "llvm": [
+    {
+      "src": "{{ llvm-path }}/bin",
+      "dest": "{{ llvm-deploy-path }}/bin",
+      "files": [
+        "clang++.exe",
+        "llc.exe",
+        "opt.exe",
+        "lld-link.exe",
+        "llvm-spirv.exe"
+      ]
+    },
+    {
+      "src": "{{ libomp-path }}",
+      "dest": "{{ libomp-deploy-path }}",
+      "files": [
+        "SHARED_LIB:libomp"
+      ]
+    },
+    {
+      "src": "{{ clang-include-path }}",
+      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
+      "files": [
+        "*"
+      ]
+    }
+  ],
+
+  "external-permissive": [],
+
+  "external-nonpermissive": []
+}
