@@ -292,6 +292,12 @@ build-only, a discovery requirement but not a row because nothing
 user-facing includes them; the loader's optional validation and tracing
 layers are not rows.
 
+**Flows without a vendor unit.** The omp flows carry no unit and no
+manifest: the CPU backend is internal and libomp is the LLVM unit's, both
+already in core's manifest. The flow contributes only the driver's link
+line and compile flags, per platform because the OpenMP flag is the
+platform's.
+
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
 RUNPATH its builder chose. By the time the runtime opens the backend, a

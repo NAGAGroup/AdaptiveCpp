@@ -138,3 +138,13 @@ not exist in the Python driver. The driver reads values and expands
   note gets a Level Zero sibling (loader only; the driver is the user's).
 - `doc/install-spirv.md`: the `-DWITH_LEVEL_ZERO_BACKEND=ON` sentence
   becomes "found automatically".
+
+### Wiring-slice obligations left by the OMP slice
+
+- Root `CMakeLists.txt` ~562-570 (`DEFAULT_OMP_FLAG`), ~693-743 (the
+  `OMP_LINK_LINE` cache variable and its platform branches; the
+  `SEQUENTIAL_*` siblings are already core's) and ~762-764
+  (`OMP_CXX_FLAGS`) are replaced by
+  `options/<platform>/<arch>/omp.cmake`.
+- `bin/acpp`'s `default-omp-link-line` and `default-omp-cxx-flags` reads
+  fall under the general `default-` prefix row above.
