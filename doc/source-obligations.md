@@ -159,3 +159,20 @@ not exist in the Python driver. The driver reads values and expands
   `CMAKE_SYSTEM_PROCESSOR` with the mapping: `x86_64|AMD64` → `x86_64`,
   `aarch64|arm64|ARM64` → `aarch64`, `Linux` → `linux`, `Darwin` →
   `macos`, `Windows` → `windows`.
+
+### Wiring-slice obligations left by the windows/x86_64 slice
+
+- `backend_loader.cpp`: adds `AddDllDirectory` for every
+  `ACPP_*_DLL_DIR` present in the application configuration before
+  loading backends.
+- Deploy engine: `files` entries are template-expanded like `src` and
+  `dest`, so `"SHARED_LIB:cudart64_{{ cuda-version-major }}"` resolves
+  at deploy time.
+- `cmake/discovery/ocl.cmake` and `ze.cmake`: the `WIN32` branches
+  (`find_file` for the DLL, `ACPP_DISCOVERED_*_BINDIR`) are exercised
+  only on a Windows configure.
+- `cmake/discovery.cmake`: `ACPP_DISCOVERED_LIBOMP_DIR` must be the
+  DLL directory on Windows (LLVM's bin), not the import-lib directory;
+  the plugin-discovery half must `FATAL_ERROR` on Windows (linked-only).
+- `bin/acpp`: `acpp_plugin_path` reads `plugin-path` and `cuda_lib_path`
+  reads `cuda-lib-path`; the hardcoded `lib/x64` fallback goes.

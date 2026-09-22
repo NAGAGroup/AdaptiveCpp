@@ -304,6 +304,23 @@ already in core's manifest. The flow contributes only the driver's link
 line and compile flags, per platform because the OpenMP flag is the
 platform's.
 
+**Windows.** Vendor units on Windows hold their DLLs in the vendor's
+bin-relative directory (deployable) and their import libraries in the
+lib-relative directory (toolchain-only, needed only to drive the multipass
+flows). The deploy path default is `{{ acpp-bindir }}/hipSYCL/ext/<vendor>`.
+With no RUNPATH, the runtime's existing `AddDllDirectory` is the Windows
+form of the derived RUNPATH, fed from the application configuration: each
+vendor's DLL directory is a two-sided resource
+(`ACPP_<VENDOR>_DLL_DIR`). `SHARED_LIB:<name>` resolves to `<name>.dll`
+on Windows and the `files` entries in deploy manifests are
+template-expanded like `src` and `dest`, so a versioned DLL like
+`cudart64_12.dll` is written as
+`"SHARED_LIB:cudart64_{{ cuda-version-major }}"`. Under clang-cl there
+is no LLVM DLL (the tools are static), so the llvm group lists executables
+(with `.exe`), `libomp.dll` and clang's resource headers. The HPC SDK
+does not exist on Windows; TheRock's Windows layout is unread, so hip and
+nvhpc are deferred.
+
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
 RUNPATH its builder chose. By the time the runtime opens the backend, a
@@ -356,9 +373,11 @@ it is a case to detect.
 
 ### File search order
 
-1. `$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs/<name>.cfg`
-2. The system configuration directory (`/etc/AdaptiveCpp/app-cfgs/`; Windows
-   and macOS equivalents are deferred until those platforms are reached)
+1. `$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs/<name>.cfg` (Linux);
+   `$LOCALAPPDATA/AdaptiveCpp/app-cfgs/<name>.cfg` (Windows);
+   macOS is deferred until its platform pass
+2. The system configuration directory: `/etc/AdaptiveCpp/app-cfgs/` (Linux);
+   `$ProgramData/AdaptiveCpp/app-cfgs/` (Windows)
 3. Relative to our own library directory (found via `dladdr`)
 
 User configuration beats system configuration, as everywhere else. A stray
@@ -403,5 +422,5 @@ is what exists; it reads a flat `key=value` `.cfg` file beside the executable.
   driver comparing header metadata compiled into object files against the
   toolchain's configuration facts. It is never an install-time or run-time
   check.
-- **Windows and macOS system configuration directories** are decided when
-  those platforms are reached in the vendor campaign.
+- **macOS system configuration directories** are decided when that platform
+  is reached in the vendor campaign.
