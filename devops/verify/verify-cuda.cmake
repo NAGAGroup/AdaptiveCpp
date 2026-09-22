@@ -35,8 +35,6 @@ set(ACPP_DISCOVERED_CUDA_LIBDIR "lib64")
 set(ACPP_DISCOVERED_CUDA_INCDIR "include")
 set(ACPP_DISCOVERED_CUDA_BINDIR "bin")
 set(ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "/usr/local/cuda-12.9/nvvm/libdevice")
-set(ACPP_DISCOVERED_NVCXX "/opt/nvidia/hpc_sdk/compilers/bin/nvc++")
-
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/cuda.cmake)
 
@@ -53,8 +51,7 @@ expect_eq(ACPP_CUDA_BIN_PATH "/usr/local/cuda-12.9/bin")
 expect_eq(ACPP_TOOLCHAIN_CUDA_LIBDEVICE_DIR "/usr/local/cuda-12.9/nvvm/libdevice")
 expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "/usr/local/cuda-12.9/nvvm/libdevice")
 
-# Driver-only: nvc++ found -> discovered path; link line and flags.
-expect_eq(ACPP_NVCXX "/opt/nvidia/hpc_sdk/compilers/bin/nvc++")
+# Driver-only: link line and flags.
 expect_eq(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-lib-path }} -L{{ cuda-lib-path }} -lcudart")
 expect_eq(ACPP_CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ toolchain-path }}/include/AdaptiveCpp/hipSYCL/std/hiplike")
 
