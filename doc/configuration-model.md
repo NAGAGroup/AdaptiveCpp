@@ -32,6 +32,12 @@ The eight upstream compilation flows are all in scope: `omp.library-only`,
 are supported), and a `common` file for content shared across the matrix,
 factored last after every flow file exists.
 
+**Platform and architecture axes.** A second architecture's files are
+copies of the first's except where the machine genuinely differs — for
+`linux/aarch64` that is only the vector math set (no SVML). The harness
+proves the copies identical, and the duplication is what `common`'s
+factoring removes.
+
 ## Three syntaxes, three moments
 
 | syntax | expanded by | when |

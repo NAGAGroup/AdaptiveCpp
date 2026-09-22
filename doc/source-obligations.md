@@ -148,3 +148,14 @@ not exist in the Python driver. The driver reads values and expands
   `options/<platform>/<arch>/omp.cmake`.
 - `bin/acpp`'s `default-omp-link-line` and `default-omp-cxx-flags` reads
   fall under the general `default-` prefix row above.
+
+### Wiring-slice obligations left by the linux/aarch64 slice
+
+- Root `CMakeLists.txt` ~576-672: the vector math selection (the arch-gated
+  `find_library` calls and `DEFAULT_VEC_MATH_LIB`) is replaced by
+  discovery's unconditional finds plus the per-arch options file.
+- The wiring slice must select `cmake/options/<platform>/<arch>` and
+  `config/<platform>/<arch>` from `CMAKE_SYSTEM_NAME` and
+  `CMAKE_SYSTEM_PROCESSOR` with the mapping: `x86_64|AMD64` → `x86_64`,
+  `aarch64|arm64|ARM64` → `aarch64`, `Linux` → `linux`, `Darwin` →
+  `macos`, `Windows` → `windows`.
