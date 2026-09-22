@@ -36,10 +36,34 @@ if(ACPP_ZE_LOADER_LIBRARY AND NOT "${ACPP_ZE_LOADER_LIBRARY}" MATCHES "-NOTFOUND
   # Build-only: consumed by the runtime target's include directories, never
   # written to the configuration.
   set(ACPP_DISCOVERED_ZE_INCLUDE_DIR "${ACPP_ZE_INCLUDE_DIR}")
+
+  # On Windows find_library answers with the import library; the DLL is what
+  # deploys and what the runtime must reach through AddDllDirectory. This
+  # branch is parse-checked on Linux and exercised on Windows only.
+  if(WIN32)
+    find_file(ACPP_ZE_LOADER_DLL NAMES ze_loader.dll
+      HINTS "${ACPP_DISCOVERED_ZE_PREFIX}/bin" NO_DEFAULT_PATH)
+    if(NOT ACPP_ZE_LOADER_DLL OR "${ACPP_ZE_LOADER_DLL}" MATCHES "-NOTFOUND$")
+      message(FATAL_ERROR
+        "ze_loader import library found at ${ACPP_ZE_LOADER_LIBRARY} but "
+        "ze_loader.dll was not found in ${ACPP_DISCOVERED_ZE_PREFIX}/bin")
+    endif()
+    get_filename_component(_acpp_ze_dlldir "${ACPP_ZE_LOADER_DLL}" DIRECTORY)
+    file(RELATIVE_PATH _acpp_ze_binrel "${ACPP_DISCOVERED_ZE_PREFIX}" "${_acpp_ze_dlldir}")
+    if("${_acpp_ze_binrel}" STREQUAL "" OR "${_acpp_ze_binrel}" MATCHES "^\\.\\.")
+      message(FATAL_ERROR
+        "ACPP_DISCOVERED_ZE_BINDIR: '${_acpp_ze_dlldir}' is not inside "
+        "'${ACPP_DISCOVERED_ZE_PREFIX}'.")
+    endif()
+    set(ACPP_DISCOVERED_ZE_BINDIR "${_acpp_ze_binrel}")
+  else()
+    set(ACPP_DISCOVERED_ZE_BINDIR "")
+  endif()
 else()
   set(ACPP_DISCOVERED_ZE_FOUND OFF)
   set(ACPP_DISCOVERED_ZE_LOADER "")
   set(ACPP_DISCOVERED_ZE_PREFIX "")
   set(ACPP_DISCOVERED_ZE_LIBDIR "")
   set(ACPP_DISCOVERED_ZE_INCLUDE_DIR "")
+  set(ACPP_DISCOVERED_ZE_BINDIR "")
 endif()
