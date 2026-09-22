@@ -15,6 +15,7 @@
 #include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/settings.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -35,7 +36,6 @@
 #include <algorithm>
 #include <memory>
 #include <cassert>
-#include <optional>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -54,75 +54,6 @@ namespace compiler {
 namespace {
 
 const char* TargetTriple = "amdgcn-amd-amdhsa";
-
-std::string getRocmClang(const std::string& RocmPath) {
-  std::string ClangPath;
-
-  std::string GuessedHipccPath =
-      common::filesystem::join_path(RocmPath, std::vector<std::string>{"bin", "hipcc"});
-  if (llvm::sys::fs::exists(GuessedHipccPath))
-    ClangPath = GuessedHipccPath;
-  else {
-#if defined(ACPP_HIPCC_PATH)
-    ClangPath = ACPP_HIPCC_PATH;
-#else
-    ClangPath = getClangPath();
-#endif
-  }
-
-  return ClangPath;
-}
-
-#if LLVM_VERSION_MAJOR < 16
-template<class T>
-using optional_t = llvm::Optional<T>;
-#else
-template<class T>
-using optional_t = std::optional<T>;
-#endif
-
-bool getCommandOutput(const std::string &Program, const llvm::SmallVector<std::string> &Invocation,
-                      std::string &Out) {
-
-  bool Create = true;
-  auto consumeError = [&](std::error_code EC) {
-    if(EC) {
-      if(Create)
-        HIPSYCL_DEBUG_WARNING << "LLVMToAmdgpu: Could not create temp file: " << EC.message() << "\n";
-      else
-        HIPSYCL_DEBUG_WARNING << "LLVMToAmdgpu: Could not delete temp file: " << EC.message() << "\n";
-      return false;
-    }
-    return true;
-  };
-
-  llvm::SmallVector<char> OutputFile;
-  if(!consumeError(llvm::sys::fs::createTemporaryFile("acpp-sscp-query", "txt", OutputFile, llvm::sys::fs::OF_None))) return false;
-  std::string OutputFilename = OutputFile.data();
-  
-  Create = false;
-  AtScopeExit DestroyOutputFile([&]() { consumeError(llvm::sys::fs::remove(OutputFilename)); });
-
-  llvm::SmallVector<llvm::StringRef> InvocationRef;
-  for(const auto& S: Invocation)
-    InvocationRef.push_back(S);
-
-  llvm::SmallVector<optional_t<llvm::StringRef>> Redirections;
-  std::string RedirectedOutputFile = OutputFilename;
-  Redirections.push_back(optional_t<llvm::StringRef>{});
-  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
-  Redirections.push_back(llvm::StringRef{RedirectedOutputFile});
-
-  int R = executeAndWait(Program, InvocationRef, {}, Redirections); 
-  if(R != 0)
-    return false;
-
-  auto ReadResult =
-    llvm::MemoryBuffer::getFile(OutputFilename, true);
-  
-  Out = ReadResult.get()->getBuffer();
-  return true;
-}
 
 // From a string like gfxABC:flag+:flag2- only returns gfxABC
 std::string discardConfigurationFromTargetName(const std::string& TargetDevice) {
@@ -196,12 +127,8 @@ public:
     static std::string Path;
     if(!Path.empty())
       return Path;
-    
-    std::string RedistPackagePath = getRedistPackageBitcodePath("amdgcn");
-    if (common::filesystem::exists(common::filesystem::join_path(RedistPackagePath, "ockl.bc")))
-      Path = RedistPackagePath;
-    else Path = ACPP_ROCM_DEVICE_LIBS_PATH;
 
+    common::try_retrieve_settings_variable("hip_device_libs_dir", Path);
     return Path;
   }
 
@@ -215,6 +142,8 @@ public:
       return false;
 
     std::string DeviceLibPath = getDeviceLibDirectory();
+    if(DeviceLibPath.empty())
+      return false;
     std::string ISA = extractISAAsString(TargetDevice);
     if(ISA.empty())
       return false;
@@ -471,9 +400,18 @@ bool LLVMToAmdgpuTranslator::hiprtcJitLink(const std::string &Bitcode, std::stri
     return true;
   };
 
+  if(RocmDeviceLibs::getDeviceLibDirectory().empty()) {
+    this->registerError("LLVMToAmdgpu: hip-device-libs-dir is not configured "
+                        "(ACPP_HIP_DEVICE_LIBS_DIR)");
+    return false;
+  }
   std::vector<std::string> DeviceLibs;
-  RocmDeviceLibs::determineRequiredDeviceLibs(TargetDevice, DeviceLibs, IsFastMath, getWavefrontSize(),
-                                              CodeObjectModelVersion);
+  if(!RocmDeviceLibs::determineRequiredDeviceLibs(TargetDevice, DeviceLibs, IsFastMath, getWavefrontSize(),
+                                              CodeObjectModelVersion)) {
+    this->registerError("LLVMToAmdgpu: could not determine the device libraries for target "
+                        + TargetDevice);
+    return false;
+  }
   for(const auto& Lib : DeviceLibs) {
     HIPSYCL_DEBUG_INFO << "LLVMToAmdgpu: Linking with bitcode file: " << Lib << "\n";
     addBitcodeFile(Lib);
@@ -525,9 +463,18 @@ bool LLVMToAmdgpuTranslator::clangJitLink(llvm::Module& FlavoredModule, std::str
     return true;
   };
 
+  if(RocmDeviceLibs::getDeviceLibDirectory().empty()) {
+    this->registerError("LLVMToAmdgpu: hip-device-libs-dir is not configured "
+                        "(ACPP_HIP_DEVICE_LIBS_DIR)");
+    return false;
+  }
   std::vector<std::string> DeviceLibs;
-  RocmDeviceLibs::determineRequiredDeviceLibs(TargetDevice, DeviceLibs, IsFastMath,
-                                              getWavefrontSize(), CodeObjectModelVersion);
+  if(!RocmDeviceLibs::determineRequiredDeviceLibs(TargetDevice, DeviceLibs, IsFastMath,
+                                              getWavefrontSize(), CodeObjectModelVersion)) {
+    this->registerError("LLVMToAmdgpu: could not determine the device libraries for target "
+                        + TargetDevice);
+    return false;
+  }
   for(const auto& BC : DeviceLibs)
     addBitcodeFile(BC);
 

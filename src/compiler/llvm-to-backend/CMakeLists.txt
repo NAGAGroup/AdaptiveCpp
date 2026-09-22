@@ -271,21 +271,6 @@ if(WITH_SSCP_COMPILER)
       LIBRARY amdgpu/LLVMToAmdgpu.cpp
       TOOL amdgpu/LLVMToAmdgpuTool.cpp)
 
-    # ACPP_ROCM_PATH is not defined here, for the same reason as
-    # HIPSYCL_CUDA_PATH above. The name survives elsewhere as a link-line
-    # placeholder and as a driver setting; only the compile definition was dead.
-    target_compile_definitions(llvm-to-amdgpu PRIVATE
-      -DACPP_ROCM_DEVICE_LIBS_PATH="${ROCM_DEVICE_LIBS_PATH}")
-
-    # hipcc is found in the root CMakeLists; the legacy fallback there may
-    # already have found it while deciding whether
-    # ROCm is available at all. find results are cache entries, so
-    # HIPCC_COMPILER is visible here.
-    if(HIPCC_COMPILER)
-      target_compile_definitions(llvm-to-amdgpu PRIVATE
-        -DACPP_HIPCC_PATH="${HIPCC_COMPILER}")
-    endif()
-
     find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)
 
     if(HIPRTC_LIBRARY)

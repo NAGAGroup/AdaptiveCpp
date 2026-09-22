@@ -216,11 +216,6 @@ std::string getBitcodePath() {
 #endif  
 }
 
-std::string getRedistPackageBitcodePath(const std::string& backend) {
-  return common::filesystem::join_path(getRedistributablePackagePath(),
-                                       std::vector<std::string>{"bitcode", backend});
-}
-
 #if LLVM_VERSION_MAJOR < 16
 int executeAndWait(
     llvm::StringRef Program,
