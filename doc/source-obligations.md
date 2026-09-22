@@ -120,3 +120,21 @@ not exist in the Python driver. The driver reads values and expands
   source directory, which is the same thing find_library needs at
   configure; a loader-only system carrying just `libOpenCL.so.1` needs
   the engine to accept a soname when the dev symlink is absent.
+
+### Wiring-slice obligations left by the Level Zero slice
+
+- Root `CMakeLists.txt` ~526-532: the `find_library(ACPP_ZE_LOADER_LIBRARY
+  NAMES ze_loader REQUIRED)` block and its comment naming
+  `ACPP_ZE_LIB_PATH` and a vendor-asset gate that no longer exist are
+  replaced by `discovery/ze.cmake`.
+- `WITH_LEVEL_ZERO_BACKEND` defaults from `ACPP_DISCOVERED_ZE_FOUND`
+  (upstream's opt-in existed because its find was `REQUIRED` and would
+  fail configure; a find that reports absence needs no guard).
+- `src/runtime/CMakeLists.txt`: `rt-backend-ze` adds
+  `target_include_directories(PRIVATE ${ACPP_DISCOVERED_ZE_INCLUDE_DIR})`
+  and the derived RUNPATH entry to
+  `{{ ze-deploy-path }}/{{ ze-libdir }}`.
+- `bin/acpp` `available_components` gains `"ze"` and the OpenCL deploy
+  note gets a Level Zero sibling (loader only; the driver is the user's).
+- `doc/install-spirv.md`: the `-DWITH_LEVEL_ZERO_BACKEND=ON` sentence
+  becomes "found automatically".

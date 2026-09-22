@@ -287,7 +287,10 @@ units of one library in the vendor's own library directory, permissive,
 with no run-time resource because the runtime reaches them through
 `DT_NEEDED`. The vendor's actual implementation (the ICD, the driver) is
 never carried; where the loader looks for it is the user's environment,
-not a configuration entry of ours.
+not a configuration entry of ours. Level Zero's headers are the machine's,
+build-only, a discovery requirement but not a row because nothing
+user-facing includes them; the loader's optional validation and tracing
+layers are not rows.
 
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
