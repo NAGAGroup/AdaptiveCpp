@@ -16,7 +16,7 @@ Each vendor slice appends its rows here as work lands.
 | `ACPP_CUDA_DEVICE_LIBS_PATH` | (deleted) | `LLVMToPtx.cpp` | yes — `try_retrieve_settings_variable("cuda_libdevice_dir")` | `cuda-libdevice-dir` → `ACPP_CUDA_LIBDEVICE_DIR` | **done** |
 | `ACPP_ROCM_DEVICE_LIBS_PATH` | (deleted) | `LLVMToAmdgpu.cpp` | yes — `try_retrieve_settings_variable("hip_device_libs_dir")` | `hip-device-libs-dir` → `ACPP_HIP_DEVICE_LIBS_DIR` | **done** |
 | `ACPP_HIPCC_PATH` | (deleted) | (deleted: `getRocmClang`/`getCommandOutput` had no callers since upstream `377178f0`) | n/a | n/a | **done** (dead code) |
-| `HIPSYCL_CLSPV_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:358` | `LLVMToCLSPV.cpp:302` | no — raw macro | Vulkan slice | replace when Vulkan slice lands |
+| `HIPSYCL_CLSPV_PATH` | (deleted) | `LLVMToCLSPV.cpp` | yes — `try_retrieve_settings_variable("clspv")` | `clspv` → `ACPP_CLSPV` | **done** |
 | `HIPSYCL_LLVMSPIRV_NAME` | `src/compiler/llvm-to-backend/CMakeLists.txt:257` | `LLVMToSpirv.cpp:328` | no — raw macro | stays | relative by construction |
 | `LIB_NUMA_AVAILABLE` | `src/runtime/CMakeLists.txt:414` | `omp_allocator.cpp:14,30,58,121,159,169` | n/a — gates code | stays | stays, gates code |
 | `ACPP_HIPRTC_LINK` | `src/compiler/llvm-to-backend/CMakeLists.txt:302` | `LLVMToAmdgpu.cpp` | n/a — gates code | stays | stays |
@@ -194,3 +194,21 @@ not exist in the Python driver. The driver reads values and expands
 - `doc/install-metal.md`: says "found automatically";
   `-DMETAL_INCLUDE_DIR=...` as override.
 - `WITH_OPENCL_BACKEND` is OFF on macOS by discovery.
+
+### Wiring-slice obligations left by the Vulkan slice
+
+- Root `CMakeLists.txt` ~244: `WITH_VULKAN_BACKEND` default stays `OFF`
+  (reason recorded; discovery runs regardless and the flip is one line
+  later).
+- Root ~250-252 `find_package(Vulkan)` and ~534-539 `find_program(clspv)`
+  are replaced by `discovery/vk.cmake` and `discovery/clspv.cmake`.
+- `src/runtime/CMakeLists.txt`: `rt-backend-vk` links
+  `${ACPP_DISCOVERED_VK_LOADER}` and
+  `${ACPP_DISCOVERED_VK_SPIRV_TOOLS_LIBRARY}`, includes
+  `${ACPP_DISCOVERED_VK_INCLUDE_DIR}`, gains the derived RUNPATH entry to
+  `{{ vk-deploy-path }}/{{ vk-libdir }}`.
+- Nightly check: `rt-backend-vk`'s `DT_NEEDED` must omit `SPIRV-Tools`
+  (it is a static archive, build-only).
+- `bin/acpp` `available_components` gains `"vk"`.
+- Deploy engine note: `clspv`'s own shared dependencies, if any, are a
+  nightly question.

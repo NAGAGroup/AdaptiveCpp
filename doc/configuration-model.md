@@ -297,7 +297,17 @@ never carried; where the loader looks for it is the user's environment,
 not a configuration entry of ours. Level Zero's headers are the machine's,
 build-only, a discovery requirement but not a row because nothing
 user-facing includes them; the loader's optional validation and tracing
-layers are not rows.
+layers are not rows. The Vulkan loader is the same shape: a loader-only
+unit, permissive, with the Vulkan headers and the static SPIRV-Tools
+archive as build-only discovery requirements (never rows). Vulkan has no
+multipass flow, so it carries no link line.
+
+**Executable units** (clspv) are vendor units whose deployable is a
+program the JIT invokes at application run time, not a library. The
+executable is a two-sided resource (`ACPP_CLSPV`), and the compiler reads
+it through `try_retrieve_settings_variable`. The unit deploys under
+`{{ acpp-libdir }}/hipSYCL/ext/clspv` with its bindir, following the same
+prefix-and-relative-path rule as the library units.
 
 **Flows without a vendor unit.** The omp flows carry no unit and no
 manifest: the CPU backend is internal and libomp is the LLVM unit's, both
