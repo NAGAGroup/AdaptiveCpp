@@ -81,3 +81,8 @@ not exist in the Python driver. The driver reads values and expands
   `lib64` fallback; reads `default-cuda-lib-path`.
 - `cmake/adaptivecpp-config.cmake.in`: `ACPP_CUDA_PATH` stays (user-facing
   cmake export).
+- `bin/acpp` cuda_nvcxx_invocation: reads `nvcxx` and `nvcxx-link-line`
+  (today it reuses `cuda-link-line`, which carries clang flags nvc++ does
+  not want, and the driver prepends `-cuda` itself).
+- The deploy engine's `"*"` copies every file in the directory including
+  static archives; a shared-library-only pattern is an engine obligation.

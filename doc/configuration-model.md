@@ -261,6 +261,15 @@ There is no vendor zone, no `ACPP_TARGET` (the vendor-zone placeholder is
 gone; `ACPP_TARGETS`, the driver's `--acpp-targets` option, stays), and no
 loader shims.
 
+**The HPC SDK runtime is its own vendor unit**, `nvhpc`, distinct from the
+CUDA toolkit. The redistributable subset is the SDK's `REDIST` directory.
+It deploys with nvcxx-built applications because `nvc++` links them against
+it. Under `full*` the packager's `nvc++` version travels with the toolchain
+in those libraries, so a toolchain user's `nvc++` must match; nothing checks
+that until the compatibility set. The nvcxx flow always has a CUDA toolkit
+unit, because `rt-backend-cuda` is built against it; that unit may be the
+SDK's bundled CUDA when only the SDK is installed.
+
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
 RUNPATH its builder chose. By the time the runtime opens the backend, a
