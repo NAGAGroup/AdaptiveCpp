@@ -15,6 +15,7 @@
 #include "hipSYCL/compiler/sscp/IRConstantReplacer.hpp"
 #include "hipSYCL/glue/llvm-sscp/jit-reflection/queries.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/settings.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
@@ -49,16 +50,11 @@ std::string getDeviceLibPath() {
   if(!Path.empty()) {
     return Path;
   }
-  
-  std::string LibdeviceName = "libdevice.10.bc";
-  std::string RedistPackagePath = 
-    common::filesystem::join_path(getRedistPackageBitcodePath("ptx"), LibdeviceName);
-  if (common::filesystem::exists(RedistPackagePath)) {
-    Path = RedistPackagePath;
-  } else {
-    Path = 
-      common::filesystem::join_path(ACPP_CUDA_DEVICE_LIBS_PATH, LibdeviceName);
-  }
+
+  std::string dir;
+  common::try_retrieve_settings_variable("cuda_libdevice_dir", dir);
+  if (!dir.empty())
+    Path = common::filesystem::join_path(dir, "libdevice.10.bc");
 
   return Path;
 }
@@ -150,6 +146,12 @@ bool LLVMToPtxTranslator::toBackendFlavor(llvm::Module &M, PassHandler& PH) {
       common::filesystem::join_path(getBitcodePath(), "libkernel-sscp-ptx-full.bc");
 
   std::string LibdeviceFile = getDeviceLibPath();
+  if (LibdeviceFile.empty()) {
+    this->registerError(
+        "LLVMToPtx: cuda-libdevice-dir is not configured "
+        "(ACPP_CUDA_LIBDEVICE_DIR)");
+    return false;
+  }
   HIPSYCL_DEBUG_INFO << "LLVMToPtx: Using libdevice at " << LibdeviceFile << "\n";
 
   AddressSpaceInferencePass ASIPass {ASMap};

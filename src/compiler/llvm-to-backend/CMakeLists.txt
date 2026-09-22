@@ -263,12 +263,6 @@ if(WITH_SSCP_COMPILER)
       BACKEND ptx
       LIBRARY ptx/LLVMToPtx.cpp
       TOOL ptx/LLVMToPtxTool.cpp)
-
-    # HIPSYCL_CUDA_PATH is not defined here: no translation unit reads it, and
-    # compiling it in put the build machine's CUDA installation path into
-    # libllvm-to-ptx.so as a string literal for nothing.
-    target_compile_definitions(llvm-to-ptx PRIVATE
-      -DACPP_CUDA_DEVICE_LIBS_PATH="${CUDA_DEVICE_LIBS_PATH}")
   endif()
 
   if(WITH_LLVM_TO_AMDGPU_AMDHSA)
