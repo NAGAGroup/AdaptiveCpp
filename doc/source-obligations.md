@@ -183,3 +183,14 @@ not exist in the Python driver. The driver reads values and expands
   Windows on Arm support) and assumes the `cudart64_<major>` DLL naming
   on arm64; both are to be verified against a real install before the
   compatibility set.
+
+### Wiring-slice obligations left by the macos/arm64 slice
+
+- Root `CMakeLists.txt`: `WITH_METAL_BACKEND` defaults from
+  `ACPP_DISCOVERED_METAL_FOUND`.
+- `src/runtime/CMakeLists.txt` ~449-475: the `find_path(METAL_INCLUDE_DIR)`
+  block is replaced by `discovery/metal.cmake`; `rt-backend-metal` takes
+  `target_include_directories(PRIVATE ${ACPP_DISCOVERED_METAL_INCLUDE_DIR})`.
+- `doc/install-metal.md`: says "found automatically";
+  `-DMETAL_INCLUDE_DIR=...` as override.
+- `WITH_OPENCL_BACKEND` is OFF on macOS by discovery.

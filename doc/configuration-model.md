@@ -322,6 +322,16 @@ is no LLVM DLL (the tools are static), so the llvm group lists executables
 does not exist on Windows; TheRock's Windows layout is unread, so hip and
 nvhpc are deferred.
 
+**macOS.** The RUNPATH form is `@loader_path`, the driver's shared-library
+spelling is `lib<name>.dylib`, and the host JIT links Mach-O with
+`ld64.lld`. Metal has no vendor unit: the runtime compiles MSL through the
+system Metal framework at run time, so nothing external is deployed;
+metal-cpp is a build-only discovery requirement (like Level Zero's headers)
+and never a row. OpenCL does not exist on macOS — Apple's OpenCL framework
+is deprecated, is not an ICD loader and accepts no SPIR-V, so
+`discovery/ocl.cmake` reports not-found on `APPLE`. No CUDA, Level Zero,
+HIP or NVHPC on macOS.
+
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
 RUNPATH its builder chose. By the time the runtime opens the backend, a
@@ -376,9 +386,11 @@ it is a case to detect.
 
 1. `$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs/<name>.cfg` (Linux);
    `$LOCALAPPDATA/AdaptiveCpp/app-cfgs/<name>.cfg` (Windows);
-   macOS is deferred until its platform pass
+   `$HOME/Library/Application Support/AdaptiveCpp/app-cfgs/<name>.cfg`
+   (macOS)
 2. The system configuration directory: `/etc/AdaptiveCpp/app-cfgs/` (Linux);
-   `$ProgramData/AdaptiveCpp/app-cfgs/` (Windows)
+   `$ProgramData/AdaptiveCpp/app-cfgs/` (Windows);
+   `/Library/Application Support/AdaptiveCpp/app-cfgs/` (macOS)
 3. Relative to our own library directory (found via `dladdr`)
 
 User configuration beats system configuration, as everywhere else. A stray
@@ -423,5 +435,3 @@ is what exists; it reads a flat `key=value` `.cfg` file beside the executable.
   driver comparing header metadata compiled into object files against the
   toolchain's configuration facts. It is never an install-time or run-time
   check.
-- **macOS system configuration directories** are decided when that platform
-  is reached in the vendor campaign.
