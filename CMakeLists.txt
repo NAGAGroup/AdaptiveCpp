@@ -101,9 +101,8 @@ set(HIPSYCL_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(ACPP_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
 set(ACPP_BINARY_ROOT "${CMAKE_CURRENT_BINARY_DIR}")
 
-# Install directory conventions, included early because cmake/options.cmake
-# builds its placeholder defaults from them and the emitter fills manifest
-# stubs with them. The include is idempotent.
+# Install directory conventions, included early so CMAKE_INSTALL_LIBDIR is
+# available to every consumer.
 include(GNUInstallDirs)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT ACPP_LLVM_COMPONENT)
@@ -246,9 +245,7 @@ set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") #
 
 set(WITH_CPU_BACKEND true)
 
-# Refuse configurations this tree does not qualify, before anything is looked
-# for or built on their behalf.
-include(${ACPP_SOURCE_ROOT}/cmake/guards.cmake)
+
 
 if(WITH_VULKAN_BACKEND)
   find_package(Vulkan 1.4 QUIET COMPONENTS SPIRV-Tools REQUIRED)
@@ -576,11 +573,10 @@ endif()
 set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
 set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Which filesystem libraries should be searched for")
 
-# Vector math library discovery. This block lives above cmake/options.cmake
-# because the options read DEFAULT_VEC_MATH_LIB and the per-library find_library
-# results; the add_definitions that turn the results into compile definitions
-# remain in src/compiler and read the variables set here. The selection order
-# is load-bearing: libmvec is the default when usable, and the
+# Vector math library discovery. The add_definitions that turn these results
+# into compile definitions remain in src/compiler and read the variables set
+# here. The selection order is load-bearing: libmvec is the default when
+# usable, and the
 # architecture-specific libraries override it.
 if(APPLE OR WIN32)
   message(WARNING "Usage of vector math library for JIT compilation is not supported on windows and Apple")
@@ -675,7 +671,7 @@ else()
   endif()
 endif()
 
-include(${ACPP_SOURCE_ROOT}/cmake/options.cmake)
+
 
 ##########################################################
 ## Do not define any variables that might be used by build
@@ -820,12 +816,7 @@ endif()
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
 
 
-# The toolchain configuration files and the deploy manifests are source files
-# under config/; the emitter copies the enabled set and fills their install
-# stubs. It is included here, after add_subdirectory(src) and after the link
-# lines above, because the fills read the OpenMP, NUMA and LLVM library
-# results that src finds and the link-line and default-target variables.
-include(${ACPP_SOURCE_ROOT}/cmake/emitter.cmake)
+
 
 # must stay after add_subdirectory(src) as HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME is declared there
 configure_file(
@@ -891,36 +882,18 @@ install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
 install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
 
-install(FILES ${ACPP_BINARY_ROOT}/config/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+install(FILES ${ACPP_BINARY_ROOT}/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 if(WITH_CUDA_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+  install(FILES ${ACPP_BINARY_ROOT}/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 endif()
 if(WITH_ROCM_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-if(WITH_OPENCL_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-if(WITH_LEVEL_ZERO_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-ze.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-if(WITH_VULKAN_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/acpp-vulkan.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+  install(FILES ${ACPP_BINARY_ROOT}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 endif()
 
-install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-if(WITH_CUDA_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-endif()
-if(WITH_ROCM_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-hip.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-endif()
-if(WITH_OPENCL_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-endif()
-if(WITH_LEVEL_ZERO_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/config/deploy/acpp-deployment-manifest-ze.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-endif()
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
+install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
 
 include(CMakePackageConfigHelpers)
 
