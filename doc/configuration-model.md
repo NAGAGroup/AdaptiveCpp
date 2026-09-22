@@ -15,29 +15,55 @@ A flow whose dependencies were not found produces no installed file; absence
 is what says "this toolchain cannot do that".
 
 ```
-cmake/discovery.cmake                       every core find, split by build mode
-cmake/discovery/<backend>.cmake             conditional sub-files per vendor
-cmake/options/<platform>/<arch>/core.cmake  declarations that consume ACPP_DISCOVERED_*
-cmake/options/<platform>/<arch>/<flow>.cmake
-config/<platform>/<arch>/core.json
-config/<platform>/<arch>/<flow>.json
-config/<platform>/<arch>/deploy/core.json
-config/<platform>/<arch>/deploy/<flow>.json
+cmake/discovery.cmake                              every core find, split by build mode
+cmake/discovery/<backend>.cmake                    conditional sub-files per vendor
+cmake/options/common/core.cmake                    matrix-wide helpers, controls, JIT flags
+cmake/options/<platform>/common/core.cmake         platform-wide deploy paths, resources
+cmake/options/<platform>/common/<flow>.cmake       platform-wide vendor options
+cmake/options/<platform>/<arch>/core.cmake         arch delta (wiring's include point)
+cmake/options/<platform>/<arch>/<flow>.cmake        one-line include of the platform common
+config/common/core.json                            matrix-wide configuration entries
+config/common/<flow>.json                          matrix-wide flow entries
+config/<platform>/common/core.json                 platform-specific core entries
+config/<platform>/common/<flow>.json               platform-specific flow entries
+config/<platform>/common/deploy/core.json          platform-wide deploy manifest
+config/<platform>/common/deploy/<flow>.json
+config/<platform>/<arch>/core.json                 arch-specific entries (if any)
+config/<platform>/<arch>/deploy/core.json          arch-specific deploy rows (if any)
+devops/verify/golden/<platform>/<arch>/            the full form of every installed file
 ```
 
 The eight upstream compilation flows are all in scope: `omp.library-only`,
 `omp.accelerated`, `cuda.integrated-multipass`, `cuda.explicit-multipass`,
 `cuda-nvcxx`, `hip.integrated-multipass`, `generic` (which splits further into
 `generic-<backend>` because only backends present when the toolchain is built
-are supported), and a `common` file for content shared across the matrix,
-factored last after every flow file exists.
+are supported).
 
-**Platform and architecture axes.** A second architecture's files are
-copies of the first's except where the machine genuinely differs — for
-`linux/aarch64` that is only the vector math set (no SVML). The harness
-proves the copies identical, and the duplication is what `common`'s
-factoring removes. For `windows/aarch64` nothing differs at all — CUDA's
-`lib/arm64` is a discovered fact — so the copies are byte-identical.
+### Common and the merge
+
+**The tier rule.** A file lives at the highest tier at which it is
+identical and present in every tree below it. `core` is the one file split
+by content: helpers, controls, JIT flags and the platform-independent
+driver defaults go matrix-wide; the platform's names, roots and resources
+go platform-wide; the arch delta stays in the arch file. Every arch cmake
+file exists, even when it is one `include` line — the wiring always
+includes `cmake/options/<platform>/<arch>/<file>.cmake`.
+
+**The merge.** One installed configuration per flow is the union of the
+fragments that exist for it, in tier order: `config/common/`,
+`config/<platform>/common/`, `config/<platform>/<arch>/`. A key present
+in two fragments is a configure error. Deploy manifests concatenate each
+group's array in tier order. An absent fragment contributes nothing.
+
+**The proof.** `devops/verify/golden/<platform>/<arch>/` holds the full
+form of every installed file. `verify-common` merges the fragments and
+asserts JSON equality with the golden, so the goldens are the readable
+whole and are updated when a change is intended.
+
+**Platform and architecture axes.** The copies that existed before common
+was factored are gone; what the machine changes is now visible as the arch
+delta (`linux/x86_64`'s SVML resource and its deploy row), and everything
+else is the platform's or the matrix's.
 
 ## Three syntaxes, three moments
 

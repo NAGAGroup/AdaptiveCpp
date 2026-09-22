@@ -216,3 +216,14 @@ not exist in the Python driver. The driver reads values and expands
   machine's `vulkan-1.dll`; no `AddDllDirectory` entry.
 - Deploy-engine question: whether to write `MoltenVK_icd.json` beside a
   copied `libMoltenVK.dylib` on macOS.
+
+### Wiring-slice obligations left by the common slice
+
+- The wiring selects `<platform>/<arch>` by the recorded mapping and
+  includes `cmake/options/<platform>/<arch>/<file>.cmake` for core and
+  each found flow.
+- It merges `config` fragments and `deploy` fragments per the model's
+  merge section into one installed file per flow: `config/common/`,
+  `config/<platform>/common/`, `config/<platform>/<arch>/` in that order;
+  a duplicate key is a configure error.
+- `devops/verify/golden` is the reference the merge must reproduce.
