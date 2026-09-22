@@ -212,3 +212,7 @@ not exist in the Python driver. The driver reads values and expands
 - `bin/acpp` `available_components` gains `"vk"`.
 - Deploy engine note: `clspv`'s own shared dependencies, if any, are a
   nightly question.
+- `rt-backend-vk` on Windows links the import library and reaches the
+  machine's `vulkan-1.dll`; no `AddDllDirectory` entry.
+- Deploy-engine question: whether to write `MoltenVK_icd.json` beside a
+  copied `libMoltenVK.dylib` on macOS.

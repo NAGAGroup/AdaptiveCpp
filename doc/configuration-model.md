@@ -330,7 +330,11 @@ template-expanded like `src` and `dest`, so a versioned DLL like
 is no LLVM DLL (the tools are static), so the llvm group lists executables
 (with `.exe`), `libomp.dll` and clang's resource headers. The HPC SDK
 does not exist on Windows; TheRock's Windows layout is unread, so hip and
-nvhpc are deferred.
+nvhpc are deferred. The Vulkan unit is the one loader-only unit whose
+Windows shape differs: the SDK ships only the import library; the loader
+`vulkan-1.dll` is the machine's (System32, installed by drivers or the
+Vulkan runtime installer), so the unit deploys nothing on Windows and has
+no DLL directory resource.
 
 **macOS.** The RUNPATH form is `@loader_path`, the driver's shared-library
 spelling is `lib<name>.dylib`, and the host JIT links Mach-O with
@@ -340,7 +344,10 @@ metal-cpp is a build-only discovery requirement (like Level Zero's headers)
 and never a row. OpenCL does not exist on macOS — Apple's OpenCL framework
 is deprecated, is not an ICD loader and accepts no SPIR-V, so
 `discovery/ocl.cmake` reports not-found on `APPLE`. No CUDA, Level Zero,
-HIP or NVHPC on macOS.
+HIP or NVHPC on macOS. The Vulkan unit on macOS carries the loader and
+MoltenVK (the ICD, Apache-2) in its external-permissive rows; ICD
+registration stays the user's environment, consistent with the OCL_ICD
+ruling.
 
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
