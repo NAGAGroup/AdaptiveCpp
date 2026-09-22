@@ -1,0 +1,14 @@
+{
+  "vk-deploy-path": {
+    "value": "@ACPP_VK_DEPLOY_PATH@"
+  },
+  "vk-libdir": {
+    "value": "@ACPP_DISCOVERED_VK_LIBDIR@"
+  },
+  "vk-path": {
+    "value": "@ACPP_VK_PATH@"
+  },
+  "vk-lib-path": {
+    "value": "@ACPP_VK_LIB_PATH@"
+  }
+}
