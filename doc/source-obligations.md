@@ -14,8 +14,8 @@ Each vendor slice appends its rows here as work lands.
 | `ACPP_OPT_NAME` | `src/compiler/CMakeLists.txt:67` | `Utils.cpp:107` | no — reads the macro | `opt` (exe entry) | replace with config read |
 | `ACPP_CLANG_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:170` | `Utils.cpp:59` (`getClangPath`) | no — reads the macro | `device-clang-cmplr` | replace with config read |
 | `ACPP_CUDA_DEVICE_LIBS_PATH` | (deleted) | `LLVMToPtx.cpp` | yes — `try_retrieve_settings_variable("cuda_libdevice_dir")` | `cuda-libdevice-dir` → `ACPP_CUDA_LIBDEVICE_DIR` | **done** |
-| `ACPP_ROCM_DEVICE_LIBS_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:284` | `LLVMToAmdgpu.cpp:203` | no — raw macro | HIP slice | replace when HIP slice lands |
-| `ACPP_HIPCC_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:292` | `LLVMToAmdgpu.cpp:67` | no — raw macro | HIP slice | replace when HIP slice lands |
+| `ACPP_ROCM_DEVICE_LIBS_PATH` | (deleted) | `LLVMToAmdgpu.cpp` | yes — `try_retrieve_settings_variable("hip_device_libs_dir")` | `hip-device-libs-dir` → `ACPP_HIP_DEVICE_LIBS_DIR` | **done** |
+| `ACPP_HIPCC_PATH` | (deleted) | (deleted: `getRocmClang`/`getCommandOutput` had no callers since upstream `377178f0`) | n/a | n/a | **done** (dead code) |
 | `HIPSYCL_CLSPV_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:358` | `LLVMToCLSPV.cpp:302` | no — raw macro | Vulkan slice | replace when Vulkan slice lands |
 | `HIPSYCL_LLVMSPIRV_NAME` | `src/compiler/llvm-to-backend/CMakeLists.txt:257` | `LLVMToSpirv.cpp:328` | no — raw macro | stays | relative by construction |
 | `LIB_NUMA_AVAILABLE` | `src/runtime/CMakeLists.txt:414` | `omp_allocator.cpp:14,30,58,121,159,169` | n/a — gates code | stays | stays, gates code |
@@ -86,3 +86,19 @@ not exist in the Python driver. The driver reads values and expands
   not want, and the driver prepends `-cuda` itself).
 - The deploy engine's `"*"` copies every file in the directory including
   static archives; a shared-library-only pattern is an engine obligation.
+
+### Wiring-slice obligations left by the HIP slice
+
+- Root `CMakeLists.txt`: `find_package(HIP)` with the hipcc fallback and
+  `ROCM_PATH` reassignment to `/opt/rocm` (~lines 214-226); the
+  `USE_ROCM_LLVM` and ROCm clang version block (~368-420); the
+  `ROCM_DEVICE_LIBS_PATH` block (~481-489); the `find_library` block for
+  amdhip64, hsa-runtime64, amd_comgr, hsakmt, rocprofiler-register
+  (~495-510); `ROCM_LIBS` and the `ROCM_LINK_LINE`/`ROCM_CXX_FLAGS`
+  cache variables.
+- `src/runtime/CMakeLists.txt`: `rt-backend-hip` keeps `hip::host` and
+  gains the derived RUNPATH entry to
+  `{{ hip-deploy-path }}/{{ hip-libdir }}`.
+- `bin/acpp` ~1051-1055: `rocm_lib_path` property hardcodes `"lib"`
+  fallback; reads the entry.
+- `cmake/adaptivecpp-config.cmake.in`: `ACPP_ROCM_PATH` stays.

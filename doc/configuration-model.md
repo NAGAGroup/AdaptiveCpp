@@ -270,6 +270,18 @@ that until the compatibility set. The nvcxx flow always has a CUDA toolkit
 unit, because `rt-backend-cuda` is built against it; that unit may be the
 SDK's bundled CUDA when only the SDK is installed.
 
+**The HIP unit is TheRock's ROCm and only that**; classic `/opt/rocm` layouts
+fail at configure. The unit carries the runtime libraries (`libamdhip64`,
+`libhsa-runtime64`, `libamd_comgr`, `libhiprtc` and friends), the vendored
+`rocm_sysdeps` dependencies, the device bitcode at
+`lib/llvm/amdgcn/bitcode/`, and the headers (toolchain-only) at their real
+relative paths. AMD's LLVM is not a row: nothing in the toolchain, the deploy
+step or the JIT invokes it. The bitcode directory is target-neutral — the
+same `.bc` files serve every gfx target — so the unit has no GPU-family
+dimension. The unit is permissive. `hipcc` is absent because TheRock
+deprecates it and upstream's own `377178f0` already removed the JIT's
+use of it; the helpers it left behind were dead code and are deleted.
+
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
 RUNPATH its builder chose. By the time the runtime opens the backend, a
