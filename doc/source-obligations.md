@@ -102,3 +102,21 @@ not exist in the Python driver. The driver reads values and expands
 - `bin/acpp` ~1051-1055: `rocm_lib_path` property hardcodes `"lib"`
   fallback; reads the entry.
 - `cmake/adaptivecpp-config.cmake.in`: `ACPP_ROCM_PATH` stays.
+
+### Wiring-slice obligations left by the OpenCL slice
+
+- Root `CMakeLists.txt`: `find_package(OpenCL QUIET)` at ~205-211 is
+  replaced by `discovery/ocl.cmake`'s `find_library`; the
+  `WITH_OPENCL_BACKEND` default from `OpenCL_FOUND` at ~235-243 becomes
+  `ACPP_DISCOVERED_OCL_FOUND`.
+- `src/runtime/CMakeLists.txt`: `rt-backend-ocl` links
+  `${ACPP_OCL_LOADER_LIBRARY}` (not `OpenCL::OpenCL`) and gains the
+  derived RUNPATH entry to `{{ ocl-deploy-path }}/{{ ocl-libdir }}`;
+  the `ocl-headers` and `ocl-cxx-headers` interface targets stay.
+- The FetchContent'd Khronos headers stay as they are (internal,
+  build-only).
+- Deploy engine: `SHARED_LIB:<name>` resolves to `lib<name>.so` and the
+  engine follows the symlink chain, so the dev symlink must exist in the
+  source directory, which is the same thing find_library needs at
+  configure; a loader-only system carrying just `libOpenCL.so.1` needs
+  the engine to accept a soname when the dev symlink is absent.

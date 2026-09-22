@@ -282,6 +282,13 @@ dimension. The unit is permissive. `hipcc` is absent because TheRock
 deprecates it and upstream's own `377178f0` already removed the JIT's
 use of it; the helpers it left behind were dead code and are deleted.
 
+**Loader-only vendors** (OpenCL's ICD loader, Level Zero's loader) are
+units of one library in the vendor's own library directory, permissive,
+with no run-time resource because the runtime reaches them through
+`DT_NEEDED`. The vendor's actual implementation (the ICD, the driver) is
+never carried; where the loader looks for it is the user's environment,
+not a configuration entry of ours.
+
 **Multi-pass is exempt.** In multi-pass, the vendor link line is on the
 application's own link, so the application carries `DT_NEEDED` with whatever
 RUNPATH its builder chose. By the time the runtime opens the backend, a
