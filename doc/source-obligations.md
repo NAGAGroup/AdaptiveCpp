@@ -176,3 +176,10 @@ not exist in the Python driver. The driver reads values and expands
   the plugin-discovery half must `FATAL_ERROR` on Windows (linked-only).
 - `bin/acpp`: `acpp_plugin_path` reads `plugin-path` and `cuda_lib_path`
   reads `cuda-lib-path`; the hardcoded `lib/x64` fallback goes.
+
+### Wiring-slice obligations left by the windows/aarch64 slice
+
+- The CUDA unit on Windows on Arm assumes toolkit 13.4+ (the first with
+  Windows on Arm support) and assumes the `cudart64_<major>` DLL naming
+  on arm64; both are to be verified against a real install before the
+  compatibility set.

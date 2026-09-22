@@ -36,7 +36,8 @@ factored last after every flow file exists.
 copies of the first's except where the machine genuinely differs — for
 `linux/aarch64` that is only the vector math set (no SVML). The harness
 proves the copies identical, and the duplication is what `common`'s
-factoring removes.
+factoring removes. For `windows/aarch64` nothing differs at all — CUDA's
+`lib/arm64` is a discovered fact — so the copies are byte-identical.
 
 ## Three syntaxes, three moments
 
