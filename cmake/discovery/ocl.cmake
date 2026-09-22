@@ -12,6 +12,18 @@
 
 include_guard(GLOBAL)
 
+# Apple's OpenCL framework is what find_library would return on macOS, and
+# it is deprecated, is not an ICD loader and accepts no SPIR-V. The OpenCL
+# unit does not exist on macOS.
+if(APPLE)
+  set(ACPP_DISCOVERED_OCL_FOUND OFF)
+  set(ACPP_DISCOVERED_OCL_LOADER "")
+  set(ACPP_DISCOVERED_OCL_PREFIX "")
+  set(ACPP_DISCOVERED_OCL_LIBDIR "")
+  set(ACPP_DISCOVERED_OCL_BINDIR "")
+  return()
+endif()
+
 find_library(ACPP_OCL_LOADER_LIBRARY NAMES OpenCL)
 
 if(ACPP_OCL_LOADER_LIBRARY AND NOT "${ACPP_OCL_LOADER_LIBRARY}" MATCHES "-NOTFOUND$")
