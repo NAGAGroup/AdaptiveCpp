@@ -40,10 +40,6 @@
       "runtime-configurable": true
     }
   },
-  "nvcxx": {
-    "value": "@ACPP_NVCXX@",
-    "envvar": "ACPP_NVCXX"
-  },
   "cuda-link-line": {
     "value": "@ACPP_CUDA_LINK_LINE@",
     "envvar": "ACPP_CUDA_LINK_LINE"

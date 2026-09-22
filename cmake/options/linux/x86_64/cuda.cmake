@@ -68,18 +68,6 @@ acpp_declare_resource(CUDA_LIBDEVICE_DIR
 # Driver-only
 # ---------------------------------------------------------------------------
 
-# nvc++ for the nvcxx compilation flow. It belongs to the HPC SDK, a separate
-# product with its own terms, never inside a CUDA toolkit and never inside our
-# tree; the driver resolves a bare name through PATH.
-acpp_default_strategy_only(ACPP_NVCXX)
-if(NOT DEFINED ACPP_NVCXX)
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND NOT "${ACPP_DISCOVERED_NVCXX}" STREQUAL "")
-    set(ACPP_NVCXX "${ACPP_DISCOVERED_NVCXX}")
-  else()
-    set(ACPP_NVCXX "nvc++")
-  endif()
-endif()
-
 # The link line and compile flags the driver passes when building
 # CUDA applications.
 if(NOT DEFINED ACPP_CUDA_LINK_LINE)

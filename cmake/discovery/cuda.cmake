@@ -2,9 +2,6 @@
 #
 # Loaded by cmake/discovery.cmake after the core half; exports
 # ACPP_DISCOVERED_CUDA_*. Not found is the normalized empty string.
-#
-# nvc++ (the HPC SDK's compiler for the nvcxx flow) is found separately
-# because it is not necessarily installed beside nvcc.
 
 include_guard(GLOBAL)
 
@@ -65,11 +62,4 @@ else()
   set(ACPP_DISCOVERED_CUDA_INCDIR "")
   set(ACPP_DISCOVERED_CUDA_BINDIR "")
   set(ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "")
-endif()
-
-# nvc++ is the HPC SDK's compiler, a separate product not necessarily beside
-# nvcc; it is never inside a CUDA toolkit and never inside our tree.
-find_program(ACPP_DISCOVERED_NVCXX NAMES nvc++)
-if(NOT ACPP_DISCOVERED_NVCXX)
-  set(ACPP_DISCOVERED_NVCXX "")
 endif()
