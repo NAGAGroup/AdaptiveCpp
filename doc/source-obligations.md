@@ -25,9 +25,9 @@ Each vendor slice appends its rows here as work lands.
 
 | macro (deleted) | C++ consumer | reads configuration today? | configuration entry |
 |---|---|---|---|
-| `SLEEF_AVAILABLE` | `Utils.cpp`, `LLVMToHost.cpp` | yes — `try_retrieve_settings_variable("sleef_dir")` | `sleef-dir` → `ACPP_JITOPT_SLEEF_DIR` |
-| `AMATH_AVAILABLE` | `Utils.cpp`, `LLVMToHost.cpp` | yes — `try_retrieve_settings_variable("amath_dir")` | `amath-dir` → `ACPP_JITOPT_AMATH_DIR` |
-| `SVML_AVAILABLE` | `Utils.cpp`, `LLVMToHost.cpp` | yes — `try_retrieve_settings_variable("svml_dir")` | `svml-dir` → `ACPP_JITOPT_SVML_DIR` |
+| `SLEEF_AVAILABLE` | `Utils.cpp`, `LLVMToHost.cpp` | yes — `try_retrieve_settings_variable("sleef_dir")` | `sleef-dir` → `ACPP_SLEEF_DIR` |
+| `AMATH_AVAILABLE` | `Utils.cpp`, `LLVMToHost.cpp` | yes — `try_retrieve_settings_variable("amath_dir")` | `amath-dir` → `ACPP_AMATH_DIR` |
+| `SVML_AVAILABLE` | `Utils.cpp`, `LLVMToHost.cpp` | yes — `try_retrieve_settings_variable("svml_dir")` | `svml-dir` → `ACPP_SVML_DIR` |
 | `LIBMVEC_AVAILABLE` | `Utils.cpp`, `LLVMToHost.cpp` | yes — `dlopen`/`dlinfo` lookup | n/a (glibc, loader resolves) |
 
 ## Non-macro obligations
@@ -64,5 +64,5 @@ XDG search order, and the one-per-process semantics do not exist.
 
 The `{{ key }}` fixpoint resolver described in the configuration model does
 not exist in the Python driver. The driver reads values and expands
-`$ACPP_PATH` and `$ACPP_TARGET` by string substitution; it does not resolve
+`$ACPP_PATH` by string substitution only; it does not resolve
 `{{ }}` references between entries.

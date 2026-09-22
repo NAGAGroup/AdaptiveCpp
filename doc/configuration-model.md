@@ -220,8 +220,8 @@ dot-shaped) are in scope.
 ## Discovery
 
 `cmake/discovery.cmake` hoists every `find_*` into one place. It opens with
-the build mode: a fatal rejects component-without-linking (the one surviving
-guard from `guards.cmake`). The linked half is derivation from the parent
+the build mode: a fatal rejects component-without-linking (the one guard
+kept from the cleanup). The linked half is derivation from the parent
 build's install prefix. The plugin half is `find_package(LLVM CONFIG REQUIRED)`
 and the associated find-programs. Both halves find the machine-level set
 (numa, sleef, amath, svml, intlc). All exports are `ACPP_DISCOVERED_*`.
