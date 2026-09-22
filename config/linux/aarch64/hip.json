@@ -1,0 +1,54 @@
+{
+  "hip-deploy-path": {
+    "value": "@ACPP_HIP_DEPLOY_PATH@"
+  },
+  "hip-libdir": {
+    "value": "@ACPP_DISCOVERED_HIP_LIBDIR@"
+  },
+  "hip-incdir": {
+    "value": "@ACPP_DISCOVERED_HIP_INCDIR@"
+  },
+  "hip-bitcode-dir": {
+    "value": "@ACPP_DISCOVERED_HIP_BITCODE_DIR@"
+  },
+  "hip-version-major": {
+    "value": "@ACPP_DISCOVERED_HIP_VERSION_MAJOR@"
+  },
+  "hip-version-minor": {
+    "value": "@ACPP_DISCOVERED_HIP_VERSION_MINOR@"
+  },
+  "hip-hiprtc": {
+    "value": "@ACPP_DISCOVERED_HIP_HIPRTC@"
+  },
+  "hip-path": {
+    "value": "@ACPP_HIP_PATH@",
+    "envvar": "ACPP_ROCM_PATH"
+  },
+  "hip-lib-path": {
+    "value": "@ACPP_HIP_LIB_PATH@",
+    "envvar": "ACPP_ROCM_LIB_PATH"
+  },
+  "hip-include-path": {
+    "value": "@ACPP_HIP_INCLUDE_PATH@"
+  },
+  "hip-sysdeps-path": {
+    "value": "@ACPP_HIP_SYSDEPS_PATH@"
+  },
+  "hip-device-libs-dir": {
+    "value": "@ACPP_TOOLCHAIN_HIP_DEVICE_LIBS_DIR@",
+    "envvar": "ACPP_HIP_DEVICE_LIBS_DIR",
+    "app": {
+      "var": "ACPP_HIP_DEVICE_LIBS_DIR",
+      "value": "@ACPP_APP_HIP_DEVICE_LIBS_DIR@",
+      "runtime-configurable": true
+    }
+  },
+  "hip-link-line": {
+    "value": "@ACPP_HIP_LINK_LINE@",
+    "envvar": "ACPP_ROCM_LINK_LINE"
+  },
+  "hip-cxx-flags": {
+    "value": "@ACPP_HIP_CXX_FLAGS@",
+    "envvar": "ACPP_ROCM_CXX_FLAGS"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "internal": [
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
+      "dest": "{{ acpp-libdir }}/hipSYCL",
+      "files": ["SHARED_LIB:rt-backend-cuda"]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "files": ["SHARED_LIB:llvm-to-ptx"]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files": ["libkernel-sscp-ptx-full.bc"]
+    }
+  ],
+  "external-nonpermissive": [
+    {
+      "src": "{{ cuda-lib-path }}",
+      "dest": "{{ cuda-deploy-path }}/{{ cuda-libdir }}",
+      "files": ["SHARED_LIB:cudart"]
+    },
+    {
+      "src": "{{ cuda-libdevice-dir }}",
+      "dest": "{{ cuda-deploy-path }}/nvvm/libdevice",
+      "files": ["libdevice.10.bc"]
+    },
+    {
+      "src": "{{ cuda-include-path }}",
+      "dest": "{{ cuda-deploy-path }}/{{ cuda-incdir }}",
+      "files": ["*"],
+      "toolchain-only": true
+    },
+    {
+      "src": "{{ cuda-bin-path }}",
+      "dest": "{{ cuda-deploy-path }}/{{ cuda-bindir }}",
+      "files": ["ptxas", "fatbinary"],
+      "toolchain-only": true
+    }
+  ]
+}

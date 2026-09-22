@@ -1,0 +1,21 @@
+{
+  "internal": [
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
+      "dest": "{{ acpp-libdir }}/hipSYCL",
+      "files": ["SHARED_LIB:rt-backend-ze"]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files": ["libkernel-sscp-spirv-full.bc"]
+    }
+  ],
+  "external-permissive": [
+    {
+      "src": "{{ ze-lib-path }}",
+      "dest": "{{ ze-deploy-path }}/{{ ze-libdir }}",
+      "files": ["SHARED_LIB:ze_loader"]
+    }
+  ]
+}

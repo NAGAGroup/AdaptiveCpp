@@ -1,0 +1,14 @@
+{
+  "ze-deploy-path": {
+    "value": "@ACPP_ZE_DEPLOY_PATH@"
+  },
+  "ze-libdir": {
+    "value": "@ACPP_DISCOVERED_ZE_LIBDIR@"
+  },
+  "ze-path": {
+    "value": "@ACPP_ZE_PATH@"
+  },
+  "ze-lib-path": {
+    "value": "@ACPP_ZE_LIB_PATH@"
+  }
+}

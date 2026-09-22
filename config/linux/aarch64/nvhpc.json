@@ -1,0 +1,28 @@
+{
+  "nvhpc-deploy-path": {
+    "value": "@ACPP_NVHPC_DEPLOY_PATH@"
+  },
+  "nvhpc-libdir": {
+    "value": "@ACPP_DISCOVERED_NVHPC_LIBDIR@"
+  },
+  "nvhpc-version-major": {
+    "value": "@ACPP_DISCOVERED_NVHPC_VERSION_MAJOR@"
+  },
+  "nvhpc-version-minor": {
+    "value": "@ACPP_DISCOVERED_NVHPC_VERSION_MINOR@"
+  },
+  "nvhpc-path": {
+    "value": "@ACPP_NVHPC_PATH@"
+  },
+  "nvhpc-lib-path": {
+    "value": "@ACPP_NVHPC_LIB_PATH@"
+  },
+  "nvcxx": {
+    "value": "@ACPP_NVCXX@",
+    "envvar": "ACPP_NVCXX"
+  },
+  "nvcxx-link-line": {
+    "value": "@ACPP_NVCXX_LINK_LINE@",
+    "envvar": "ACPP_NVCXX_LINK_LINE"
+  }
+}
