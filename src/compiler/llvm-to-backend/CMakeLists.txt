@@ -283,8 +283,8 @@ if(WITH_SSCP_COMPILER)
     target_compile_definitions(llvm-to-amdgpu PRIVATE
       -DACPP_ROCM_DEVICE_LIBS_PATH="${ROCM_DEVICE_LIBS_PATH}")
 
-    # hipcc is found in the root CMakeLists, above cmake/options.cmake; the
-    # legacy fallback there may already have found it while deciding whether
+    # hipcc is found in the root CMakeLists; the legacy fallback there may
+    # already have found it while deciding whether
     # ROCm is available at all. find results are cache entries, so
     # HIPCC_COMPILER is visible here.
     if(HIPCC_COMPILER)
@@ -306,8 +306,8 @@ if(WITH_SSCP_COMPILER)
 
 
   if(WITH_LLVM_TO_HOST)
-    # The CPU flags and additional JIT flags are configuration entries
-    # (ACPP_LLC_HOST_CPU_FLAG and friends in cmake/options.cmake). The default
+    # The CPU flags and additional JIT flags are configuration entries. The
+    # default
     # -mcpu=native is resolved by llc on the machine doing the JIT, so nothing
     # about the build machine is recorded; pinning a CPU is
     # -DACPP_LLC_HOST_CPU_FLAG="-mcpu=<cpu>" at configure time, or the entry

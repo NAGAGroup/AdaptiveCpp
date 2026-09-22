@@ -73,7 +73,7 @@ endif()
 
 #MATH VECTOR LIBRARY
 # The discovery and the DEFAULT_VEC_MATH_LIB selection live in the root
-# CMakeLists, above cmake/options.cmake; the variables they set (LIBMVEC and
+# CMakeLists; the variables they set (LIBMVEC and
 # its checks, LIBSLEEF, LIBAMATH, LIBSVML, LIBINTLC, DEFAULT_VEC_MATH_LIB) are
 # inherited here. What remains in this file is the macro side: the compile
 # definitions the compiler sources consume, derived from those results.
