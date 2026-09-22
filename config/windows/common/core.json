@@ -1,0 +1,5 @@
+{
+  "acpp-bindir": {
+    "value": "@CMAKE_INSTALL_BINDIR@"
+  }
+}

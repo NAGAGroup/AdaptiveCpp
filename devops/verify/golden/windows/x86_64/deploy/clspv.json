@@ -1,0 +1,11 @@
+{
+  "internal": [],
+  "external-permissive": [
+    {
+      "src": "{{ clspv-bin-path }}",
+      "dest": "{{ clspv-deploy-path }}/{{ clspv-bindir }}",
+      "files": ["clspv.exe"]
+    }
+  ],
+  "external-nonpermissive": []
+}

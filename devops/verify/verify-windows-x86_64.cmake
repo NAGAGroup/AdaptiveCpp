@@ -166,21 +166,8 @@ expect_eq(ACPP_TOOLCHAIN_CLSPV "C:/VulkanSDK/1.4.0/Bin/clspv.exe")
 expect_eq(ACPP_APP_CLSPV "C:/VulkanSDK/1.4.0/Bin/clspv.exe")
 message(STATUS "windows/x86_64/clspv.cmake: found defaults as declared")
 
-# ---- Mirror: omp.cmake and omp.json are identical to linux x86_64's ----
-
-file(READ "${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/omp.cmake" _linux_omp)
-file(READ "${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/omp.cmake" _win_omp)
-string(REPLACE "windows, x86_64" "linux, x86_64" _win_omp_norm "${_win_omp}")
-if(NOT "${_linux_omp}" STREQUAL "${_win_omp_norm}")
-  message(FATAL_ERROR "windows omp.cmake differs from linux's beyond header")
-endif()
-message(STATUS "mirror: omp.cmake identical")
-
-file(READ "${ACPP_REPO_ROOT}/config/linux/x86_64/omp.json" _linux_omp_json)
-file(READ "${ACPP_REPO_ROOT}/config/windows/x86_64/omp.json" _win_omp_json)
-if(NOT "${_linux_omp_json}" STREQUAL "${_win_omp_json}")
-  message(FATAL_ERROR "windows omp.json differs from linux's")
-endif()
-message(STATUS "mirror: omp.json identical")
+# The architecture files are one-line includes and the configuration is
+# fragments across the common tiers, so a text mirror proves nothing;
+# verify-common merges the fragments against the goldens.
 
 message(STATUS "windows/x86_64: all checks passed")

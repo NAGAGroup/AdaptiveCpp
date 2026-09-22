@@ -1,0 +1,60 @@
+{
+  "cuda-deploy-path": {
+    "value": "@ACPP_CUDA_DEPLOY_PATH@"
+  },
+  "cuda-libdir": {
+    "value": "@ACPP_DISCOVERED_CUDA_LIBDIR@"
+  },
+  "cuda-incdir": {
+    "value": "@ACPP_DISCOVERED_CUDA_INCDIR@"
+  },
+  "cuda-bindir": {
+    "value": "@ACPP_DISCOVERED_CUDA_BINDIR@"
+  },
+  "cuda-version-major": {
+    "value": "@ACPP_DISCOVERED_CUDA_VERSION_MAJOR@"
+  },
+  "cuda-version-minor": {
+    "value": "@ACPP_DISCOVERED_CUDA_VERSION_MINOR@"
+  },
+  "cuda-path": {
+    "value": "@ACPP_CUDA_PATH@",
+    "envvar": "ACPP_CUDA_PATH"
+  },
+  "cuda-lib-path": {
+    "value": "@ACPP_CUDA_LIB_PATH@",
+    "envvar": "ACPP_CUDA_LIB_PATH"
+  },
+  "cuda-include-path": {
+    "value": "@ACPP_CUDA_INCLUDE_PATH@"
+  },
+  "cuda-bin-path": {
+    "value": "@ACPP_CUDA_BIN_PATH@"
+  },
+  "cuda-libdevice-dir": {
+    "value": "@ACPP_TOOLCHAIN_CUDA_LIBDEVICE_DIR@",
+    "envvar": "ACPP_CUDA_LIBDEVICE_DIR",
+    "app": {
+      "var": "ACPP_CUDA_LIBDEVICE_DIR",
+      "value": "@ACPP_APP_CUDA_LIBDEVICE_DIR@",
+      "runtime-configurable": true
+    }
+  },
+  "cuda-dll-dir": {
+    "value": "@ACPP_TOOLCHAIN_CUDA_DLL_DIR@",
+    "envvar": "ACPP_CUDA_DLL_DIR",
+    "app": {
+      "var": "ACPP_CUDA_DLL_DIR",
+      "value": "@ACPP_APP_CUDA_DLL_DIR@",
+      "runtime-configurable": true
+    }
+  },
+  "cuda-link-line": {
+    "value": "@ACPP_CUDA_LINK_LINE@",
+    "envvar": "ACPP_CUDA_LINK_LINE"
+  },
+  "cuda-cxx-flags": {
+    "value": "@ACPP_CUDA_CXX_FLAGS@",
+    "envvar": "ACPP_CUDA_CXX_FLAGS"
+  }
+}

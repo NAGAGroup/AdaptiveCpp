@@ -62,38 +62,8 @@ expect_eq(ACPP_TOOLCHAIN_CUDA_DLL_DIR "C:/CUDA/v13.4/bin")
 expect_eq(ACPP_APP_CUDA_DLL_DIR "C:/CUDA/v13.4/bin")
 message(STATUS "windows/aarch64: CUDA arm64 layout needs no file change")
 
-# ---- Mirror check: cmake options files ----
+# The architecture files are one-line includes and the configuration is
+# fragments across the common tiers, so a text mirror proves nothing;
+# verify-common merges the fragments against the goldens.
 
-foreach(_f core cuda ocl ze omp vk clspv)
-  file(READ "${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/${_f}.cmake" _x64)
-  file(READ "${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/${_f}.cmake" _arm)
-  string(REPLACE "windows, aarch64" "windows, x86_64" _arm_normalized "${_arm}")
-  if(NOT "${_x64}" STREQUAL "${_arm_normalized}")
-    message(FATAL_ERROR
-      "cmake/options/windows/aarch64/${_f}.cmake differs from x86_64's "
-      "beyond the header")
-  endif()
-  message(STATUS "mirror: ${_f}.cmake identical")
-endforeach()
-
-# ---- Mirror check: json files (byte-identical) ----
-
-foreach(_f core cuda ocl ze omp vk clspv)
-  file(READ "${ACPP_REPO_ROOT}/config/windows/x86_64/${_f}.json" _x64)
-  file(READ "${ACPP_REPO_ROOT}/config/windows/aarch64/${_f}.json" _arm)
-  if(NOT "${_x64}" STREQUAL "${_arm}")
-    message(FATAL_ERROR "config/windows/aarch64/${_f}.json differs from x86_64's")
-  endif()
-  message(STATUS "mirror: ${_f}.json identical")
-endforeach()
-
-foreach(_f core cuda ocl ze vk clspv)
-  file(READ "${ACPP_REPO_ROOT}/config/windows/x86_64/deploy/${_f}.json" _x64)
-  file(READ "${ACPP_REPO_ROOT}/config/windows/aarch64/deploy/${_f}.json" _arm)
-  if(NOT "${_x64}" STREQUAL "${_arm}")
-    message(FATAL_ERROR "config/windows/aarch64/deploy/${_f}.json differs from x86_64's")
-  endif()
-  message(STATUS "mirror: deploy/${_f}.json identical")
-endforeach()
-
-message(STATUS "windows/aarch64: all mirror checks passed")
+message(STATUS "windows/aarch64: all checks passed")

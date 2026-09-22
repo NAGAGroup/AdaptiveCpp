@@ -1,0 +1,106 @@
+{
+  "internal": [
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}",
+      "dest": "{{ acpp-libdir }}",
+      "files": [
+        "SHARED_LIB:acpp-rt",
+        "SHARED_LIB:acpp-common"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
+      "dest": "{{ acpp-libdir }}/hipSYCL",
+      "files": [
+        "SHARED_LIB:rt-backend-omp"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "files": [
+        "SHARED_LIB:llvm-to-backend",
+        "SHARED_LIB:llvm-to-host",
+        "SHARED_LIB:llvm-to-spirv"
+      ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files": [
+        "libkernel-sscp-host-full.bc",
+        "libkernel-sscp-host-fast-full.bc"
+      ]
+    }
+  ],
+
+  "llvm": [
+    {
+      "src": "{{ llvm-path }}/bin",
+      "dest": "{{ llvm-deploy-path }}/bin",
+      "files": [
+        "clang++",
+        "llc",
+        "opt",
+        "ld.lld",
+        "llvm-spirv"
+      ]
+    },
+    {
+      "src": "{{ llvm-path }}/{{ llvm-libdir }}",
+      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}",
+      "files": [
+        "SHARED_LIB:LLVM"
+      ]
+    },
+    {
+      "src": "{{ libomp-path }}",
+      "dest": "{{ libomp-deploy-path }}",
+      "files": [
+        "SHARED_LIB:omp"
+      ]
+    },
+    {
+      "src": "{{ clang-include-path }}",
+      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
+      "files": [
+        "*"
+      ]
+    }
+  ],
+
+  "external-permissive": [
+    {
+      "src": "{{ sleef-dir }}",
+      "dest": "{{ acpp-libdir }}",
+      "files": [
+        "SHARED_LIB:sleefgnuabi"
+      ]
+    },
+    {
+      "src": "{{ amath-dir }}",
+      "dest": "{{ acpp-libdir }}",
+      "files": [
+        "SHARED_LIB:amath"
+      ]
+    },
+    {
+      "src": "{{ libnuma-path }}",
+      "dest": "{{ acpp-libdir }}",
+      "files": [
+        "SHARED_LIB:numa"
+      ]
+    }
+  ],
+
+  "external-nonpermissive": [
+    {
+      "src": "{{ svml-dir }}",
+      "dest": "{{ acpp-libdir }}",
+      "files": [
+        "SHARED_LIB:svml",
+        "SHARED_LIB:intlc"
+      ]
+    }
+  ]
+}

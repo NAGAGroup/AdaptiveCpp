@@ -60,64 +60,8 @@ expect_unset(ACPP_APP_SVML_DIR)
 expect_eq(ACPP_VECTOR_MATH_LIB "libmvec")
 message(STATUS "aarch64/core.cmake: defaults as declared (no SVML)")
 
-# ---- Mirror check: cmake options files ----
+# The architecture files are one-line includes and the configuration is
+# fragments across the common tiers, so a text mirror proves nothing;
+# verify-common merges the fragments against the goldens.
 
-foreach(_f cuda nvhpc hip ocl ze omp vk clspv)
-  file(READ "${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/${_f}.cmake" _x86)
-  file(READ "${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/${_f}.cmake" _arm)
-  string(REPLACE "linux, aarch64" "linux, x86_64" _arm_normalized "${_arm}")
-  if(NOT "${_x86}" STREQUAL "${_arm_normalized}")
-    message(FATAL_ERROR
-      "cmake/options/linux/aarch64/${_f}.cmake differs from x86_64's "
-      "beyond the header")
-  endif()
-  message(STATUS "mirror: ${_f}.cmake identical")
-endforeach()
-
-# ---- Mirror check: json files (byte-identical except core and deploy/core) ----
-
-foreach(_f cuda nvhpc hip ocl ze omp vk clspv)
-  file(READ "${ACPP_REPO_ROOT}/config/linux/x86_64/${_f}.json" _x86)
-  file(READ "${ACPP_REPO_ROOT}/config/linux/aarch64/${_f}.json" _arm)
-  if(NOT "${_x86}" STREQUAL "${_arm}")
-    message(FATAL_ERROR "config/linux/aarch64/${_f}.json differs from x86_64's")
-  endif()
-  message(STATUS "mirror: ${_f}.json identical")
-endforeach()
-
-foreach(_f cuda nvhpc hip ocl ze vk clspv)
-  file(READ "${ACPP_REPO_ROOT}/config/linux/x86_64/deploy/${_f}.json" _x86)
-  file(READ "${ACPP_REPO_ROOT}/config/linux/aarch64/deploy/${_f}.json" _arm)
-  if(NOT "${_x86}" STREQUAL "${_arm}")
-    message(FATAL_ERROR "config/linux/aarch64/deploy/${_f}.json differs from x86_64's")
-  endif()
-  message(STATUS "mirror: deploy/${_f}.json identical")
-endforeach()
-
-# ---- Mirror check: core.json (x86_64 minus svml-dir block = aarch64) ----
-
-file(READ "${ACPP_REPO_ROOT}/config/linux/x86_64/core.json" _x86_core)
-file(READ "${ACPP_REPO_ROOT}/config/linux/aarch64/core.json" _arm_core)
-string(REPLACE
-  "  },\n  \"svml-dir\": {\n    \"value\": \"@ACPP_TOOLCHAIN_SVML_DIR@\",\n    \"envvar\": \"ACPP_SVML_DIR\",\n    \"app\": {\n      \"var\": \"ACPP_SVML_DIR\",\n      \"value\": \"@ACPP_APP_SVML_DIR@\",\n      \"runtime-configurable\": true\n    }\n  },\n\n  \"targets\""
-  "  },\n\n  \"targets\""
-  _x86_core_stripped "${_x86_core}")
-if(NOT "${_x86_core_stripped}" STREQUAL "${_arm_core}")
-  message(FATAL_ERROR "config/linux/aarch64/core.json differs from x86_64's beyond svml-dir")
-endif()
-message(STATUS "mirror: core.json identical (minus svml-dir)")
-
-# ---- Mirror check: deploy/core.json (x86_64 minus svml row = aarch64) ----
-
-file(READ "${ACPP_REPO_ROOT}/config/linux/x86_64/deploy/core.json" _x86_deploy)
-file(READ "${ACPP_REPO_ROOT}/config/linux/aarch64/deploy/core.json" _arm_deploy)
-string(REPLACE
-  "  \"external-nonpermissive\": [\n    {\n      \"src\": \"{{ svml-dir }}\",\n      \"dest\": \"{{ acpp-libdir }}\",\n      \"files\": [\n        \"SHARED_LIB:svml\",\n        \"SHARED_LIB:intlc\"\n      ]\n    }\n  ]"
-  "  \"external-nonpermissive\": []"
-  _x86_deploy_stripped "${_x86_deploy}")
-if(NOT "${_x86_deploy_stripped}" STREQUAL "${_arm_deploy}")
-  message(FATAL_ERROR "config/linux/aarch64/deploy/core.json differs from x86_64's beyond svml row")
-endif()
-message(STATUS "mirror: deploy/core.json identical (minus svml row)")
-
-message(STATUS "aarch64: all mirror checks passed")
+message(STATUS "aarch64: all checks passed")

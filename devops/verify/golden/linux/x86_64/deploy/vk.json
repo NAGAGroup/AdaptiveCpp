@@ -1,0 +1,27 @@
+{
+  "internal": [
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
+      "dest": "{{ acpp-libdir }}/hipSYCL",
+      "files": ["SHARED_LIB:rt-backend-vk"]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "files": ["SHARED_LIB:llvm-to-clspv"]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files": ["libkernel-sscp-clspv-full.bc"]
+    }
+  ],
+  "external-permissive": [
+    {
+      "src": "{{ vk-lib-path }}",
+      "dest": "{{ vk-deploy-path }}/{{ vk-libdir }}",
+      "files": ["SHARED_LIB:vulkan"]
+    }
+  ],
+  "external-nonpermissive": []
+}
