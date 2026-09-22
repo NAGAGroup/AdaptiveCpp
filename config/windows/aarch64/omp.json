@@ -1,0 +1,10 @@
+{
+  "omp-link-line": {
+    "value": "@ACPP_OMP_LINK_LINE@",
+    "envvar": "ACPP_OMP_LINK_LINE"
+  },
+  "omp-cxx-flags": {
+    "value": "@ACPP_OMP_CXX_FLAGS@",
+    "envvar": "ACPP_OMP_CXX_FLAGS"
+  }
+}
