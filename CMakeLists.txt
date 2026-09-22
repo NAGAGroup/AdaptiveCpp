@@ -881,20 +881,6 @@ install(PROGRAMS bin/acpp DESTINATION bin)
 install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
 install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
-
-install(FILES ${ACPP_BINARY_ROOT}/acpp-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-if(WITH_CUDA_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/acpp-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-if(WITH_ROCM_BACKEND)
-  install(FILES ${ACPP_BINARY_ROOT}/acpp-rocm.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-core.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-cuda.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-hip.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-install(FILES ${ACPP_BINARY_ROOT}/acpp-deployment-manifest-ocl.json DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR}/deploy)
-
 include(CMakePackageConfigHelpers)
 
 
