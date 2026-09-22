@@ -330,11 +330,6 @@ if(WITH_SSCP_COMPILER)
       clspv/ConstantAddrSpacePass.cpp
       TOOL clspv/LLVMToCLSPVTool.cpp)
 
-    find_program(CLSPV_COMPILER NAMES clspv REQUIRED)
-
-    message(STATUS "Using clspv at: ${CLSPV_COMPILER}")
-    target_compile_definitions(llvm-to-clspv PRIVATE
-      -DHIPSYCL_CLSPV_PATH="${CLSPV_COMPILER}")
   endif()
 
 endif()

@@ -11,6 +11,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/clspv/LLVMToCLSPV.hpp"
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/settings.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceInferencePass.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/AddressSpaceMap.hpp"
 #include "hipSYCL/compiler/llvm-to-backend/LLVMToBackend.hpp"
@@ -299,7 +300,12 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
     InputStream.flush();
   }
 
-  std::string CLSPV = HIPSYCL_CLSPV_PATH;
+  std::string CLSPV;
+  common::try_retrieve_settings_variable("clspv", CLSPV);
+  if(CLSPV.empty()) {
+    registerError("LLVMToCLSPV: clspv is not configured (ACPP_CLSPV)");
+    return false;
+  }
 
   llvm::SmallVector<std::string> Args{"-x=ir",
                                       "--physical-storage-buffers",
