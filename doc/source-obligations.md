@@ -13,7 +13,7 @@ Each vendor slice appends its rows here as work lands.
 | `ACPP_LLD_NAME` | `src/compiler/CMakeLists.txt:65` | `Utils.cpp:89` | no — reads the macro | `lld` (exe entry) | replace with config read |
 | `ACPP_OPT_NAME` | `src/compiler/CMakeLists.txt:67` | `Utils.cpp:107` | no — reads the macro | `opt` (exe entry) | replace with config read |
 | `ACPP_CLANG_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:170` | `Utils.cpp:59` (`getClangPath`) | no — reads the macro | `device-clang-cmplr` | replace with config read |
-| `ACPP_CUDA_DEVICE_LIBS_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:271` | `LLVMToPtx.cpp:60` | no — raw macro | CUDA slice | replace when CUDA slice lands |
+| `ACPP_CUDA_DEVICE_LIBS_PATH` | (deleted) | `LLVMToPtx.cpp` | yes — `try_retrieve_settings_variable("cuda_libdevice_dir")` | `cuda-libdevice-dir` → `ACPP_CUDA_LIBDEVICE_DIR` | **done** |
 | `ACPP_ROCM_DEVICE_LIBS_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:284` | `LLVMToAmdgpu.cpp:203` | no — raw macro | HIP slice | replace when HIP slice lands |
 | `ACPP_HIPCC_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:292` | `LLVMToAmdgpu.cpp:67` | no — raw macro | HIP slice | replace when HIP slice lands |
 | `HIPSYCL_CLSPV_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:358` | `LLVMToCLSPV.cpp:302` | no — raw macro | Vulkan slice | replace when Vulkan slice lands |
@@ -66,3 +66,18 @@ The `{{ key }}` fixpoint resolver described in the configuration model does
 not exist in the Python driver. The driver reads values and expands
 `$ACPP_PATH` by string substitution only; it does not resolve
 `{{ }}` references between entries.
+
+### Wiring-slice obligations left by the CUDA slice
+
+- Root `CMakeLists.txt`: `find_package(CUDA QUIET)` (line ~127) and the
+  `CUDA_DEVICE_LIBS_PATH` block (~lines 518-532) still run in the root
+  and duplicate what `cmake/discovery/cuda.cmake` now handles.
+- `cmake/FindCUDA.cmake`: upstream's shim; delete when the root's
+  `find_package(CUDA)` is removed.
+- `src/runtime/CMakeLists.txt`: `rt-backend-cuda` links via `CUDA::cudart`
+  `CUDA::cuda_driver` and carries a RUNPATH entry that the wiring derives
+  from `{{ cuda-deploy-path }}/{{ cuda-libdir }}`.
+- `bin/acpp` lines ~1038-1044: `cuda_lib_path` property hardcodes a
+  `lib64` fallback; reads `default-cuda-lib-path`.
+- `cmake/adaptivecpp-config.cmake.in`: `ACPP_CUDA_PATH` stays (user-facing
+  cmake export).

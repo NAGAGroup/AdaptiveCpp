@@ -207,9 +207,11 @@ Four categories, which are the copy policy:
 
 `src` is a directory named by an entry, `files` are relative to it, `dest` is
 relative to the deployment root. `SHARED_LIB:` and `*` are the driver's
-existing mechanisms. `llvm` is its own category because the rule is "we copy
-LLVM when we built it, or when you asked for everything" — provenance, not
-licence.
+existing mechanisms. A group carrying `"toolchain-only": true` is installed
+into the toolchain under `full*` and never deployed to an application —
+headers, executables the JIT does not invoke. `llvm` is its own category
+because the rule is "we copy LLVM when we built it, or when you asked for
+everything" — provenance, not licence.
 
 **LLVM deploys as a unit** under `llvm-deploy-path`, preserving its internal
 bin-to-libdir relationship, because its binaries carry their own RUNPATH.
@@ -248,11 +250,12 @@ for shims was also wrong: `common::load_library` already appends `dlerror()`,
 so a missing vendor library is reported by name today.
 
 **One `*_DEPLOY_PATH` knob per vendor**, in the same shape as
-`ACPP_LLVM_DEPLOY_PATH`. The default under `full*` is beside our libraries;
-a `managed` publisher sets the knob to match their layout. Example: a conda
-CUDA package places some libraries under `targets/x86_64-linux/lib` and device
-bitcode under `nvvm/libdevice` in the prefix root, so the publisher sets
-`ACPP_CUDA_DEPLOY_PATH` accordingly. RUNPATH is derived from the knobs.
+`ACPP_LLVM_DEPLOY_PATH`. Each vendor unit deploys whole under its deploy
+path, default `{{ acpp-libdir }}/hipSYCL/ext/<vendor>`, in the vendor's own
+relative layout as its find module reports it; nobody chooses that internal
+layout. A `managed` publisher sets the knob to match the layout their
+package manager produces. RUNPATH is derived from the deploy path and that
+layout.
 
 There is no vendor zone, no `ACPP_TARGET` (the vendor-zone placeholder is
 gone; `ACPP_TARGETS`, the driver's `--acpp-targets` option, stays), and no
