@@ -341,3 +341,41 @@ on whether a conflict is there to resolve at all.
 - Identical manifest rows collapse to one: the SPIR-V bitcode row is
   identical between the `ocl` and `ze` manifests, and the engine must not
   copy it twice.
+
+### Wiring-slice obligations left by the manifest split
+
+Not done in this pass — wiring work, not documentation. Recorded here as
+what the split still owes.
+
+- **Per-vendor cmake install rules, not yet written.** Each vendor needs
+  an install rule, below the prolog, following `ACPP_DEPLOYMENT_STRATEGY`,
+  that installs two things under the full strategies: (a) the
+  toolchain-only assets its multipass flow needs to drive, and (b) the
+  same assets its manifest already deploys with an app. (a) and (b) are
+  **defined separately and kept in sync by a harness, not derived from
+  each other** — the install rule is a package-time decision about what
+  physically sits in the toolchain, the manifest is drive-time
+  configuration a downstream user may edit (swap libomp for GOMP,
+  repoint a vendor path), and packaging must never read something a user
+  is allowed to change.
+- **The `"toolchain-only": true` groups move to those install rules and
+  leave the manifests.** Not done in this pass — the harnesses still
+  depend on them being present, and moving them is exactly the wiring
+  work this section defers. Today's inventory, by grep:
+  - `config/windows/common/deploy/cuda.json` — three rows: CUDA's C++
+    headers (`cuda-include-path`, `"*"`), the import library
+    (`cuda-lib-path`, `cudart.lib`), and the nvcc-adjacent tools a
+    multipass build drives (`cuda-bin-path`, `ptxas.exe`/`fatbinary.exe`).
+  - `config/linux/common/deploy/cuda.json` — two rows: the same headers,
+    and the same tools (`ptxas`/`fatbinary`); no import-library row,
+    Linux has no equivalent.
+  - `config/linux/common/deploy/hip.json` — one row: HIP's own headers
+    (`hip-include-path`, `"*"`).
+  - Each has an identical copy in its golden(s) under
+    `devops/verify/golden/`; no macOS manifest carries the flag (no
+    CUDA or HIP backend there).
+- **A new harness is owed**: for each vendor, every manifest row deployed
+  under the full strategies must have a matching cmake install rule (b,
+  above) — the sync check the corrected ruling requires, not yet
+  written. It fails independently of whether the manifest was hand-edited
+  correctly; that is the point of keeping the two definitions apart.

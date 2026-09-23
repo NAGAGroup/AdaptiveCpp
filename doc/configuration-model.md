@@ -309,6 +309,30 @@ territory — the design serves what it can predict.
 
 ## The manifest
 
+Three homes, one job each. **The toolchain configuration** holds what the
+driver needs to drive compilation — every config entry, always, regardless
+of deployment strategy. **The deploy manifest** holds only what gets
+deployed *with an application* — every row here is something
+`acpp --acpp-deploy` copies into an app's own deployment tree, nothing
+more. **The per-vendor cmake install rules**, below the prolog, following
+`ACPP_DEPLOYMENT_STRATEGY`, hold what is installed alongside the toolchain
+itself under the full strategies: both (a) the toolchain-only assets the
+multipass flows need to drive — headers, import libraries, ptxas-class
+tools the JIT never invokes — and (b) the app-deployed assets, installed
+at package time so they physically exist for a later
+`acpp --acpp-deploy` to copy from.
+
+The install rule and the manifest row for (b) are **defined separately, on
+purpose, and kept in sync by a harness — neither is derived from the
+other.** They are different moments with different owners: the install
+rule runs once, at package time, deciding what is physically present in a
+toolchain; the manifest is toolchain *configuration*, read at drive time,
+and a downstream toolchain user is allowed to edit it — swap libomp for
+GOMP, repoint a vendor path. Packaging must never derive from something a
+user is allowed to change, so an app-needed vendor asset like `cudart`
+gets both: an install rule under the full strategies, and a manifest row.
+See `doc/source-obligations.md` for the harness this obligates.
+
 Four categories, which are the copy policy:
 
 ```json
@@ -320,16 +344,27 @@ Four categories, which are the copy policy:
 
 `src` is a directory named by an entry, `files` are relative to it, `dest` is
 relative to the deployment root. `SHARED_LIB:` and `*` are the driver's
-existing mechanisms. A group carrying `"toolchain-only": true` is installed
-into the toolchain under `full*` and never deployed to an application —
-headers, executables the JIT does not invoke.
+existing mechanisms. The `"toolchain-only": true` flag is retired: what it
+used to mark — a row installed but never deployed — is now a per-vendor
+cmake install rule instead, home (b) above, not a manifest row at all.
+
+**Clang and its headers are hip's rows, not core's.** The only JIT caller
+of clang is the generic-hip `clangJitLink` path, used when hipRTC isn't
+linked; core ships nothing that calls clang at run time. Their manifest
+rows moved into hip's own manifest, tagged `"build-mode": "toolchain"` and
+`"unless": "hiprtc-link"` — needed only when the build linked hipRTC's
+alternative away. The config entries (`device-clang-cmplr`,
+`clang-include-path`) stay in core; the driver still needs them regardless
+of which vendor's manifest ships the files they point at.
 
 **`llvm` is ours in toolchain mode, and only in toolchain mode.** It holds
-what toolchain mode builds - the device compiler, `llc`/`opt`/`lld`,
-libomp, clang's resource headers, `libLLVM` where a dylib is built - and
-it is deployed in every strategy, `default` included (rule 1); it does
-not exist in plugin mode at all, because none of that is ours to ship
-there (rule 2). Every row carries an optional `"build-mode": "toolchain"
+what toolchain mode builds - `llc`/`opt`/`lld`, libomp, `libLLVM` where a
+dylib is built - and it is deployed in every strategy, `default` included
+(rule 1); it does not exist in plugin mode at all, because none of that is
+ours to ship there (rule 2). The device compiler and clang's resource
+headers are not in this group — they are hip's rows, above, since core
+never calls clang at run time. Every row carries an optional
+`"build-mode": "toolchain"
 | "plugin"` key; a row without one applies in both modes. The installed
 manifest holds only the rows whose build-mode matches
 `LLVM_ADAPTIVECPP_LINK_INTO_TOOLS`, or carry none: the deploy engine
