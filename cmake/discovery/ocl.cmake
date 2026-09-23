@@ -14,6 +14,7 @@
 # and only compile the backend; they never decide whether OpenCL is found.
 
 include_guard(GLOBAL)
+include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
 
 if(DEFINED WITH_SSCP_COMPILER AND NOT WITH_SSCP_COMPILER)
   set(ACPP_DISCOVERED_OCL_FOUND OFF)
@@ -33,42 +34,36 @@ if(OpenCL_FOUND AND OpenCL_LIBRARY AND NOT "${OpenCL_LIBRARY}" MATCHES "-NOTFOUN
   # copies and what SHARED_LIB: resolves to.
   get_filename_component(_acpp_ocl_real "${OpenCL_LIBRARY}" REALPATH)
   set(ACPP_DISCOVERED_OCL_LOADER "${_acpp_ocl_real}")
-
   get_filename_component(_acpp_ocl_libdir "${_acpp_ocl_real}" DIRECTORY)
-  get_filename_component(ACPP_DISCOVERED_OCL_PREFIX "${_acpp_ocl_libdir}" DIRECTORY)
-
-  file(RELATIVE_PATH _acpp_ocl_rel "${ACPP_DISCOVERED_OCL_PREFIX}" "${_acpp_ocl_libdir}")
-  if("${_acpp_ocl_rel}" STREQUAL "" OR "${_acpp_ocl_rel}" MATCHES "^\\.\\.")
-    message(FATAL_ERROR
-      "ACPP_DISCOVERED_OCL_LIBDIR: '${_acpp_ocl_libdir}' is not inside "
-      "'${ACPP_DISCOVERED_OCL_PREFIX}'. The vendor unit deploys in the "
-      "distribution's own relative layout; a directory outside the root "
-      "has no place in it.")
-  endif()
-  set(ACPP_DISCOVERED_OCL_LIBDIR "${_acpp_ocl_rel}")
 
   # On Windows find_package answers with the import library; the DLL is
   # what deploys and what the runtime must reach through AddDllDirectory.
   # This branch is parse-checked on Linux and exercised on Windows only.
+  # The search hint is the libdir's own parent, a guess, not an asserted
+  # prefix - the common ancestor below settles it regardless of whether
+  # the guess was right.
   if(WIN32)
+    get_filename_component(_acpp_ocl_hint "${_acpp_ocl_libdir}" DIRECTORY)
     find_file(ACPP_OCL_LOADER_DLL NAMES OpenCL.dll
-      HINTS "${ACPP_DISCOVERED_OCL_PREFIX}/bin" NO_DEFAULT_PATH)
+      HINTS "${_acpp_ocl_hint}/bin" NO_DEFAULT_PATH)
     if(NOT ACPP_OCL_LOADER_DLL OR "${ACPP_OCL_LOADER_DLL}" MATCHES "-NOTFOUND$")
       message(FATAL_ERROR
         "OpenCL import library found at ${OpenCL_LIBRARY} but "
-        "OpenCL.dll was not found in ${ACPP_DISCOVERED_OCL_PREFIX}/bin")
+        "OpenCL.dll was not found in ${_acpp_ocl_hint}/bin")
     endif()
     get_filename_component(_acpp_ocl_dlldir "${ACPP_OCL_LOADER_DLL}" DIRECTORY)
-    file(RELATIVE_PATH _acpp_ocl_binrel "${ACPP_DISCOVERED_OCL_PREFIX}" "${_acpp_ocl_dlldir}")
-    if("${_acpp_ocl_binrel}" STREQUAL "" OR "${_acpp_ocl_binrel}" MATCHES "^\\.\\.")
-      message(FATAL_ERROR
-        "ACPP_DISCOVERED_OCL_BINDIR: '${_acpp_ocl_dlldir}' is not inside "
-        "'${ACPP_DISCOVERED_OCL_PREFIX}'.")
-    endif()
-    set(ACPP_DISCOVERED_OCL_BINDIR "${_acpp_ocl_binrel}")
+
+    acpp_common_ancestor(ACPP_DISCOVERED_OCL_PREFIX
+      "${_acpp_ocl_libdir}" "${_acpp_ocl_dlldir}")
+    file(RELATIVE_PATH ACPP_DISCOVERED_OCL_BINDIR
+      "${ACPP_DISCOVERED_OCL_PREFIX}" "${_acpp_ocl_dlldir}")
   else()
+    acpp_common_ancestor(ACPP_DISCOVERED_OCL_PREFIX "${_acpp_ocl_libdir}")
     set(ACPP_DISCOVERED_OCL_BINDIR "")
   endif()
+
+  file(RELATIVE_PATH ACPP_DISCOVERED_OCL_LIBDIR
+    "${ACPP_DISCOVERED_OCL_PREFIX}" "${_acpp_ocl_libdir}")
 else()
   set(ACPP_DISCOVERED_OCL_FOUND OFF)
   set(ACPP_DISCOVERED_OCL_LOADER "")

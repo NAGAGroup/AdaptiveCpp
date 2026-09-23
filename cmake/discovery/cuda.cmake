@@ -4,6 +4,7 @@
 # ACPP_DISCOVERED_CUDA_*. Not found is the normalized empty string.
 
 include_guard(GLOBAL)
+include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
 
 # Let upstream's CUDA_TOOLKIT_ROOT_DIR spelling work.
 if(DEFINED CUDA_TOOLKIT_ROOT_DIR AND NOT DEFINED CUDAToolkit_ROOT)
@@ -14,45 +15,39 @@ find_package(CUDAToolkit QUIET)
 
 if(CUDAToolkit_FOUND)
   set(ACPP_DISCOVERED_CUDA_FOUND ON)
-  set(ACPP_DISCOVERED_CUDA_PREFIX "${CUDAToolkit_LIBRARY_ROOT}")
   set(ACPP_DISCOVERED_CUDA_VERSION_MAJOR "${CUDAToolkit_VERSION_MAJOR}")
   set(ACPP_DISCOVERED_CUDA_VERSION_MINOR "${CUDAToolkit_VERSION_MINOR}")
 
-  # Relative facts: the vendor unit is installed in the toolkit's own
-  # relative layout. A directory outside the root has no place in it.
-  foreach(_acpp_cuda_pair
-      "ACPP_DISCOVERED_CUDA_LIBDIR;${CUDAToolkit_LIBRARY_DIR}"
-      "ACPP_DISCOVERED_CUDA_BINDIR;${CUDAToolkit_BIN_DIR}")
-    list(GET _acpp_cuda_pair 0 _acpp_cuda_var)
-    list(GET _acpp_cuda_pair 1 _acpp_cuda_dir)
-    file(RELATIVE_PATH _acpp_cuda_rel "${CUDAToolkit_LIBRARY_ROOT}" "${_acpp_cuda_dir}")
-    if("${_acpp_cuda_rel}" STREQUAL "" OR "${_acpp_cuda_rel}" MATCHES "^\\.\\.")
-      message(FATAL_ERROR
-        "${_acpp_cuda_var}: '${_acpp_cuda_dir}' is not inside '${CUDAToolkit_LIBRARY_ROOT}'. "
-        "The vendor unit deploys in the toolkit's own relative layout; a "
-        "directory outside the root has no place in it.")
-    endif()
-    set(${_acpp_cuda_var} "${_acpp_cuda_rel}")
-  endforeach()
+  list(GET CUDAToolkit_INCLUDE_DIRS 0 _acpp_cuda_incdir)
 
-  # Include directory: take the first element.
-  list(GET CUDAToolkit_INCLUDE_DIRS 0 _acpp_cuda_inc)
-  file(RELATIVE_PATH _acpp_cuda_inc_rel "${CUDAToolkit_LIBRARY_ROOT}" "${_acpp_cuda_inc}")
-  if("${_acpp_cuda_inc_rel}" STREQUAL "" OR "${_acpp_cuda_inc_rel}" MATCHES "^\\.\\.")
-    message(FATAL_ERROR
-      "ACPP_DISCOVERED_CUDA_INCDIR: '${_acpp_cuda_inc}' is not inside "
-      "'${CUDAToolkit_LIBRARY_ROOT}'.")
-  endif()
-  set(ACPP_DISCOVERED_CUDA_INCDIR "${_acpp_cuda_inc_rel}")
-
-  # libdevice: the generic JIT cannot target CUDA without it.
-  set(ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR
-      "${CUDAToolkit_LIBRARY_ROOT}/nvvm/libdevice")
-  if(NOT EXISTS "${ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR}/libdevice.10.bc")
+  # libdevice: the generic JIT cannot target CUDA without it. The toolkit's
+  # own root is a search hint here, not an asserted prefix - the common
+  # ancestor below is what the prefix actually becomes.
+  set(_acpp_cuda_libdevice_dir "${CUDAToolkit_LIBRARY_ROOT}/nvvm/libdevice")
+  if(NOT EXISTS "${_acpp_cuda_libdevice_dir}/libdevice.10.bc")
     message(FATAL_ERROR
       "The generic JIT cannot target CUDA without libdevice. Expected "
-      "${ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR}/libdevice.10.bc to exist.")
+      "${_acpp_cuda_libdevice_dir}/libdevice.10.bc to exist.")
   endif()
+
+  # The prefix is derived, not asserted: the common ancestor of every
+  # piece discovery actually found. A layout that does not match the
+  # toolkit's own convention (conda splits runtime libraries away from
+  # $CUDAToolkit_LIBRARY_ROOT/lib, for instance) still configures.
+  acpp_common_ancestor(ACPP_DISCOVERED_CUDA_PREFIX
+    "${CUDAToolkit_LIBRARY_DIR}"
+    "${CUDAToolkit_BIN_DIR}"
+    "${_acpp_cuda_incdir}"
+    "${_acpp_cuda_libdevice_dir}")
+
+  file(RELATIVE_PATH ACPP_DISCOVERED_CUDA_LIBDIR
+    "${ACPP_DISCOVERED_CUDA_PREFIX}" "${CUDAToolkit_LIBRARY_DIR}")
+  file(RELATIVE_PATH ACPP_DISCOVERED_CUDA_BINDIR
+    "${ACPP_DISCOVERED_CUDA_PREFIX}" "${CUDAToolkit_BIN_DIR}")
+  file(RELATIVE_PATH ACPP_DISCOVERED_CUDA_INCDIR
+    "${ACPP_DISCOVERED_CUDA_PREFIX}" "${_acpp_cuda_incdir}")
+  file(RELATIVE_PATH ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR
+    "${ACPP_DISCOVERED_CUDA_PREFIX}" "${_acpp_cuda_libdevice_dir}")
 else()
   set(ACPP_DISCOVERED_CUDA_FOUND OFF)
   set(ACPP_DISCOVERED_CUDA_PREFIX "")

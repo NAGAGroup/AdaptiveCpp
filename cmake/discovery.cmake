@@ -146,13 +146,16 @@ else()
     endif()
 
     # The device compiler: versioned name first, then the LLVM bin directory,
-    # then PATH.
-    find_program(ACPP_DISCOVERED_CLANG
+    # then PATH. The cache variable is upstream's own name, CLANG_EXECUTABLE_PATH,
+    # so a builder's -DCLANG_EXECUTABLE_PATH= works exactly as it would
+    # against upstream; ACPP_DISCOVERED_CLANG is our export of its result,
+    # not a second input.
+    find_program(CLANG_EXECUTABLE_PATH
       NAMES clang++-${LLVM_VERSION_MAJOR}
             clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
             clang++
       HINTS ${ACPP_DISCOVERED_LLVM_BINDIR})
-    if(NOT ACPP_DISCOVERED_CLANG OR ACPP_DISCOVERED_CLANG MATCHES "-NOTFOUND$")
+    if(NOT CLANG_EXECUTABLE_PATH OR CLANG_EXECUTABLE_PATH MATCHES "-NOTFOUND$")
       message(SEND_ERROR "Could not find clang executable")
     endif()
 
@@ -162,8 +165,10 @@ else()
     # the language from the file extension, since the msvcrt is linked
     # explicitly anyway.
     if(WIN32)
-      string(REPLACE "clang++.exe" "clang.exe" ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
+      string(REPLACE "clang++.exe" "clang.exe" CLANG_EXECUTABLE_PATH "${CLANG_EXECUTABLE_PATH}")
     endif()
+
+    set(ACPP_DISCOVERED_CLANG "${CLANG_EXECUTABLE_PATH}")
 
     # clang's resource directory - the JIT's HIP compilation reads it. An
     # installed LLVM that placed it elsewhere (CLANG_RESOURCE_DIR at its

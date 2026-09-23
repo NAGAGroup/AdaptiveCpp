@@ -11,6 +11,7 @@
 # the loader.
 
 include_guard(GLOBAL)
+include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
 
 find_library(ACPP_VK_LOADER_LIBRARY NAMES vulkan vulkan-1)
 find_path(ACPP_VK_INCLUDE_DIR NAMES vulkan/vulkan.h)
@@ -23,19 +24,11 @@ if(ACPP_VK_LOADER_LIBRARY AND NOT "${ACPP_VK_LOADER_LIBRARY}" MATCHES "-NOTFOUND
 
   get_filename_component(_acpp_vk_real "${ACPP_VK_LOADER_LIBRARY}" REALPATH)
   set(ACPP_DISCOVERED_VK_LOADER "${_acpp_vk_real}")
-
   get_filename_component(_acpp_vk_libdir "${_acpp_vk_real}" DIRECTORY)
-  get_filename_component(ACPP_DISCOVERED_VK_PREFIX "${_acpp_vk_libdir}" DIRECTORY)
 
-  file(RELATIVE_PATH _acpp_vk_rel "${ACPP_DISCOVERED_VK_PREFIX}" "${_acpp_vk_libdir}")
-  if("${_acpp_vk_rel}" STREQUAL "" OR "${_acpp_vk_rel}" MATCHES "^\\.\\.")
-    message(FATAL_ERROR
-      "ACPP_DISCOVERED_VK_LIBDIR: '${_acpp_vk_libdir}' is not inside "
-      "'${ACPP_DISCOVERED_VK_PREFIX}'. The vendor unit deploys in the "
-      "distribution's own relative layout; a directory outside the root "
-      "has no place in it.")
-  endif()
-  set(ACPP_DISCOVERED_VK_LIBDIR "${_acpp_vk_rel}")
+  acpp_common_ancestor(ACPP_DISCOVERED_VK_PREFIX "${_acpp_vk_libdir}")
+  file(RELATIVE_PATH ACPP_DISCOVERED_VK_LIBDIR
+    "${ACPP_DISCOVERED_VK_PREFIX}" "${_acpp_vk_libdir}")
 
   # Build-only: consumed by the runtime target's include directories and
   # link line, never written to the configuration.
