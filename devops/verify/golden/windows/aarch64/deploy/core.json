@@ -47,7 +47,6 @@
       "src": "{{ llvm-path }}/bin",
       "dest": "{{ llvm-deploy-path }}/bin",
       "files": [
-        "clang++.exe",
         "llc.exe",
         "opt.exe",
         "lld-link.exe"
@@ -59,14 +58,6 @@
       "dest": "{{ libomp-deploy-path }}",
       "files": [
         "SHARED_LIB:libomp"
-      ]
-    },
-    {
-      "build-mode": "toolchain",
-      "src": "{{ clang-include-path }}",
-      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
-      "files": [
-        "*"
       ]
     }
   ],

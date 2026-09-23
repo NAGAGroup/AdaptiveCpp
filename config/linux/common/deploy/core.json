@@ -47,7 +47,6 @@
       "src": "{{ llvm-path }}/bin",
       "dest": "{{ llvm-deploy-path }}/bin",
       "files": [
-        "clang++",
         "llc",
         "opt",
         "ld.lld"
@@ -67,14 +66,6 @@
       "dest": "{{ libomp-deploy-path }}",
       "files": [
         "SHARED_LIB:omp"
-      ]
-    },
-    {
-      "build-mode": "toolchain",
-      "src": "{{ clang-include-path }}",
-      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
-      "files": [
-        "*"
       ]
     }
   ],

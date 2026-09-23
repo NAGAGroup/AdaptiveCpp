@@ -16,6 +16,22 @@
       "files": ["libkernel-sscp-amdgpu-amdhsa-full.bc"]
     }
   ],
+  "llvm": [
+    {
+      "build-mode": "toolchain",
+      "unless": "hiprtc-link",
+      "src": "{{ llvm-path }}/bin",
+      "dest": "{{ llvm-deploy-path }}/bin",
+      "files": ["clang++"]
+    },
+    {
+      "build-mode": "toolchain",
+      "unless": "hiprtc-link",
+      "src": "{{ clang-include-path }}",
+      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
+      "files": ["*"]
+    }
+  ],
   "external-permissive": [
     {
       "src": "{{ hip-lib-path }}",
