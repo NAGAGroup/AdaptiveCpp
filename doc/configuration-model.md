@@ -7,6 +7,19 @@ mechanism, and how vendor libraries reach a deployed application. Source code
 that contradicts this document has a defect; this document does not compromise
 to match the source.
 
+## Fidelity and the prolog
+
+**Fidelity.** The fork adds no functionality except relocatability and the
+deployment mechanism; every backend's enable condition and discovery match
+upstream's. This keeps the fork a drop-in: a user who never asks about
+paths gets the toolchain upstream would have built.
+
+**The prolog.** Every fetch the build needs (`FetchContent`,
+`ExternalProject`) runs first, then discovery, then the options files;
+below that the tree only adds sources and install rules. A find has to be
+able to see what was fetched, and nothing may fetch once the options files
+have started reading discovery's exports.
+
 ## The source tree
 
 Configuration and manifests are source files split by platform, architecture
@@ -337,9 +350,9 @@ prefix-and-relative-path rule as the library units.
 
 **Flows without a vendor unit.** The omp flows carry no unit and no
 manifest: the CPU backend is internal and libomp is the LLVM unit's, both
-already in core's manifest. The flow contributes only the driver's link
-line and compile flags, per platform because the OpenMP flag is the
-platform's.
+already in core's manifest. Upstream's CPU backend is unconditionally
+built, so omp is core, not a vendor: the link line and compile flags live
+in each platform's core.cmake, because the OpenMP flag is the platform's.
 
 **Windows.** Vendor units on Windows hold their DLLs in the vendor's
 bin-relative directory (deployable) and their import libraries in the

@@ -105,21 +105,27 @@ not exist in the Python driver. The driver reads values and expands
 
 ### Wiring-slice obligations left by the OpenCL slice
 
-- Root `CMakeLists.txt`: `find_package(OpenCL QUIET)` at ~205-211 is
-  replaced by `discovery/ocl.cmake`'s `find_library`; the
-  `WITH_OPENCL_BACKEND` default from `OpenCL_FOUND` at ~235-243 becomes
-  `ACPP_DISCOVERED_OCL_FOUND`.
-- `src/runtime/CMakeLists.txt`: `rt-backend-ocl` links
-  `${ACPP_OCL_LOADER_LIBRARY}` (not `OpenCL::OpenCL`) and gains the
-  derived RUNPATH entry to `{{ ocl-deploy-path }}/{{ ocl-libdir }}`;
-  the `ocl-headers` and `ocl-cxx-headers` interface targets stay.
-- The FetchContent'd Khronos headers stay as they are (internal,
-  build-only).
+- Root `CMakeLists.txt`: `find_package(OpenCL QUIET)` at ~205-211 moves
+  into `discovery/ocl.cmake` unchanged in behaviour, still behind the
+  `WITH_SSCP_COMPILER` gate; the `WITH_OPENCL_BACKEND` default from
+  `OpenCL_FOUND` at ~235-243 becomes `ACPP_DISCOVERED_OCL_FOUND`.
+- `src/runtime/CMakeLists.txt`: the `FetchContent` blocks for
+  `ocl-headers` and `ocl-cxx-headers` move to `cmake/fetch.cmake`; the
+  `ocl-headers` and `ocl-cxx-headers` INTERFACE targets are created there
+  from `ACPP_FETCHED_OCL_HEADERS_DIR` and `ACPP_FETCHED_OCL_CXX_HEADERS_DIR`.
+  `rt-backend-ocl` keeps linking `${OpenCL_LIBRARIES}` (not a loader
+  variable of our own) and gains the derived RUNPATH entry to
+  `{{ ocl-deploy-path }}/{{ ocl-libdir }}`.
 - Deploy engine: `SHARED_LIB:<name>` resolves to `lib<name>.so` and the
   engine follows the symlink chain, so the dev symlink must exist in the
-  source directory, which is the same thing find_library needs at
-  configure; a loader-only system carrying just `libOpenCL.so.1` needs
+  source directory, which is the same thing `find_package(OpenCL)` needs
+  at configure; a loader-only system carrying just `libOpenCL.so.1` needs
   the engine to accept a soname when the dev symlink is absent.
+- Nightly question: on a macOS machine with only Apple's OpenCL
+  framework, confirm that `rt-backend-ocl` links (CL-HPP at
+  `CL_HPP_TARGET_OPENCL_VERSION` 210 calls `clCreateProgramWithIL`, which
+  the framework does not export); if it does not link, that is upstream's
+  behaviour too and why its macOS CI turns the backend off.
 
 ### Wiring-slice obligations left by the Level Zero slice
 
@@ -127,9 +133,14 @@ not exist in the Python driver. The driver reads values and expands
   NAMES ze_loader REQUIRED)` block and its comment naming
   `ACPP_ZE_LIB_PATH` and a vendor-asset gate that no longer exist are
   replaced by `discovery/ze.cmake`.
-- `WITH_LEVEL_ZERO_BACKEND` defaults from `ACPP_DISCOVERED_ZE_FOUND`
-  (upstream's opt-in existed because its find was `REQUIRED` and would
-  fail configure; a find that reports absence needs no guard).
+- `WITH_LEVEL_ZERO_BACKEND` defaults from `ACPP_DISCOVERED_ZE_FOUND`, on
+  only when discovery found the loader and
+  `ACPP_COMPILER_FEATURE_PROFILE` is neither `none` nor `minimal`,
+  matching the root's gate that forces SSCP for OpenCL or Level Zero
+  (f2600750 `CMakeLists.txt` 294-298). Upstream links `-lze_loader` by
+  hand (Level Zero ships no CMake package) and never gave the backend a
+  default; the `REQUIRED` `find_library` came from this branch
+  (`a33fbb1f`, a Windows link fix), not from upstream.
 - `src/runtime/CMakeLists.txt`: `rt-backend-ze` adds
   `target_include_directories(PRIVATE ${ACPP_DISCOVERED_ZE_INCLUDE_DIR})`
   and the derived RUNPATH entry to
@@ -144,8 +155,9 @@ not exist in the Python driver. The driver reads values and expands
 - Root `CMakeLists.txt` ~562-570 (`DEFAULT_OMP_FLAG`), ~693-743 (the
   `OMP_LINK_LINE` cache variable and its platform branches; the
   `SEQUENTIAL_*` siblings are already core's) and ~762-764
-  (`OMP_CXX_FLAGS`) are replaced by
-  `options/<platform>/<arch>/omp.cmake`.
+  (`OMP_CXX_FLAGS`) are replaced by core: the options now live in each
+  platform's `cmake/options/<platform>/common/core.cmake`, not a vendor
+  file, because upstream's CPU backend is unconditionally built.
 - `bin/acpp`'s `default-omp-link-line` and `default-omp-cxx-flags` reads
   fall under the general `default-` prefix row above.
 
@@ -227,3 +239,13 @@ not exist in the Python driver. The driver reads values and expands
   `config/<platform>/common/`, `config/<platform>/<arch>/` in that order;
   a duplicate key is a configure error.
 - `devops/verify/golden` is the reference the merge must reproduce.
+
+### Obligations on the deploy engine
+
+- The final deploy manifest is one merge of core's manifest and every
+  enabled vendor's manifest.
+- A configuration key duplicated across files is an error, matching the
+  configuration merge's rule.
+- Identical manifest rows collapse to one: the SPIR-V bitcode row is
+  identical between the `ocl` and `ze` manifests, and the engine must not
+  copy it twice.
