@@ -36,11 +36,18 @@
 #     through DT_NEEDED linkage or the LLVM unit's own RUNPATH, so no running
 #     application ever looks them up.
 #
-# A resource value is builder-overridable ONLY under `default`. Choosing any
-# other strategy is a commitment that this toolchain package contains what it
-# needs, so its paths follow from the deploy layout rather than being set one
-# at a time. Users of the installed toolchain can still override any of them
-# through the environment, at the moment they use it.
+# A VENDOR resource value (rule 3: assets we do not build) is
+# builder-overridable ONLY under `default`. Choosing any other strategy is a
+# commitment that this toolchain package contains what it needs, so its
+# paths follow from the deploy layout rather than being set one at a time.
+# Users of the installed toolchain can still override any of them through
+# the environment, at the moment they use it.
+#
+# What we build (rule 1) and, in plugin mode, the machine's own toolchain
+# pieces (rule 2) are not resources in this sense at all: the strategy does
+# not govern them. What we build always follows the deploy layout, in every
+# strategy; the machine's own pieces are always absolute, in every strategy.
+# See "Ownership" below.
 #
 # Guarded plain set(), never CACHE: an unguarded plain set() shadows a -D
 # cache entry so the builder's value stops being read, and DEFINED is true for
@@ -135,6 +142,13 @@ endmacro()
 # Single-sided by construction - no application ever reads these, so there is
 # no application-side value to compute. The discovery-variable rule is the
 # same as acpp_declare_resource's.
+#
+# This macro is for VENDOR resources only (rule 3): assets we do not build,
+# governed by ACPP_DEPLOYMENT_STRATEGY, -D-overridable under `default`. What
+# we build (rule 1) and what belongs to the machine in plugin mode (rule 2)
+# use acpp_declare_owned_resource / acpp_declare_owned_provenance and
+# acpp_declare_machine_resource below instead - ownership, not the
+# deployment strategy, decides those.
 macro(acpp_declare_provenance var discovered_var discovered relative)
   acpp_require_discovered(${discovered_var})
   acpp_default_strategy_only(${var})
@@ -148,6 +162,60 @@ macro(acpp_declare_provenance var discovered_var discovered relative)
     if(NOT DEFINED ${var})
       set(${var} "{{ toolchain-path }}/${relative}")
     endif()
+  endif()
+endmacro()
+
+# ---------------------------------------------------------------------------
+# Ownership (rule: what we build is ours, what we don't in plugin mode is
+# the machine's; only vendor plugins are governed by deployment strategy)
+# ---------------------------------------------------------------------------
+#
+# Two more shapes than acpp_declare_resource/acpp_declare_provenance, one for
+# each side of the ownership rule. Neither reads ACPP_DEPLOYMENT_STRATEGY,
+# and neither accepts a -D override through ACPP_TOOLCHAIN_*/ACPP_APP_*/the
+# provenance variable itself: a strategy is a commitment about assets we do
+# not build, and these entries name assets that are always ours to place or
+# always the machine's to have, regardless of which strategy was chosen.
+
+# Declare the two sides of a resource we build ourselves. Called only when
+# the caller has already established this is our own build output (toolchain
+# mode's LLVM pieces, or any platform's plugin-mode compiler plugin file):
+# both sides are always the deploy-layout placeholder, in every strategy
+# including `default`, because rule 1 says what we build is installed and
+# deployed with apps in every strategy. Override the deploy PATH the layout
+# is built on (ACPP_LLVM_DEPLOY_PATH etc.) if the tree differs; there is no
+# override for the resource value itself.
+macro(acpp_declare_owned_resource stem relative)
+  set(ACPP_TOOLCHAIN_${stem} "{{ toolchain-path }}/${relative}")
+  # \$ so cmake does not try to read $ACPP_PATH/{{ ... }} as a variable
+  # reference; the written value is a literal $ACPP_PATH.
+  set(ACPP_APP_${stem} "\$ACPP_PATH/${relative}")
+endmacro()
+
+# Declare a provenance entry for something we build ourselves: single-sided,
+# same reasoning as acpp_declare_owned_resource.
+macro(acpp_declare_owned_provenance var relative)
+  set(${var} "{{ toolchain-path }}/${relative}")
+endmacro()
+
+# Declare the two sides of a resource that belongs to the machine in plugin
+# mode (rule 2): both sides are the discovered absolute path, in every
+# strategy - nothing is deployed, so the JIT reaches the same machine copy
+# the driver does. Empty when discovery found nothing (a profile that builds
+# no plugin, decision d): that is not an error, it is the honest "this
+# toolchain has no plugin, so it has no plugin-side compiler either".
+# Override through the underlying find's own cache variable (upstream's
+# CLANG_EXECUTABLE_PATH is one such CACHE STRING), never through
+# ACPP_TOOLCHAIN_*/ACPP_APP_*: those names do not exist for a machine
+# resource, because there is nothing here for a publisher to commit to.
+macro(acpp_declare_machine_resource stem discovered_var discovered)
+  acpp_require_discovered(${discovered_var})
+  if("${${discovered_var}}" STREQUAL "" OR "${${discovered_var}}" MATCHES "-NOTFOUND$")
+    set(ACPP_TOOLCHAIN_${stem} "")
+    set(ACPP_APP_${stem} "")
+  else()
+    set(ACPP_TOOLCHAIN_${stem} "${discovered}")
+    set(ACPP_APP_${stem} "${discovered}")
   endif()
 endmacro()
 

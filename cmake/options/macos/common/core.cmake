@@ -7,34 +7,29 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
 
-# Where the LLVM unit lands. AdaptiveCpp comes in two shapes, and this is
-# the one options default that differs between them:
-#
-#   * linked into an LLVM toolchain we build - one prefix, one tree, and
-#     LLVM's bin and lib sit at its root: "."
-#   * a plugin added to an existing LLVM - the toolchain's own tree is ours
-#     alone, so a bundled LLVM unit travels under our library directory
-#
-# A publisher whose tree differs overrides this; the knob describes the tree
-# the publisher produces, and under `managed` - where the publisher assembles
-# the tree themselves - the override states where the bundled items actually
-# landed. LLVM travels whole either way: its binaries find libLLVM through
-# their own RUNPATH, so the bin-to-libdir relationship has to survive the
-# move.
+# Where the LLVM unit lands, in toolchain mode only - LLVM is ours there
+# (rule 1). In plugin mode LLVM is the machine's (rule 2): it is never
+# bundled, so this key is unused; it stays defined and empty.
 acpp_require_relative(ACPP_LLVM_DEPLOY_PATH)
 if(NOT DEFINED ACPP_LLVM_DEPLOY_PATH)
   if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
     set(ACPP_LLVM_DEPLOY_PATH ".")
   else()
-    set(ACPP_LLVM_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext")
+    set(ACPP_LLVM_DEPLOY_PATH "")
   endif()
 endif()
 
-# Where libomp lands. It defaults to travelling with LLVM, because LLVM's own
-# libomp is normally what we have.
+# Where libomp lands. In toolchain mode it is ours, travelling with LLVM. In
+# plugin mode it is a vendor plugin (rule 4) with no LLVM tree of its own to
+# travel with, so it deploys beside our own libraries, governed by
+# ACPP_DEPLOYMENT_STRATEGY.
 acpp_require_relative(ACPP_LIBOMP_DEPLOY_PATH)
 if(NOT DEFINED ACPP_LIBOMP_DEPLOY_PATH)
-  set(ACPP_LIBOMP_DEPLOY_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}")
+  if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+    set(ACPP_LIBOMP_DEPLOY_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}")
+  else()
+    set(ACPP_LIBOMP_DEPLOY_PATH "{{ acpp-libdir }}")
+  endif()
 endif()
 
 # Where the deploy step writes application configurations under `default`,
@@ -55,12 +50,16 @@ endif()
 # Provenance - where the deploy step copies from
 # ---------------------------------------------------------------------------
 #
-# Under the placeholder strategies the toolchain's own tree already has the
-# deployment's shape, so the source is our tree; under `default` it is
-# wherever this build found the thing.
+# LLVM and libomp split by ownership; see linux/common/core.cmake's comment,
+# unchanged here.
 
-acpp_declare_provenance(ACPP_LLVM_PATH ACPP_DISCOVERED_LLVM_PREFIX "${ACPP_DISCOVERED_LLVM_PREFIX}" "{{ llvm-deploy-path }}")
-acpp_declare_provenance(ACPP_LIBOMP_PATH ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}" "{{ libomp-deploy-path }}")
+if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+  acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ llvm-deploy-path }}")
+  acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ libomp-deploy-path }}")
+else()
+  set(ACPP_LLVM_PATH "")
+  acpp_declare_provenance(ACPP_LIBOMP_PATH ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}" "{{ libomp-deploy-path }}")
+endif()
 
 # No libnuma on macOS.
 
@@ -72,23 +71,33 @@ acpp_declare_provenance(ACPP_LIBOMP_PATH ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISC
 # which is exactly why it has two sides: the driver invokes it from the
 # toolchain while compiling, the JIT invokes it from the deployment while an
 # application runs, and those need not be the same binary.
+#
+# Ownership, not deployment strategy, decides which shape these take; see
+# linux/common/core.cmake's comment, unchanged here.
 
-acpp_declare_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}"
-                      "{{ llvm-deploy-path }}/bin/clang++")
-acpp_declare_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc"
-                      "{{ llvm-deploy-path }}/bin/llc")
-acpp_declare_resource(OPT ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/opt"
-                      "{{ llvm-deploy-path }}/bin/opt")
-# The host JIT links Mach-O with ld64.lld.
-acpp_declare_resource(LLD ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/ld64.lld"
-                      "{{ llvm-deploy-path }}/bin/ld64.lld")
-acpp_declare_resource(LLVMSPIRV ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llvm-spirv"
-                      "{{ llvm-deploy-path }}/bin/llvm-spirv")
+if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+  acpp_declare_owned_resource(DEVICE_CMPLR "{{ llvm-deploy-path }}/bin/clang++")
+  acpp_declare_owned_resource(LLC "{{ llvm-deploy-path }}/bin/llc")
+  acpp_declare_owned_resource(OPT "{{ llvm-deploy-path }}/bin/opt")
+  # The host JIT links Mach-O with ld64.lld.
+  acpp_declare_owned_resource(LLD "{{ llvm-deploy-path }}/bin/ld64.lld")
+  # clang's resource include directory. The JIT's HIP compilation needs it,
+  # so it has two sides like the compiler itself.
+  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include")
+else()
+  acpp_declare_machine_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
+  acpp_declare_machine_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc")
+  acpp_declare_machine_resource(OPT ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/opt")
+  acpp_declare_machine_resource(LLD ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/ld64.lld")
+  acpp_declare_machine_resource(CLANG_INCLUDE_PATH ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_DISCOVERED_CLANG_INCLUDE}")
+endif()
 
-# clang's resource include directory. The JIT's HIP compilation needs it, so
-# it has two sides like the compiler itself.
-acpp_declare_resource(CLANG_INCLUDE_PATH ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_DISCOVERED_CLANG_INCLUDE}"
-  "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include")
+# llvm-spirv is not LLVM's: AdaptiveCpp builds its own fork of the
+# SPIRV-LLVM-Translator and installs it under its own library directory
+# (doc/install-ocl.md), independent of {{ llvm-deploy-path }}. Ours in
+# BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
+# not - always the deploy-layout placeholder, in every strategy.
+acpp_declare_owned_resource(LLVMSPIRV "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 
 # No vector math libraries on macOS: upstream supports none for the JIT on
 # this platform.
@@ -97,30 +106,23 @@ acpp_declare_resource(CLANG_INCLUDE_PATH ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_D
 # Driver-only resources
 # ---------------------------------------------------------------------------
 
-# The host C++ compiler the driver invokes for CPU code. May be gcc, or
-# anything else with an OpenMP implementation - it does not have to be clang.
-# Driver-only, so it has no application side; but it takes the same shape,
-# because under the placeholder strategies the publisher has undertaken to
-# provide a complete toolchain and it makes no sense for the host compiler to
-# come from somewhere else.
-acpp_default_strategy_only(ACPP_CPU_CXX)
-if(NOT DEFINED ACPP_CPU_CXX)
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND CMAKE_CXX_COMPILER)
-    set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
-  else()
-    set(ACPP_CPU_CXX "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++")
-  endif()
+# The host C++ compiler the driver invokes for CPU code. Ownership, not
+# strategy, decides its shape; see linux/common/core.cmake's comment,
+# unchanged here.
+if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+  set(ACPP_CPU_CXX "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++")
+else()
+  set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
 endif()
 
-# The compiler plugin, in plugin builds only. When AdaptiveCpp is linked into
-# the LLVM tools there is no plugin file and the driver emits no plugin flags.
-# The driver currently hardcodes "lib" when building this path, which is wrong
-# on any lib64 distribution; this entry is what those sites should read.
+# The compiler plugin, in plugin builds only. Ours, always the
+# deploy-layout placeholder, no override - see linux's comment. When
+# AdaptiveCpp is linked into the LLVM tools there is no plugin file and the
+# driver emits no plugin flags. The driver currently hardcodes "lib" when
+# building this path, which is wrong on any lib64 distribution; this entry
+# is what those sites should read.
 if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_default_strategy_only(ACPP_PLUGIN_PATH)
-  if(NOT DEFINED ACPP_PLUGIN_PATH)
-    set(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ acpp-libdir }}/libacpp-clang.so")
-  endif()
+  set(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ acpp-libdir }}/libacpp-clang.so")
 endif()
 
 # No vector math on macOS; the default is "none".
@@ -132,8 +134,22 @@ endif()
 # Driver behaviour - platform-specific defaults
 # ---------------------------------------------------------------------------
 
+# Upstream's DEFAULT_OMP_FLAG: AppleClang needs -Xclang to pass -fopenmp
+# through to the frontend. In toolchain mode we build our own clang, which
+# is never AppleClang, so the flag is plain; in plugin mode the flag
+# depends on CMAKE_CXX_COMPILER_ID, the machine's bootstrap compiler (the
+# one AdaptiveCpp itself was built with) - upstream's exact rule, kept.
+if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+  set(_acpp_omp_flag "-fopenmp")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  set(_acpp_omp_flag "-Xclang -fopenmp")
+else()
+  set(_acpp_omp_flag "-fopenmp")
+endif()
+
 # On macOS clang does not find libomp on its own, so the sequential link
-# line names the directory.
+# line names the directory. {{ libomp-path }} resolves per the ownership
+# split above, so this one formula already covers both build modes.
 if(NOT DEFINED ACPP_SEQUENTIAL_LINK_LINE)
   set(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-path }} -lomp")
 endif()
@@ -144,11 +160,11 @@ endif()
 # so the omp link line names the directory too, unlike the other
 # platforms; the multipass exemption still applies to rpath.
 if(NOT DEFINED ACPP_OMP_LINK_LINE)
-  set(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
+  set(ACPP_OMP_LINK_LINE "${_acpp_omp_flag} -L{{ libomp-path }} -lomp")
 endif()
 
 # -D_ENABLE_EXTENDED_ALIGNED_STORAGE is needed for correctly aligned local
 # memory on CPU.
 if(NOT DEFINED ACPP_OMP_CXX_FLAGS)
-  set(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
+  set(ACPP_OMP_CXX_FLAGS "${_acpp_omp_flag} -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
 endif()

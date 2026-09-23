@@ -79,68 +79,108 @@ else()
   # LLVM_DIR must name an INSTALLED LLVM's cmake export. A config exported
   # from a build tree answers with build-tree locations, which are not
   # install-time facts.
-
-  set(_acpp_llvm_dir_old "${LLVM_DIR}")
-  find_package(LLVM CONFIG REQUIRED)
-  if(_acpp_llvm_dir_old AND NOT "${_acpp_llvm_dir_old}" STREQUAL "${LLVM_DIR}")
-    message(WARNING
-      "Could not find LLVM in the requested location LLVM_DIR=${_acpp_llvm_dir_old}; using ${LLVM_DIR}.")
+  #
+  # Upstream only builds the plugin (BUILD_CLANG_PLUGIN) when a feature
+  # that needs it is on; under ACPP_COMPILER_FEATURE_PROFILE "none" - its
+  # own default outside an LLVM build on macOS and Windows - none are, so
+  # there is no plugin and nothing to find. This mirrors that one case
+  # (profile "none") rather than upstream's whole BUILD_CLANG_PLUGIN state
+  # machine, which also turns on per-backend (CUDA, ROCm, OpenCL/Level
+  # Zero); those triggers are not replicated here.
+  #
+  # The root already computes ACPP_COMPILER_FEATURE_PROFILE as a CACHE
+  # STRING (CMakeLists.txt ~131-143) before this file would ever run in
+  # the wired build, so it is always DEFINED by the time we get here. This
+  # fallback is for exercising discovery.cmake on its own, ahead of that -
+  # a harness, say: upstream's own default rule, simplified to the case
+  # this branch can reach (ACPP_LLVM_COMPONENT is never true here), and
+  # uncached - the options side still owns the cache entry once one exists.
+  if(NOT DEFINED ACPP_COMPILER_FEATURE_PROFILE)
+    if(APPLE OR WIN32)
+      set(ACPP_COMPILER_FEATURE_PROFILE "none")
+    else()
+      set(ACPP_COMPILER_FEATURE_PROFILE "full")
+    endif()
   endif()
 
-  set(ACPP_DISCOVERED_LLVM_BINDIR "${LLVM_TOOLS_BINARY_DIR}")
-  get_filename_component(ACPP_DISCOVERED_LLVM_PREFIX
-    "${ACPP_DISCOVERED_LLVM_BINDIR}" DIRECTORY)
-  if(NOT ACPP_DISCOVERED_LLVM_PREFIX OR ACPP_DISCOVERED_LLVM_PREFIX STREQUAL "/")
-    message(FATAL_ERROR
-      "LLVM_TOOLS_BINARY_DIR ('${LLVM_TOOLS_BINARY_DIR}') does not look like "
-      "an installed LLVM's bin directory; is LLVM_DIR pointing at a build "
-      "tree?")
-  endif()
+  if(ACPP_COMPILER_FEATURE_PROFILE STREQUAL "none")
+    set(ACPP_DISCOVERED_LLVM_BINDIR "")
+    set(ACPP_DISCOVERED_LLVM_PREFIX "")
+    set(ACPP_DISCOVERED_LLVM_LIBDIR "")
+    set(ACPP_DISCOVERED_CLANG "")
+    set(ACPP_DISCOVERED_CLANG_INCLUDE "")
+  else()
+    set(_acpp_llvm_dir_old "${LLVM_DIR}")
+    find_package(LLVM CONFIG REQUIRED)
+    if(_acpp_llvm_dir_old AND NOT "${_acpp_llvm_dir_old}" STREQUAL "${LLVM_DIR}")
+      message(WARNING
+        "Could not find LLVM in the requested location LLVM_DIR=${_acpp_llvm_dir_old}; using ${LLVM_DIR}.")
+    endif()
 
-  file(RELATIVE_PATH ACPP_DISCOVERED_LLVM_LIBDIR
-    "${ACPP_DISCOVERED_LLVM_PREFIX}" "${LLVM_LIBRARY_DIRS}")
-  if(ACPP_DISCOVERED_LLVM_LIBDIR STREQUAL "")
-    message(FATAL_ERROR
-      "LLVM_LIBRARY_DIRS ('${LLVM_LIBRARY_DIRS}') is not inside the LLVM "
-      "prefix ('${ACPP_DISCOVERED_LLVM_PREFIX}').")
-  endif()
+    set(ACPP_DISCOVERED_LLVM_BINDIR "${LLVM_TOOLS_BINARY_DIR}")
+    get_filename_component(ACPP_DISCOVERED_LLVM_PREFIX
+      "${ACPP_DISCOVERED_LLVM_BINDIR}" DIRECTORY)
+    if(NOT ACPP_DISCOVERED_LLVM_PREFIX OR ACPP_DISCOVERED_LLVM_PREFIX STREQUAL "/")
+      message(FATAL_ERROR
+        "LLVM_TOOLS_BINARY_DIR ('${LLVM_TOOLS_BINARY_DIR}') does not look like "
+        "an installed LLVM's bin directory; is LLVM_DIR pointing at a build "
+        "tree?")
+    endif()
 
-  find_path(CLANG_AST_HEADER_DIR NAMES clang/AST/ASTContext.h
-    PATHS ${LLVM_INCLUDE_DIRS})
-  if(NOT CLANG_AST_HEADER_DIR)
-    message(WARNING
-      "AdaptiveCpp requires clang development headers, but they were not "
-      "found.\n"
-      "You might need to install the clang development package "
-      "(e.g. libclang-dev).")
-  endif()
+    file(RELATIVE_PATH ACPP_DISCOVERED_LLVM_LIBDIR
+      "${ACPP_DISCOVERED_LLVM_PREFIX}" "${LLVM_LIBRARY_DIRS}")
+    if(ACPP_DISCOVERED_LLVM_LIBDIR STREQUAL "")
+      message(FATAL_ERROR
+        "LLVM_LIBRARY_DIRS ('${LLVM_LIBRARY_DIRS}') is not inside the LLVM "
+        "prefix ('${ACPP_DISCOVERED_LLVM_PREFIX}').")
+    endif()
 
-  # The device compiler: versioned name first, then the LLVM bin directory,
-  # then PATH.
-  find_program(ACPP_DISCOVERED_CLANG
-    NAMES clang++-${LLVM_VERSION_MAJOR}
-          clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
-          clang++
-    HINTS ${ACPP_DISCOVERED_LLVM_BINDIR})
-  if(NOT ACPP_DISCOVERED_CLANG OR ACPP_DISCOVERED_CLANG MATCHES "-NOTFOUND$")
-    message(SEND_ERROR "Could not find clang executable")
-  endif()
+    find_path(CLANG_AST_HEADER_DIR NAMES clang/AST/ASTContext.h
+      PATHS ${LLVM_INCLUDE_DIRS})
+    if(NOT CLANG_AST_HEADER_DIR)
+      message(WARNING
+        "AdaptiveCpp requires clang development headers, but they were not "
+        "found.\n"
+        "You might need to install the clang development package "
+        "(e.g. libclang-dev).")
+    endif()
 
-  # clang's resource directory - the JIT's HIP compilation reads it. An
-  # installed LLVM that placed it elsewhere (CLANG_RESOURCE_DIR at its
-  # build) is not discoverable from its cmake exports; the escape hatch is
-  # the clang-include-path environment variable.
-  find_path(ACPP_DISCOVERED_CLANG_INCLUDE __clang_cuda_runtime_wrapper.h
-    HINTS
-      ${ACPP_DISCOVERED_LLVM_PREFIX}/${ACPP_DISCOVERED_LLVM_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include
-      ${ACPP_DISCOVERED_LLVM_PREFIX}/lib64/clang/${LLVM_VERSION_MAJOR}/include
-      ${ACPP_DISCOVERED_LLVM_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include)
-  if(NOT ACPP_DISCOVERED_CLANG_INCLUDE)
-    message(SEND_ERROR
-      "clang's resource include directory was not found under the LLVM "
-      "prefix ${ACPP_DISCOVERED_LLVM_PREFIX}. The JIT's HIP compilation "
-      "needs it; install clang's resource files or point discovery at an "
-      "LLVM that carries them.")
+    # The device compiler: versioned name first, then the LLVM bin directory,
+    # then PATH.
+    find_program(ACPP_DISCOVERED_CLANG
+      NAMES clang++-${LLVM_VERSION_MAJOR}
+            clang++-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
+            clang++
+      HINTS ${ACPP_DISCOVERED_LLVM_BINDIR})
+    if(NOT ACPP_DISCOVERED_CLANG OR ACPP_DISCOVERED_CLANG MATCHES "-NOTFOUND$")
+      message(SEND_ERROR "Could not find clang executable")
+    endif()
+
+    # Upstream's swap, kept exactly: the plugin links against clang.exe, not
+    # clang++.exe - using clang++.exe would clash symbols and the plugin
+    # would not load. On Windows this is fine as long as clang can deduce
+    # the language from the file extension, since the msvcrt is linked
+    # explicitly anyway.
+    if(WIN32)
+      string(REPLACE "clang++.exe" "clang.exe" ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
+    endif()
+
+    # clang's resource directory - the JIT's HIP compilation reads it. An
+    # installed LLVM that placed it elsewhere (CLANG_RESOURCE_DIR at its
+    # build) is not discoverable from its cmake exports; the escape hatch is
+    # the clang-include-path environment variable.
+    find_path(ACPP_DISCOVERED_CLANG_INCLUDE __clang_cuda_runtime_wrapper.h
+      HINTS
+        ${ACPP_DISCOVERED_LLVM_PREFIX}/${ACPP_DISCOVERED_LLVM_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include
+        ${ACPP_DISCOVERED_LLVM_PREFIX}/lib64/clang/${LLVM_VERSION_MAJOR}/include
+        ${ACPP_DISCOVERED_LLVM_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include)
+    if(NOT ACPP_DISCOVERED_CLANG_INCLUDE)
+      message(SEND_ERROR
+        "clang's resource include directory was not found under the LLVM "
+        "prefix ${ACPP_DISCOVERED_LLVM_PREFIX}. The JIT's HIP compilation "
+        "needs it; install clang's resource files or point discovery at an "
+        "LLVM that carries them.")
+    endif()
   endif()
 
   # libomp: whatever this toolchain links against. FindOpenMP answers for
