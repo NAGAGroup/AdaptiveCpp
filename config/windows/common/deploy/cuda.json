@@ -1,49 +1,54 @@
 {
   "internal": [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL",
+      "src": "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL",
       "dest": "{{ acpp-bindir }}/hipSYCL",
       "files": ["SHARED_LIB:rt-backend-cuda"]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "src": "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
       "dest": "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
       "files": ["SHARED_LIB:llvm-to-ptx"]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
       "files": ["libkernel-sscp-ptx-full.bc"]
     }
   ],
   "external-nonpermissive": [
     {
-      "src": "{{ cuda-bin-path }}",
-      "dest": "{{ cuda-deploy-path }}/{{ cuda-bindir }}",
+      "src": "{{ cuda-install-root }}/{{ cuda-bin-subdir }}",
+      "dest": "{{ cuda-subdir }}/{{ cuda-bin-subdir }}",
       "files": ["SHARED_LIB:cudart64_{{ cuda-version-major }}"]
     },
     {
-      "src": "{{ cuda-libdevice-dir }}",
-      "dest": "{{ cuda-deploy-path }}/nvvm/libdevice",
+      "src": "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}",
+      "dest": "{{ cuda-subdir }}/nvvm/libdevice",
       "files": ["libdevice.10.bc"]
     },
     {
-      "src": "{{ cuda-include-path }}",
-      "dest": "{{ cuda-deploy-path }}/{{ cuda-incdir }}",
+      "src": "{{ cuda-install-root }}/{{ cuda-include-subdir }}",
+      "dest": "{{ cuda-subdir }}/{{ cuda-include-subdir }}",
       "files": ["*"],
       "toolchain-only": true
     },
     {
-      "src": "{{ cuda-lib-path }}",
-      "dest": "{{ cuda-deploy-path }}/{{ cuda-libdir }}",
+      "src": "{{ cuda-install-root }}/{{ cuda-rt-subdir }}",
+      "dest": "{{ cuda-subdir }}/{{ cuda-rt-subdir }}",
       "files": ["cudart.lib"],
       "toolchain-only": true
     },
     {
-      "src": "{{ cuda-bin-path }}",
-      "dest": "{{ cuda-deploy-path }}/{{ cuda-bindir }}",
+      "src": "{{ cuda-install-root }}/{{ cuda-bin-subdir }}",
+      "dest": "{{ cuda-subdir }}/{{ cuda-bin-subdir }}",
       "files": ["ptxas.exe", "fatbinary.exe"],
       "toolchain-only": true
     }
+  ],
+
+  "app-config": [
+    {"var": "ACPP_CUDA_LIBDEVICE_DIR", "value": "@ACPP_APP_CUDA_LIBDEVICE_SUBDIR@", "runtime-configurable": true},
+    {"var": "ACPP_CUDA_DLL_DIR", "value": "@ACPP_APP_CUDA_BIN_SUBDIR@", "runtime-configurable": true}
   ]
 }

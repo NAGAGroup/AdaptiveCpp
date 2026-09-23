@@ -1,5 +1,11 @@
 {
   "acpp-bindir": {
     "value": "@CMAKE_INSTALL_BINDIR@"
+  },
+  "libomp-subdir": {
+    "value": "@ACPP_LIBOMP_SUBDIR@"
+  },
+  "libomp-install-root": {
+    "value": "@ACPP_LIBOMP_INSTALL_ROOT@"
   }
 }
