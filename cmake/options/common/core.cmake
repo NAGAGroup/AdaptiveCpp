@@ -36,22 +36,25 @@
 #     through DT_NEEDED linkage or the LLVM unit's own RUNPATH, so no running
 #     application ever looks them up.
 #
-# A VENDOR resource value (rule 3: assets we do not build) is
-# builder-overridable ONLY under `default`. Choosing any other strategy is a
-# commitment that this toolchain package contains what it needs, so its
-# paths follow from the deploy layout rather than being set one at a time.
-# Users of the installed toolchain can still override any of them through
-# the environment, at the moment they use it.
+# A VENDOR unit (rule 3: assets we do not build) is steered at configure
+# time by exactly two packager knobs: the find's own hints (CUDAToolkit_ROOT,
+# LLVM_DIR, OpenCL_LIBRARY, WITH_*_BACKEND - never named here, they belong to
+# discovery) and one install subdirectory, ACPP_<VENDOR>_SUBDIR. After
+# discovery and that one knob, everything else about the vendor is derived:
+# there is no per-resource -D override, in any strategy. A user of the
+# installed toolchain can still override any entry through the environment,
+# at the moment they use it - unchanged.
 #
 # What we build (rule 1) and, in plugin mode, the machine's own toolchain
-# pieces (rule 2) are not resources in this sense at all: the strategy does
-# not govern them. What we build always follows the deploy layout, in every
-# strategy; the machine's own pieces are always absolute, in every strategy.
-# See "Ownership" below.
+# pieces (rule 2) are not vendor units at all: the strategy does not govern
+# them. What we build always follows cmake's own install directories, in
+# every strategy; the machine's own pieces are always absolute, in every
+# strategy. See "Ownership" below.
 #
-# Guarded plain set(), never CACHE: an unguarded plain set() shadows a -D
-# cache entry so the builder's value stops being read, and DEFINED is true for
-# a cache entry as well, so the guard lets -D win.
+# Guarded plain set(), never CACHE, for everything that is not itself a
+# packager knob: an unguarded plain set() shadows a -D cache entry so the
+# builder's value stops being read, and DEFINED is true for a cache entry as
+# well, so the guard lets -D win.
 
 include_guard(GLOBAL)
 
@@ -59,8 +62,8 @@ include_guard(GLOBAL)
 # Helpers
 # ---------------------------------------------------------------------------
 
-# A deploy path is relative to the install root by construction. An absolute
-# one would produce a toolchain that claims to be relocatable and is not.
+# A subdir is relative to the install root by construction. An absolute one,
+# or one carrying the root itself, would stop being a pure subdirectory.
 function(acpp_require_relative name)
   if(DEFINED ${name})
     if(IS_ABSOLUTE "${${name}}")
@@ -68,24 +71,11 @@ function(acpp_require_relative name)
         "${name} is a location inside a deployment and must be relative to "
         "its root.")
     endif()
-    if("${${name}}" MATCHES "\\$ACPP_PATH")
+    if("${${name}}" MATCHES "\\$ACPP_RUNTIME_ROOT")
       message(FATAL_ERROR
-        "${name} must not contain \$ACPP_PATH; it is prepended where needed.")
+        "${name} must not contain \$ACPP_RUNTIME_ROOT; it is prepended "
+        "where needed.")
     endif()
-  endif()
-endfunction()
-
-# Refuse a resource value outside `default`, and say where the real knob is.
-function(acpp_default_strategy_only name)
-  if(DEFINED ${name} AND NOT ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
-    message(FATAL_ERROR
-      "-D${name} is only accepted under the `default` deployment strategy.\n"
-      "Choosing ${ACPP_DEPLOYMENT_STRATEGY} is a commitment that this "
-      "toolchain package contains what it needs, so individual paths follow "
-      "from the deploy layout - set ACPP_LLVM_DEPLOY_PATH or "
-      "ACPP_LIBOMP_DEPLOY_PATH instead.\n"
-      "A user of the installed toolchain can still override this through its "
-      "environment variable.")
   endif()
 endfunction()
 
@@ -107,34 +97,27 @@ endfunction()
 #
 # Under `default` both are the discovered absolute path: nothing is deployed,
 # so an application uses the toolchain's own copy. Under the other strategies
-# they are the same relative location seen from two roots - the toolchain's
-# when driving, the deployment's when running.
+# they are the same relative location seen from two roots - {{ acpp-root }}
+# when the driver is compiling, from the toolchain; the literal
+# $ACPP_RUNTIME_ROOT the C++ runtime resolves at its own run time, from
+# wherever the deployment has ended up.
 #
 # `discovered_var` names the discovery variable the value came from - for the
 # LLVM executables that is the tools directory, and `discovered` joins the
-# file name onto its value.
+# file name onto its value. No -D override of the result exists; see the
+# file header.
 macro(acpp_declare_resource stem discovered_var discovered relative)
   acpp_require_discovered(${discovered_var})
-  acpp_default_strategy_only(ACPP_TOOLCHAIN_${stem})
-  acpp_default_strategy_only(ACPP_APP_${stem})
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
       AND NOT "${discovered}" STREQUAL ""
       AND NOT "${discovered}" MATCHES "-NOTFOUND$")
-    if(NOT DEFINED ACPP_TOOLCHAIN_${stem})
-      set(ACPP_TOOLCHAIN_${stem} "${discovered}")
-    endif()
-    if(NOT DEFINED ACPP_APP_${stem})
-      set(ACPP_APP_${stem} "${discovered}")
-    endif()
+    set(ACPP_TOOLCHAIN_${stem} "${discovered}")
+    set(ACPP_APP_${stem} "${discovered}")
   else()
-    if(NOT DEFINED ACPP_TOOLCHAIN_${stem})
-      set(ACPP_TOOLCHAIN_${stem} "{{ toolchain-path }}/${relative}")
-    endif()
-    if(NOT DEFINED ACPP_APP_${stem})
-      # \$ so cmake does not try to read $ACPP_PATH/{{ ... }} as a variable
-      # reference; the written value is a literal $ACPP_PATH.
-      set(ACPP_APP_${stem} "\$ACPP_PATH/${relative}")
-    endif()
+    set(ACPP_TOOLCHAIN_${stem} "{{ acpp-root }}/${relative}")
+    # \$ so cmake does not try to read $ACPP_RUNTIME_ROOT/{{ ... }} as a
+    # variable reference; the written value is a literal $ACPP_RUNTIME_ROOT.
+    set(ACPP_APP_${stem} "\$ACPP_RUNTIME_ROOT/${relative}")
   endif()
 endmacro()
 
@@ -143,25 +126,104 @@ endmacro()
 # no application-side value to compute. The discovery-variable rule is the
 # same as acpp_declare_resource's.
 #
-# This macro is for VENDOR resources only (rule 3): assets we do not build,
-# governed by ACPP_DEPLOYMENT_STRATEGY, -D-overridable under `default`. What
-# we build (rule 1) and what belongs to the machine in plugin mode (rule 2)
-# use acpp_declare_owned_resource / acpp_declare_owned_provenance and
-# acpp_declare_machine_resource below instead - ownership, not the
+# This macro is for VENDOR resources only (rule 3): assets we do not build.
+# What we build (rule 1) and what belongs to the machine in plugin mode
+# (rule 2) use acpp_declare_owned_resource / acpp_declare_owned_provenance
+# and acpp_declare_machine_resource below instead - ownership, not the
 # deployment strategy, decides those.
 macro(acpp_declare_provenance var discovered_var discovered relative)
   acpp_require_discovered(${discovered_var})
-  acpp_default_strategy_only(${var})
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default"
       AND NOT "${discovered}" STREQUAL ""
       AND NOT "${discovered}" MATCHES "-NOTFOUND$")
-    if(NOT DEFINED ${var})
-      set(${var} "${discovered}")
-    endif()
+    set(${var} "${discovered}")
   else()
-    if(NOT DEFINED ${var})
-      set(${var} "{{ toolchain-path }}/${relative}")
+    set(${var} "{{ acpp-root }}/${relative}")
+  endif()
+endmacro()
+
+# ---------------------------------------------------------------------------
+# Vendor units: two knobs, everything else derived
+# ---------------------------------------------------------------------------
+#
+# Every vendor unit - cuda, nvhpc, hip, ocl, ze, vk, clspv, and the
+# vendor-plugin libraries (libomp in plugin mode, sleef, amath, svml/intlc,
+# libnuma) - gets exactly one packager knob beyond what its own discovery
+# steers: ACPP_<STEM>_SUBDIR, a pure subdirectory with no root in it,
+# resolved at configure time like CMAKE_INSTALL_LIBDIR itself, never
+# deferred to a {{ }} placeholder. The default is
+# <CMAKE_INSTALL_LIBDIR>/hipSYCL/ext/<lower> (Windows:
+# CMAKE_INSTALL_BINDIR-based, matching where the rest of what we install
+# already lands); an explicitly empty string installs straight at the root -
+# the conda case, where the packager's own layout already scopes it.
+
+macro(acpp_declare_vendor_subdir stem lower)
+  if(NOT DEFINED ACPP_${stem}_SUBDIR)
+    if(WIN32)
+      set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/${lower}"
+        CACHE STRING
+        "Install subdirectory for the ${lower} vendor unit, relative to the install root. Empty installs straight at the root (e.g. a conda build).")
+    else()
+      set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/${lower}"
+        CACHE STRING
+        "Install subdirectory for the ${lower} vendor unit, relative to the install root. Empty installs straight at the root (e.g. a conda build).")
     endif()
+  endif()
+  acpp_require_relative(ACPP_${stem}_SUBDIR)
+endmacro()
+
+# Declare "<lower>-install-root": where the driver finds the vendor. Under
+# `default`, the discovered absolute prefix. Under managed/full, identical
+# in both - {{ acpp-root }}/{{ <lower>-subdir }} - because `managed` differs
+# from `full` only in whether cmake copies the vendor in, never in what the
+# driver is told to expect. Driver-only: nothing here is a two-sided
+# resource, because the root by itself names no file an application reads;
+# its subdirs (below) do that.
+macro(acpp_declare_vendor_root stem lower discovered_var discovered)
+  acpp_require_discovered(${discovered_var})
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
+    set(ACPP_${stem}_INSTALL_ROOT "${discovered}")
+  else()
+    set(ACPP_${stem}_INSTALL_ROOT "{{ acpp-root }}/{{ ${lower}-subdir }}")
+  endif()
+endmacro()
+
+# Declare one vendor-relative subdir fact, "<lower>-<x>-subdir": always the
+# relative fact discovery found, in every strategy - it describes the
+# vendor's own internal layout, not where we chose to put the vendor, so
+# nothing here branches on ACPP_DEPLOYMENT_STRATEGY. A link line composes
+# this with the vendor root itself where an absolute answer is needed.
+macro(acpp_declare_vendor_subdir_fact stem x discovered_var discovered)
+  acpp_require_discovered(${discovered_var})
+  set(ACPP_${stem}_${x}_SUBDIR "${discovered}")
+endmacro()
+
+# Declare the application-config value for one vendor subdir fact (D7): what
+# a deployed app's own configuration carries for this location. Under
+# `default` the application runs against the same discovered vendor install
+# the driver found, so the value already resolves absolute via the driver's
+# own {{ }} entries. Otherwise it is composed from the literal
+# $ACPP_RUNTIME_ROOT the C++ runtime resolves at its own run time, matching
+# where the manifest's copy rows actually deploy the vendor.
+macro(acpp_declare_vendor_app_subdir stem lower x)
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
+    set(ACPP_APP_${stem}_${x}_SUBDIR
+      "{{ ${lower}-install-root }}/{{ ${lower}-${x}-subdir }}")
+  else()
+    set(ACPP_APP_${stem}_${x}_SUBDIR
+      "\$ACPP_RUNTIME_ROOT/{{ ${lower}-subdir }}/{{ ${lower}-${x}-subdir }}")
+  endif()
+endmacro()
+
+# The same, for a vendor unit with no internal breakdown - a single library
+# with no separate lib/include/bin split (libomp in plugin mode, sleef,
+# amath, svml/intlc, libnuma): its own install root is the whole answer, so
+# there is no "<x>-subdir" to compose in.
+macro(acpp_declare_vendor_app_root stem lower)
+  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
+    set(ACPP_APP_${stem}_INSTALL_ROOT "{{ ${lower}-install-root }}")
+  else()
+    set(ACPP_APP_${stem}_INSTALL_ROOT "\$ACPP_RUNTIME_ROOT/{{ ${lower}-subdir }}")
   endif()
 endmacro()
 
@@ -182,20 +244,20 @@ endmacro()
 # mode's LLVM pieces, or any platform's plugin-mode compiler plugin file):
 # both sides are always the deploy-layout placeholder, in every strategy
 # including `default`, because rule 1 says what we build is installed and
-# deployed with apps in every strategy. Override the deploy PATH the layout
-# is built on (ACPP_LLVM_DEPLOY_PATH etc.) if the tree differs; there is no
-# override for the resource value itself.
+# deployed with apps in every strategy. What we build follows cmake's own
+# install directories under {{ acpp-root }} - there is no separate deploy-path
+# knob for it, and no override for the resource value itself.
 macro(acpp_declare_owned_resource stem relative)
-  set(ACPP_TOOLCHAIN_${stem} "{{ toolchain-path }}/${relative}")
-  # \$ so cmake does not try to read $ACPP_PATH/{{ ... }} as a variable
-  # reference; the written value is a literal $ACPP_PATH.
-  set(ACPP_APP_${stem} "\$ACPP_PATH/${relative}")
+  set(ACPP_TOOLCHAIN_${stem} "{{ acpp-root }}/${relative}")
+  # \$ so cmake does not try to read $ACPP_RUNTIME_ROOT/{{ ... }} as a
+  # variable reference; the written value is a literal $ACPP_RUNTIME_ROOT.
+  set(ACPP_APP_${stem} "\$ACPP_RUNTIME_ROOT/${relative}")
 endmacro()
 
 # Declare a provenance entry for something we build ourselves: single-sided,
 # same reasoning as acpp_declare_owned_resource.
 macro(acpp_declare_owned_provenance var relative)
-  set(${var} "{{ toolchain-path }}/${relative}")
+  set(${var} "{{ acpp-root }}/${relative}")
 endmacro()
 
 # Declare the two sides of a resource that belongs to the machine in plugin

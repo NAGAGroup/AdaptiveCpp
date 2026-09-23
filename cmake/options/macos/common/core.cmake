@@ -6,31 +6,15 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # ---------------------------------------------------------------------------
 # Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
-
-# Where the LLVM unit lands, in toolchain mode only - LLVM is ours there
-# (rule 1). In plugin mode LLVM is the machine's (rule 2): it is never
-# bundled, so this key is unused; it stays defined and empty.
-acpp_require_relative(ACPP_LLVM_DEPLOY_PATH)
-if(NOT DEFINED ACPP_LLVM_DEPLOY_PATH)
-  if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-    set(ACPP_LLVM_DEPLOY_PATH ".")
-  else()
-    set(ACPP_LLVM_DEPLOY_PATH "")
-  endif()
-endif()
-
-# Where libomp lands. In toolchain mode it is ours, travelling with LLVM. In
-# plugin mode it is a vendor plugin (rule 4) with no LLVM tree of its own to
-# travel with, so it deploys beside our own libraries, governed by
-# ACPP_DEPLOYMENT_STRATEGY.
-acpp_require_relative(ACPP_LIBOMP_DEPLOY_PATH)
-if(NOT DEFINED ACPP_LIBOMP_DEPLOY_PATH)
-  if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-    set(ACPP_LIBOMP_DEPLOY_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}")
-  else()
-    set(ACPP_LIBOMP_DEPLOY_PATH "{{ acpp-libdir }}")
-  endif()
-endif()
+#
+# LLVM has no deploy-path knob of its own any more: what toolchain mode
+# builds follows cmake's own install directory under {{ acpp-root }}
+# ({{ acpp-libdir }}) directly. In plugin mode LLVM is the machine's
+# (rule 2): it is never bundled at all.
+#
+# Where libomp lands. In toolchain mode it is ours, beside the LLVM we
+# build. In plugin mode it is a vendor plugin (rule 4), taking the same
+# two-knob shape as any other vendor unit below.
 
 # Where the deploy step writes application configurations under `default`,
 # where nothing is copied and the application's tree holds none of our
@@ -54,11 +38,13 @@ endif()
 # unchanged here.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ llvm-deploy-path }}")
-  acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ libomp-deploy-path }}")
+  acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ acpp-libdir }}")
+  acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ acpp-libdir }}")
 else()
   set(ACPP_LLVM_PATH "")
-  acpp_declare_provenance(ACPP_LIBOMP_PATH ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}" "{{ libomp-deploy-path }}")
+  acpp_declare_vendor_subdir(LIBOMP libomp)
+  acpp_declare_vendor_root(LIBOMP libomp ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}")
+  acpp_declare_vendor_app_root(LIBOMP libomp)
 endif()
 
 # No libnuma on macOS.
@@ -76,14 +62,17 @@ endif()
 # linux/common/core.cmake's comment, unchanged here.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_declare_owned_resource(DEVICE_CMPLR "{{ llvm-deploy-path }}/bin/clang++")
-  acpp_declare_owned_resource(LLC "{{ llvm-deploy-path }}/bin/llc")
-  acpp_declare_owned_resource(OPT "{{ llvm-deploy-path }}/bin/opt")
+  # No {{ acpp-bindir }} entry exists on this platform (only Windows names
+  # one): CMAKE_INSTALL_BINDIR is "bin" everywhere cmake's own GNU install
+  # dirs apply, so the segment is written literally.
+  acpp_declare_owned_resource(DEVICE_CMPLR "bin/clang++")
+  acpp_declare_owned_resource(LLC "bin/llc")
+  acpp_declare_owned_resource(OPT "bin/opt")
   # The host JIT links Mach-O with ld64.lld.
-  acpp_declare_owned_resource(LLD "{{ llvm-deploy-path }}/bin/ld64.lld")
+  acpp_declare_owned_resource(LLD "bin/ld64.lld")
   # clang's resource include directory. The JIT's HIP compilation needs it,
   # so it has two sides like the compiler itself.
-  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include")
+  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "{{ acpp-libdir }}/clang/{{ llvm-version-major }}/include")
 else()
   acpp_declare_machine_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
   acpp_declare_machine_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc")
@@ -94,8 +83,8 @@ endif()
 
 # llvm-spirv is not LLVM's: AdaptiveCpp builds its own fork of the
 # SPIRV-LLVM-Translator and installs it under its own library directory
-# (doc/install-ocl.md), independent of {{ llvm-deploy-path }}. Ours in
-# BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
+# (doc/install-ocl.md), independent of cmake's own LLVM install dirs. Ours
+# in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
 # not - always the deploy-layout placeholder, in every strategy.
 acpp_declare_owned_resource(LLVMSPIRV "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 
@@ -110,7 +99,7 @@ acpp_declare_owned_resource(LLVMSPIRV "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/
 # strategy, decides its shape; see linux/common/core.cmake's comment,
 # unchanged here.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  set(ACPP_CPU_CXX "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++")
+  set(ACPP_CPU_CXX "{{ acpp-root }}/bin/clang++")
 else()
   set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
 endif()
@@ -122,7 +111,7 @@ endif()
 # building this path, which is wrong on any lib64 distribution; this entry
 # is what those sites should read.
 if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  set(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ acpp-libdir }}/libacpp-clang.so")
+  set(ACPP_PLUGIN_PATH "{{ acpp-root }}/{{ acpp-libdir }}/libacpp-clang.so")
 endif()
 
 # No vector math on macOS; the default is "none".

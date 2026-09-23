@@ -1,78 +1,51 @@
 # CUDA options - linux, every architecture.
 #
 # Include after core.cmake, only when the CUDA backend is enabled; the
-# helpers and the strategy control live in core. The three kinds - deploy
-# paths, provenance and resources - are the same as core's.
+# helpers and the strategy control live in core. Two knobs (ACPP_CUDA_SUBDIR
+# plus whatever CUDAToolkit_ROOT and friends steer discovery), everything
+# else derived - see "Vendor units" in the common core file.
 
 include_guard(GLOBAL)
 
 # ---------------------------------------------------------------------------
-# Deploy path
+# The install subdir knob and the root it derives
 # ---------------------------------------------------------------------------
 
-# Where the CUDA vendor unit lands. Upstream scopes vendor toolchains under
-# hipSYCL/ext/<vendor>; unlike LLVM, CUDA is never the prefix itself, so
-# there is no mode branch. Inside the deploy path the layout is the toolkit's
-# own: the relative facts from discovery go straight to the configuration and
-# nobody chooses them.
-acpp_require_relative(ACPP_CUDA_DEPLOY_PATH)
-if(NOT DEFINED ACPP_CUDA_DEPLOY_PATH)
-  set(ACPP_CUDA_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/cuda")
-endif()
+acpp_declare_vendor_subdir(CUDA cuda)
+acpp_declare_vendor_root(CUDA cuda ACPP_DISCOVERED_CUDA_PREFIX "${ACPP_DISCOVERED_CUDA_PREFIX}")
 
 # ---------------------------------------------------------------------------
-# Provenance - where the deploy step copies from
+# Subdirs inside the vendor unit - discovery's own relative facts
 # ---------------------------------------------------------------------------
+#
+# cuda-rt-subdir names the runtime libraries specifically (not "lib"):
+# with a conda-packaged toolkit that is targets/x86_64-linux/lib, not the
+# toolkit's own top-level lib.
 
-acpp_declare_provenance(ACPP_CUDA_PATH
-  ACPP_DISCOVERED_CUDA_PREFIX "${ACPP_DISCOVERED_CUDA_PREFIX}"
-  "{{ cuda-deploy-path }}")
+acpp_declare_vendor_subdir_fact(CUDA RT ACPP_DISCOVERED_CUDA_LIBDIR "${ACPP_DISCOVERED_CUDA_LIBDIR}")
+acpp_declare_vendor_subdir_fact(CUDA INCLUDE ACPP_DISCOVERED_CUDA_INCDIR "${ACPP_DISCOVERED_CUDA_INCDIR}")
+acpp_declare_vendor_subdir_fact(CUDA BIN ACPP_DISCOVERED_CUDA_BINDIR "${ACPP_DISCOVERED_CUDA_BINDIR}")
+acpp_declare_vendor_subdir_fact(CUDA LIBDEVICE ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "${ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR}")
 
-# The library, include and binary directories inside the vendor unit. Under
-# `default` they are the absolute discovered paths; otherwise they follow the
-# deploy layout.
-if(NOT "${ACPP_DISCOVERED_CUDA_PREFIX}" STREQUAL "")
-  set(_acpp_cuda_abs_libdir "${ACPP_DISCOVERED_CUDA_PREFIX}/${ACPP_DISCOVERED_CUDA_LIBDIR}")
-  set(_acpp_cuda_abs_incdir "${ACPP_DISCOVERED_CUDA_PREFIX}/${ACPP_DISCOVERED_CUDA_INCDIR}")
-  set(_acpp_cuda_abs_bindir "${ACPP_DISCOVERED_CUDA_PREFIX}/${ACPP_DISCOVERED_CUDA_BINDIR}")
-else()
-  set(_acpp_cuda_abs_libdir "")
-  set(_acpp_cuda_abs_incdir "")
-  set(_acpp_cuda_abs_bindir "")
-endif()
-
-acpp_declare_provenance(ACPP_CUDA_LIB_PATH
-  ACPP_DISCOVERED_CUDA_LIBDIR "${_acpp_cuda_abs_libdir}"
-  "{{ cuda-deploy-path }}/{{ cuda-libdir }}")
-
-acpp_declare_provenance(ACPP_CUDA_INCLUDE_PATH
-  ACPP_DISCOVERED_CUDA_INCDIR "${_acpp_cuda_abs_incdir}"
-  "{{ cuda-deploy-path }}/{{ cuda-incdir }}")
-
-acpp_declare_provenance(ACPP_CUDA_BIN_PATH
-  ACPP_DISCOVERED_CUDA_BINDIR "${_acpp_cuda_abs_bindir}"
-  "{{ cuda-deploy-path }}/{{ cuda-bindir }}")
-
-# ---------------------------------------------------------------------------
-# Resource - the one thing the JIT reads at run time
-# ---------------------------------------------------------------------------
-
-# Device bitcode. cudart is reached through DT_NEEDED and RUNPATH; libcuda is
-# the driver's. Libdevice is what the generic JIT links into the compiled
-# kernel at run time.
-acpp_declare_resource(CUDA_LIBDEVICE_DIR
-  ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "${ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR}"
-  "{{ cuda-deploy-path }}/nvvm/libdevice")
+# The application's own view of each (D7): the manifest's app-config
+# section embeds these via @VAR@; Piece 3's concern to wire in.
+acpp_declare_vendor_app_subdir(CUDA cuda RT)
+acpp_declare_vendor_app_subdir(CUDA cuda INCLUDE)
+acpp_declare_vendor_app_subdir(CUDA cuda BIN)
+acpp_declare_vendor_app_subdir(CUDA cuda LIBDEVICE)
 
 # ---------------------------------------------------------------------------
 # Driver-only
 # ---------------------------------------------------------------------------
+#
+# Both strings compose {{ cuda-install-root }} with a subdir fact directly;
+# neither needs to branch on strategy in cmake, because cuda-install-root's
+# own value already carries the branch (see acpp_declare_vendor_root).
+# libcuda is the driver's, reached separately.
 
-# The link line and compile flags the driver passes when building
-# CUDA applications.
 if(NOT DEFINED ACPP_CUDA_LINK_LINE)
-  set(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-lib-path }} -L{{ cuda-lib-path }} -lcudart")
+  set(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }} -L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
 endif()
 if(NOT DEFINED ACPP_CUDA_CXX_FLAGS)
-  set(ACPP_CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ toolchain-path }}/include/AdaptiveCpp/hipSYCL/std/hiplike")
+  set(ACPP_CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike")
 endif()
