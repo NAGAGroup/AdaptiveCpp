@@ -13,11 +13,17 @@ Each vendor slice appends its rows here as work lands.
 | `ACPP_LLD_NAME` | `src/compiler/CMakeLists.txt:65` | `Utils.cpp:89` | no — reads the macro | `lld` (exe entry) | replace with config read |
 | `ACPP_OPT_NAME` | `src/compiler/CMakeLists.txt:67` | `Utils.cpp:107` | no — reads the macro | `opt` (exe entry) | replace with config read |
 | `ACPP_CLANG_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:170` | `Utils.cpp:59` (`getClangPath`) | no — reads the macro | `device-clang-cmplr` | replace with config read |
+| `ROCM_CLANG_VERSION_MAJOR`/`MINOR`/`PATCH` | `src/compiler/CMakeLists.txt:259` | `PipelineBuilder.cpp:57-58`, `Frontend.hpp:91,569,640,752`, `SMCPCompatPass.cpp:23` — all `#if defined(ROCM_CLANG_VERSION_MAJOR) && ... == N` | no — read only by the preprocessor | none | becomes a discovery export read at configure, not a config entry: every consumer is an `#if` guard selecting which code the plugin compiles, so the value can never be a runtime read; the root's own version probe (`CMakeLists.txt:388-395`, the `execute_process`/regex pair) duplicates `cmake/discovery.cmake`'s ROCm detection instead of feeding it — centralize there |
+| `ACPP_LLC_HOST_CPU_FLAG` | `src/compiler/llvm-to-backend/CMakeLists.txt:302` | `LLVMToHost.cpp:313` | no — reads the macro | `jit-host-llc-cpu-flag` → `ACPP_JIT_HOST_LLC_CPU_FLAG` | replace with config read; duplicates the entry already declared |
+| `ACPP_OPT_HOST_CPU_FLAG` | `src/compiler/llvm-to-backend/CMakeLists.txt:303` | `LLVMToHost.cpp:314` | no — reads the macro | `jit-host-opt-cpu-flag` → `ACPP_JIT_HOST_OPT_CPU_FLAG` | replace with config read; entry already exists |
+| `ACPP_LLC_ADDITIONAL_FLAGS` | `src/compiler/llvm-to-backend/CMakeLists.txt:304` | `LLVMToHost.cpp:512` | no — reads the macro | `jit-host-llc-flags` → `ACPP_JIT_HOST_LLC_FLAGS` | replace with config read; entry already exists |
+| `ACPP_OPT_ADDITIONAL_FLAGS` | `src/compiler/llvm-to-backend/CMakeLists.txt:305` | `LLVMToHost.cpp:513` | no — reads the macro | `jit-host-opt-flags` → `ACPP_JIT_HOST_OPT_FLAGS` | replace with config read; entry already exists — found in the same `target_compile_definitions` block as the three above, not separately named when this obligation was raised |
 | `ACPP_CUDA_DEVICE_LIBS_PATH` | (deleted) | `LLVMToPtx.cpp` | yes — `try_retrieve_settings_variable("cuda_libdevice_dir")` | `cuda-libdevice-dir` → `ACPP_CUDA_LIBDEVICE_DIR` | **done** |
 | `ACPP_ROCM_DEVICE_LIBS_PATH` | (deleted) | `LLVMToAmdgpu.cpp` | yes — `try_retrieve_settings_variable("hip_device_libs_dir")` | `hip-device-libs-dir` → `ACPP_HIP_DEVICE_LIBS_DIR` | **done** |
 | `ACPP_HIPCC_PATH` | (deleted) | (deleted: `getRocmClang`/`getCommandOutput` had no callers since upstream `377178f0`) | n/a | n/a | **done** (dead code) |
 | `HIPSYCL_CLSPV_PATH` | (deleted) | `LLVMToCLSPV.cpp` | yes — `try_retrieve_settings_variable("clspv")` | `clspv` → `ACPP_CLSPV` | **done** |
-| `HIPSYCL_LLVMSPIRV_NAME` | `src/compiler/llvm-to-backend/CMakeLists.txt:257` | `LLVMToSpirv.cpp:328` | no — raw macro | stays | relative by construction |
+| `HIPSYCL_LLVMSPIRV_NAME` | `src/compiler/llvm-to-backend/CMakeLists.txt:257` | `LLVMToSpirv.cpp:328` | no — raw macro | `llvm-spirv` → `ACPP_LLVMSPIRV` | replace with a config read of the `llvmspirv` entry |
+| `HIPSYCL_RELATIVE_LLVMSPIRV_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:258` | `LLVMToSpirv.cpp:328`, alongside `HIPSYCL_LLVMSPIRV_NAME` | no — raw macro | `llvm-spirv` → `ACPP_LLVMSPIRV` | replace with a config read of the `llvmspirv` entry — `llvm-spirv` is now an owned config entry (`config/common/core.json:101-109`; `acpp_declare_owned_resource(LLVMSPIRV ...)` in each platform's `core.cmake`), so both rows collapse to the same read |
 | `LIB_NUMA_AVAILABLE` | `src/runtime/CMakeLists.txt:414` | `omp_allocator.cpp:14,30,58,121,159,169` | n/a — gates code | stays | stays, gates code |
 | `ACPP_HIPRTC_LINK` | `src/compiler/llvm-to-backend/CMakeLists.txt:302` | `LLVMToAmdgpu.cpp` | n/a — gates code | stays | stays |
 
@@ -66,6 +72,63 @@ The `{{ key }}` fixpoint resolver described in the configuration model does
 not exist in the Python driver. The driver reads values and expands
 `$ACPP_PATH` by string substitution only; it does not resolve
 `{{ }}` references between entries.
+
+### Install rpaths that hardcode lib
+
+Six `INSTALL_RPATH`/`CMAKE_INSTALL_RPATH` sites exist under `src/`. `${base}`
+is set once, in `src/CMakeLists.txt:9,12`, to `$ORIGIN` (non-Apple) or
+`@loader_path` (Apple) — the loader-relative token itself carries no layout
+assumption. Two sites build on it without naming a libdir:
+
+- `src/runtime/CMakeLists.txt:23` — `${base} ${base}/hipSYCL`
+- `src/runtime/CMakeLists.txt:121` — `${base}/../ ${base}/llvm-to-backend`
+- `src/compiler/llvm-to-backend/CMakeLists.txt:7` — `${base} ${base}/../../`
+
+Four do, identically, by hardcoding `lib`:
+
+- `src/tools/acpp-info/CMakeLists.txt:18`
+- `src/tools/acpp-hcf-tool/CMakeLists.txt:11`
+- `src/tools/acpp-appdb-tool/CMakeLists.txt:14`
+- `src/tools/acpp-pcuda-pp/CMakeLists.txt:12`
+
+all `set_target_properties(<tool> PROPERTIES INSTALL_RPATH ${base}/../lib/)`.
+Each carries a comment calling this "the same rpath idiom as the other
+tools" — it is the same bug in four places, not an idiom: on a `lib64`
+layout the tool's RUNPATH points at a directory `acpp-rt` was never
+installed into. Obligation: derive the segment from `CMAKE_INSTALL_LIBDIR`
+relative to `CMAKE_INSTALL_BINDIR`, the same fact `acpp-libdir` already
+carries into the configuration schema, so the four tools stop being a
+second, unsynchronized copy of it.
+
+### The global configuration installation
+
+The obligation that raised this named the variable
+`ACPP_CONFIG_FILE_GLOBAL_INSTALLATION`; no such identifier exists in the
+tree. The real variable is `ACPP_CONFIG_FILE_INSTALL_DIR`
+(`CMakeLists.txt:560`), set to the relative subpath `etc/AdaptiveCpp` —
+joined under the install prefix, read the same way by `bin/acpp:658`.
+Nothing in the tree installs it, or anything else, to a literal absolute
+`/etc/AdaptiveCpp` outside a prefix; grepping for that exact string finds
+only `doc/configuration-model.md`'s "File search order" (the deployed
+application's own config search, a different mechanism from the
+toolchain's `etc/AdaptiveCpp`), where `/etc/AdaptiveCpp/app-cfgs/` is
+already tier 2 of 3 — the system tier, below the user's
+`$XDG_CONFIG_HOME` tier and above the dladdr-relative fallback.
+
+So as literally named, the obligation's premise does not hold: the
+toolchain's own configuration directory is prefix-relative today, and the
+one genuinely absolute `/etc/AdaptiveCpp` path in the tree is a documented
+tier of a search order that already resolves the conflict for the one
+mechanism — application-configuration discovery — that uses an absolute
+system directory at all. What is still open: whether
+`ACPP_CONFIG_FILE_INSTALL_DIR` should ever gain a second,
+non-prefix-relative install site for the toolchain's own configuration — a
+system-package scenario, one toolchain per machine, `/etc/AdaptiveCpp`
+outside any single prefix — the same two shapes the obligation posed
+(remove the possibility outright and keep this prefix-relative only, or
+extend the existing search order's system tier to also serve toolchain
+configuration lookup, not just app-cfg). Needs Jack's ruling on which, and
+on whether a conflict is there to resolve at all.
 
 ### Wiring-slice obligations left by the CUDA slice
 
