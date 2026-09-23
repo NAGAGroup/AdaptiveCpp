@@ -25,6 +25,10 @@ set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 set(CMAKE_CXX_COMPILER "/usr/bin/g++")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS OFF)
 
@@ -48,8 +52,8 @@ expect_eq(ACPP_APP_LLD "")
 # llvm-spirv is ours in both modes and does not depend on the plugin
 # search at all, so it stays the deploy-layout placeholder even when no
 # plugin was found.
-expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
-expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_PATH/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RUNTIME_ROOT/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "")
 expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "")
 

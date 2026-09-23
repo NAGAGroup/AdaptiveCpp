@@ -26,6 +26,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # OpenCL discovery stand-ins: found, multiarch layout.
 set(ACPP_DISCOVERED_OCL_FOUND ON)
 set(ACPP_DISCOVERED_OCL_LOADER "/usr/lib/x86_64-linux-gnu/libOpenCL.so.1.0.0")
@@ -35,11 +39,9 @@ set(ACPP_DISCOVERED_OCL_LIBDIR "lib/x86_64-linux-gnu")
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/ocl.cmake)
 
-# Deploy path.
-expect_eq(ACPP_OCL_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/ocl")
-
-# Provenance: loader found, default strategy -> absolute.
-expect_eq(ACPP_OCL_PATH "/usr")
-expect_eq(ACPP_OCL_LIB_PATH "/usr/lib/x86_64-linux-gnu")
+expect_eq(ACPP_OCL_SUBDIR "lib/hipSYCL/ext/ocl")
+expect_eq(ACPP_OCL_INSTALL_ROOT "/usr")
+expect_eq(ACPP_OCL_RT_SUBDIR "lib/x86_64-linux-gnu")
+expect_eq(ACPP_APP_OCL_RT_SUBDIR "{{ ocl-install-root }}/{{ ocl-rt-subdir }}")
 
 message(STATUS "ocl.cmake: parses clean, every default as declared")

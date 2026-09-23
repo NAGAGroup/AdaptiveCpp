@@ -23,6 +23,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # Vulkan discovery: nothing found.
 set(ACPP_DISCOVERED_VK_FOUND OFF)
 set(ACPP_DISCOVERED_VK_LOADER "")
@@ -32,8 +36,9 @@ set(ACPP_DISCOVERED_VK_LIBDIR "")
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/vk.cmake)
 
-expect_eq(ACPP_VK_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/vk")
-expect_eq(ACPP_VK_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}")
-expect_eq(ACPP_VK_LIB_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}/{{ vk-libdir }}")
+expect_eq(ACPP_VK_SUBDIR "lib/hipSYCL/ext/vk")
+expect_eq(ACPP_VK_INSTALL_ROOT "")
+expect_eq(ACPP_VK_RT_SUBDIR "")
+expect_eq(ACPP_APP_VK_RT_SUBDIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
 
 message(STATUS "vk.cmake (placeholder): parses clean, every default as declared")

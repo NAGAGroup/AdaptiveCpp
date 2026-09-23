@@ -2,8 +2,10 @@
 # with cmake -P:
 #   cmake -P devops/verify/verify-cuda-placeholder.cmake
 #
-# Every CUDA discovery export is empty; the options must fall to the
-# placeholder shape on every declaration.
+# Every CUDA discovery export is empty. Under `default` strategy the vendor
+# unit macros pass discovery's answer straight through, however it came out
+# - so the install root and every subdir fact land empty too, honestly:
+# nothing was found, which is not a configure error.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
@@ -26,6 +28,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # CUDA discovery: nothing found.
 set(ACPP_DISCOVERED_CUDA_FOUND OFF)
 set(ACPP_DISCOVERED_CUDA_PREFIX "")
@@ -38,17 +44,26 @@ set(ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "")
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/cuda.cmake)
 
-# Deploy path is independent of discovery.
-expect_eq(ACPP_CUDA_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/cuda")
+# The install subdir knob is independent of discovery.
+expect_eq(ACPP_CUDA_SUBDIR "lib/hipSYCL/ext/cuda")
 
-# Provenance: nothing found -> placeholder shape.
-expect_eq(ACPP_CUDA_PATH "{{ toolchain-path }}/{{ cuda-deploy-path }}")
-expect_eq(ACPP_CUDA_LIB_PATH "{{ toolchain-path }}/{{ cuda-deploy-path }}/{{ cuda-libdir }}")
-expect_eq(ACPP_CUDA_INCLUDE_PATH "{{ toolchain-path }}/{{ cuda-deploy-path }}/{{ cuda-incdir }}")
-expect_eq(ACPP_CUDA_BIN_PATH "{{ toolchain-path }}/{{ cuda-deploy-path }}/{{ cuda-bindir }}")
+# Nothing found -> the install root and every subdir fact pass straight
+# through as empty.
+expect_eq(ACPP_CUDA_INSTALL_ROOT "")
+expect_eq(ACPP_CUDA_RT_SUBDIR "")
+expect_eq(ACPP_CUDA_INCLUDE_SUBDIR "")
+expect_eq(ACPP_CUDA_BIN_SUBDIR "")
+expect_eq(ACPP_CUDA_LIBDEVICE_SUBDIR "")
 
-# Resource: two-sided, not found -> placeholder shape.
-expect_eq(ACPP_TOOLCHAIN_CUDA_LIBDEVICE_DIR "{{ toolchain-path }}/{{ cuda-deploy-path }}/nvvm/libdevice")
-expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "\$ACPP_PATH/{{ cuda-deploy-path }}/nvvm/libdevice")
+# The app-config template composes the same way regardless of what was
+# found - the driver resolves {{ cuda-install-root }} itself at drive time.
+expect_eq(ACPP_APP_CUDA_RT_SUBDIR "{{ cuda-install-root }}/{{ cuda-rt-subdir }}")
+expect_eq(ACPP_APP_CUDA_INCLUDE_SUBDIR "{{ cuda-install-root }}/{{ cuda-include-subdir }}")
+expect_eq(ACPP_APP_CUDA_BIN_SUBDIR "{{ cuda-install-root }}/{{ cuda-bin-subdir }}")
+expect_eq(ACPP_APP_CUDA_LIBDEVICE_SUBDIR "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}")
+
+# Driver-only: link line and flags are independent of discovery.
+expect_eq(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }} -L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
+expect_eq(ACPP_CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike")
 
 message(STATUS "cuda.cmake (placeholder): parses clean, every default as declared")

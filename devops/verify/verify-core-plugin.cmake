@@ -8,9 +8,10 @@
 # separate files. This one asserts the ownership-governed entries: in
 # plugin mode the device compiler, the LLVM tools and cpu-cxx belong to the
 # machine (rule 2) - always the discovered absolute path, in every
-# strategy - and libomp is a vendor plugin (rule 4), governed by
-# ACPP_DEPLOYMENT_STRATEGY like any other. Every other default is shared
-# and covered by the toolchain harness.
+# strategy - and libomp is a vendor unit (rule 4), two knobs (an install
+# subdir plus discovery's own hint), governed by ACPP_DEPLOYMENT_STRATEGY
+# like any other. Every other default is shared and covered by the
+# toolchain harness.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
@@ -26,6 +27,10 @@ set(ACPP_DISCOVERED_LIBNUMA_DIR "")
 set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "/opt/amath/lib")
 set(ACPP_DISCOVERED_SVML_DIR "")
+
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
 
 # Stand-in for the bootstrap compiler AdaptiveCpp itself was built with -
 # upstream's HIPSYCL_CPU_CXX, CMAKE_CXX_COMPILER exactly. Script mode never
@@ -50,18 +55,21 @@ function(expect_eq name expected)
   endif()
 endfunction()
 
-# LLVM is the machine's in plugin mode (rule 2): never bundled, so the
-# deploy path is unused and empty, and there is no LLVM provenance at all.
-expect_eq(ACPP_LLVM_DEPLOY_PATH "")
+# LLVM is the machine's in plugin mode (rule 2): never bundled, so there is
+# no LLVM provenance at all - always empty.
 expect_eq(ACPP_LLVM_PATH "")
 expect_unset(ACPP_TOOLCHAIN_LLVM_PATH)
 expect_unset(ACPP_APP_LLVM_PATH)
 
-# libomp is a vendor plugin here (rule 4), independent of the (unused) LLVM
-# deploy path, governed by ACPP_DEPLOYMENT_STRATEGY like any other; found
-# and `default` strategy, so it takes the discovered absolute path.
-expect_eq(ACPP_LIBOMP_DEPLOY_PATH "{{ acpp-libdir }}")
-expect_eq(ACPP_LIBOMP_PATH "/usr/lib/llvm-21/lib")
+# libomp is a vendor unit here (rule 4): two knobs (an install subdir plus
+# discovery's own hint), governed by ACPP_DEPLOYMENT_STRATEGY like any
+# other; found and `default` strategy, so the install root takes the
+# discovered absolute path. There is no ACPP_LIBOMP_PATH at all in this
+# mode - that name belongs to the owned (toolchain-mode) shape only.
+expect_eq(ACPP_LIBOMP_SUBDIR "lib/hipSYCL/ext/libomp")
+expect_eq(ACPP_LIBOMP_INSTALL_ROOT "/usr/lib/llvm-21/lib")
+expect_eq(ACPP_APP_LIBOMP_INSTALL_ROOT "{{ libomp-install-root }}")
+expect_unset(ACPP_LIBOMP_PATH)
 expect_unset(ACPP_TOOLCHAIN_LIBOMP_PATH)
 expect_unset(ACPP_APP_LIBOMP_PATH)
 
@@ -80,8 +88,8 @@ expect_eq(ACPP_APP_LLD "/usr/lib/llvm-21/bin/ld.lld")
 # llvm-spirv is ours in both modes (not LLVM's): the machine's LLVM never
 # supplies it, plugin or not, so it stays the deploy-layout placeholder
 # here too, unaffected by what discovery found for the plugin.
-expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
-expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_PATH/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RUNTIME_ROOT/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
 expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
 
@@ -91,6 +99,6 @@ expect_eq(ACPP_CPU_CXX "/usr/bin/g++")
 
 # The compiler plugin exists as a deployable file only in the plugin build,
 # and it is ours (rule 1): always the placeholder, no override.
-expect_eq(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ acpp-libdir }}/libacpp-clang.so")
+expect_eq(ACPP_PLUGIN_PATH "{{ acpp-root }}/{{ acpp-libdir }}/libacpp-clang.so")
 
 message(STATUS "core.cmake (plugin mode): parses clean, mode-dependent defaults as declared")

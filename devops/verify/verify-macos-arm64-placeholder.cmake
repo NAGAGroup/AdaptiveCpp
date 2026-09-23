@@ -24,6 +24,10 @@ set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 set(ACPP_DEPLOYMENT_STRATEGY "managed")
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 set(ACPP_DISCOVERED_VK_FOUND OFF)
 set(ACPP_DISCOVERED_VK_PREFIX "")
 set(ACPP_DISCOVERED_VK_LIBDIR "")
@@ -33,8 +37,10 @@ set(ACPP_DISCOVERED_CLSPV_BINDIR "")
 
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 
-expect_eq(ACPP_TOOLCHAIN_LLD "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/ld64.lld")
-expect_eq(ACPP_APP_LLD "\$ACPP_PATH/{{ llvm-deploy-path }}/bin/ld64.lld")
+# Ours in toolchain mode (rule 1): always the deploy-layout placeholder,
+# regardless of ACPP_DEPLOYMENT_STRATEGY.
+expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/ld64.lld")
+expect_eq(ACPP_APP_LLD "\$ACPP_RUNTIME_ROOT/bin/ld64.lld")
 
 # OMP is core now, already included above.
 expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
@@ -42,10 +48,15 @@ expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/vk.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/clspv.cmake)
 
-expect_eq(ACPP_VK_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}")
-expect_eq(ACPP_VK_LIB_PATH "{{ toolchain-path }}/{{ vk-deploy-path }}/{{ vk-libdir }}")
-expect_eq(ACPP_CLSPV_PATH "{{ toolchain-path }}/{{ clspv-deploy-path }}")
-expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ toolchain-path }}/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv")
-expect_eq(ACPP_APP_CLSPV "\$ACPP_PATH/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv")
+# Not `default`: the vendor unit's install root is the acpp-root/subdir
+# placeholder regardless of what was found.
+expect_eq(ACPP_VK_INSTALL_ROOT "{{ acpp-root }}/{{ vk-subdir }}")
+expect_eq(ACPP_VK_RT_SUBDIR "")
+expect_eq(ACPP_CLSPV_INSTALL_ROOT "{{ acpp-root }}/{{ clspv-subdir }}")
+# Not found -> the two cmake-level template strings for the executable are
+# identical to the found case: neither branches on discovery or strategy at
+# configure time.
+expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "\$ACPP_RUNTIME_ROOT/{{ clspv-subdir }}/{{ clspv-bin-subdir }}/clspv")
 
 message(STATUS "macos/arm64 (placeholder): all checks passed")

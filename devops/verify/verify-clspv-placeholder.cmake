@@ -23,6 +23,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # clspv discovery: nothing found.
 set(ACPP_DISCOVERED_CLSPV_FOUND OFF)
 set(ACPP_DISCOVERED_CLSPV_EXECUTABLE "")
@@ -32,10 +36,14 @@ set(ACPP_DISCOVERED_CLSPV_BINDIR "")
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/clspv.cmake)
 
-expect_eq(ACPP_CLSPV_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/clspv")
-expect_eq(ACPP_CLSPV_PATH "{{ toolchain-path }}/{{ clspv-deploy-path }}")
-expect_eq(ACPP_CLSPV_BIN_PATH "{{ toolchain-path }}/{{ clspv-deploy-path }}/{{ clspv-bindir }}")
-expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ toolchain-path }}/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv")
-expect_eq(ACPP_APP_CLSPV "\$ACPP_PATH/{{ clspv-deploy-path }}/{{ clspv-bindir }}/clspv")
+expect_eq(ACPP_CLSPV_SUBDIR "lib/hipSYCL/ext/clspv")
+expect_eq(ACPP_CLSPV_INSTALL_ROOT "")
+expect_eq(ACPP_CLSPV_BIN_SUBDIR "")
+expect_eq(ACPP_APP_CLSPV_BIN_SUBDIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
+# Not found -> the two cmake-level template strings are identical to the
+# found case: neither branches on discovery, because clspv-install-root and
+# clspv-bin-subdir already carry that when the driver resolves them.
+expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
 
 message(STATUS "clspv.cmake (placeholder): parses clean, every default as declared")

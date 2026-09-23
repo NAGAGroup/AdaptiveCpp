@@ -43,21 +43,28 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 
 expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$HOME/Library/Application Support/AdaptiveCpp/app-cfgs")
 # LLD is ours in toolchain mode (rule 1): always the deploy-layout
 # placeholder, `default` strategy notwithstanding.
-expect_eq(ACPP_TOOLCHAIN_LLD "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/ld64.lld")
-expect_eq(ACPP_APP_LLD "\$ACPP_PATH/{{ llvm-deploy-path }}/bin/ld64.lld")
+expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/ld64.lld")
+expect_eq(ACPP_APP_LLD "\$ACPP_RUNTIME_ROOT/bin/ld64.lld")
 expect_eq(ACPP_VECTOR_MATH_LIB "none")
 expect_eq(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-path }} -lomp")
-expect_eq(ACPP_CPU_CXX "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++")
+expect_eq(ACPP_CPU_CXX "{{ acpp-root }}/bin/clang++")
 expect_unset(ACPP_PLUGIN_PATH)
 expect_unset(ACPP_LIBNUMA_PATH)
 expect_unset(ACPP_TOOLCHAIN_SLEEF_DIR)
 expect_unset(ACPP_TOOLCHAIN_AMATH_DIR)
 expect_unset(ACPP_TOOLCHAIN_SVML_DIR)
+# libomp is ours in toolchain mode: no vendor-unit declaration at all here.
+expect_unset(ACPP_LIBOMP_SUBDIR)
+expect_unset(ACPP_LIBOMP_INSTALL_ROOT)
 message(STATUS "macos/arm64/core.cmake: defaults as declared")
 
 # ---- OMP (now core) ----
@@ -77,9 +84,10 @@ set(ACPP_DISCOVERED_VK_SPIRV_TOOLS_LIBRARY "/opt/vulkansdk/macOS/lib/libSPIRV-To
 
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/vk.cmake)
 
-expect_eq(ACPP_VK_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/vk")
-expect_eq(ACPP_VK_PATH "/opt/vulkansdk/macOS")
-expect_eq(ACPP_VK_LIB_PATH "/opt/vulkansdk/macOS/lib")
+expect_eq(ACPP_VK_SUBDIR "lib/hipSYCL/ext/vk")
+expect_eq(ACPP_VK_INSTALL_ROOT "/opt/vulkansdk/macOS")
+expect_eq(ACPP_VK_RT_SUBDIR "lib")
+expect_eq(ACPP_APP_VK_RT_SUBDIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
 message(STATUS "macos/arm64/vk.cmake: found defaults as declared")
 
 # ---- CLSPV found ----
@@ -91,9 +99,12 @@ set(ACPP_DISCOVERED_CLSPV_BINDIR "bin")
 
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/clspv.cmake)
 
-expect_eq(ACPP_CLSPV_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/clspv")
-expect_eq(ACPP_TOOLCHAIN_CLSPV "/opt/vulkansdk/macOS/bin/clspv")
-expect_eq(ACPP_APP_CLSPV "/opt/vulkansdk/macOS/bin/clspv")
+expect_eq(ACPP_CLSPV_SUBDIR "lib/hipSYCL/ext/clspv")
+expect_eq(ACPP_CLSPV_INSTALL_ROOT "/opt/vulkansdk/macOS")
+expect_eq(ACPP_CLSPV_BIN_SUBDIR "bin")
+expect_eq(ACPP_APP_CLSPV_BIN_SUBDIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
+expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
 message(STATUS "macos/arm64/clspv.cmake: found defaults as declared")
 
 message(STATUS "macos/arm64: all checks passed")

@@ -27,6 +27,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 
 expect_eq(ACPP_OMP_LINK_LINE "-fopenmp")

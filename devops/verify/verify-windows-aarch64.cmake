@@ -44,21 +44,30 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 set(ACPP_DISCOVERED_CUDA_PREFIX "C:/CUDA/v13.4")
 set(ACPP_DISCOVERED_CUDA_LIBDIR "lib/arm64")
 set(ACPP_DISCOVERED_CUDA_INCDIR "include")
 set(ACPP_DISCOVERED_CUDA_BINDIR "bin")
 set(ACPP_DISCOVERED_CUDA_VERSION_MAJOR "13")
 set(ACPP_DISCOVERED_CUDA_VERSION_MINOR "4")
-set(ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "C:/CUDA/v13.4/nvvm/libdevice")
+set(ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "nvvm/libdevice")
+
+# acpp_declare_vendor_subdir's WIN32 branch picks the bindir-rooted default;
+# WIN32 is a real platform macro that is false while this harness runs on
+# Linux, so the subdir knob is pre-set here exactly as a Windows configure
+# would resolve it by default.
+set(ACPP_CUDA_SUBDIR "bin/hipSYCL/ext/cuda")
 
 include(${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/cuda.cmake)
 
-expect_eq(ACPP_CUDA_LIB_PATH "C:/CUDA/v13.4/lib/arm64")
-expect_eq(ACPP_CUDA_BIN_PATH "C:/CUDA/v13.4/bin")
-expect_eq(ACPP_TOOLCHAIN_CUDA_DLL_DIR "C:/CUDA/v13.4/bin")
-expect_eq(ACPP_APP_CUDA_DLL_DIR "C:/CUDA/v13.4/bin")
+expect_eq(ACPP_CUDA_RT_SUBDIR "lib/arm64")
+expect_eq(ACPP_CUDA_BIN_SUBDIR "bin")
+expect_eq(ACPP_APP_CUDA_BIN_SUBDIR "{{ cuda-install-root }}/{{ cuda-bin-subdir }}")
 message(STATUS "windows/aarch64: CUDA arm64 layout needs no file change")
 
 # The architecture files are one-line includes and the configuration is

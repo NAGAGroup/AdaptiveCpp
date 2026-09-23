@@ -63,12 +63,22 @@ foreach(_v IN ITEMS ACPP_DISCOVERED_LIBNUMA_DIR ACPP_DISCOVERED_SLEEF_DIR ACPP_D
   endif()
 endforeach()
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # Chain: the options file must take the discovered branch against these
-# values - same process, the include order the root will use.
+# values - same process, the include order the root will use. This harness
+# never sets LLVM_ADAPTIVECPP_LINK_INTO_TOOLS (a different flag from
+# discovery's own LLVM_ADAPTIVECPP_LINK_IN_TOOLS above), so core.cmake takes
+# the plugin/machine branch throughout: LLVM is never bundled (rule 2, so
+# ACPP_LLVM_PATH is always empty - there is no provenance for it in this
+# mode at all), and libomp is a vendor unit (rule 4) whose install root is
+# the discovered absolute path under `default`.
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 
-expect_eq(ACPP_LLVM_PATH "/opt/acpp-toolchain")
-expect_eq(ACPP_LIBOMP_PATH "/opt/acpp-toolchain/lib")
+expect_eq(ACPP_LLVM_PATH "")
+expect_eq(ACPP_LIBOMP_INSTALL_ROOT "/opt/acpp-toolchain/lib")
 expect_eq(ACPP_TOOLCHAIN_DEVICE_CMPLR "/opt/acpp-toolchain/bin/clang++")
 expect_eq(ACPP_APP_DEVICE_CMPLR "/opt/acpp-toolchain/bin/clang++")
 expect_eq(ACPP_TOOLCHAIN_LLC "/opt/acpp-toolchain/bin/llc")

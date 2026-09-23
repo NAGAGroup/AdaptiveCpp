@@ -26,6 +26,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # HIP discovery stand-ins: found.
 set(ACPP_DISCOVERED_HIP_FOUND ON)
 set(ACPP_DISCOVERED_HIP_PREFIX "/opt/rocm-10.0.0")
@@ -39,21 +43,26 @@ set(ACPP_DISCOVERED_HIP_HIPRTC ON)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/hip.cmake)
 
-# Deploy path.
-expect_eq(ACPP_HIP_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/hip")
+# The install subdir knob and the root it derives.
+expect_eq(ACPP_HIP_SUBDIR "lib/hipSYCL/ext/hip")
+expect_eq(ACPP_HIP_INSTALL_ROOT "/opt/rocm-10.0.0")
 
-# Provenance: distribution found, default strategy -> absolute.
-expect_eq(ACPP_HIP_PATH "/opt/rocm-10.0.0")
-expect_eq(ACPP_HIP_LIB_PATH "/opt/rocm-10.0.0/lib")
-expect_eq(ACPP_HIP_INCLUDE_PATH "/opt/rocm-10.0.0/include")
-expect_eq(ACPP_HIP_SYSDEPS_PATH "/opt/rocm-10.0.0/lib/rocm_sysdeps/lib")
+# Subdirs inside the vendor unit - discovery's own relative facts.
+expect_eq(ACPP_HIP_RT_SUBDIR "lib")
+expect_eq(ACPP_HIP_INCLUDE_SUBDIR "include")
+expect_eq(ACPP_HIP_BITCODE_SUBDIR "lib/llvm/amdgcn/bitcode")
+# libhsa-runtime64/libamdhip64 DT_NEED librocm_sysdeps_* through their own
+# $ORIGIN/rocm_sysdeps/lib RUNPATH, relative to RT specifically.
+expect_eq(ACPP_HIP_SYSDEPS_SUBDIR "lib/rocm_sysdeps/lib")
 
-# Resource: two-sided, found -> absolute.
-expect_eq(ACPP_TOOLCHAIN_HIP_DEVICE_LIBS_DIR "/opt/rocm-10.0.0/lib/llvm/amdgcn/bitcode")
-expect_eq(ACPP_APP_HIP_DEVICE_LIBS_DIR "/opt/rocm-10.0.0/lib/llvm/amdgcn/bitcode")
+# The application's own view of each (D7).
+expect_eq(ACPP_APP_HIP_RT_SUBDIR "{{ hip-install-root }}/{{ hip-rt-subdir }}")
+expect_eq(ACPP_APP_HIP_INCLUDE_SUBDIR "{{ hip-install-root }}/{{ hip-include-subdir }}")
+expect_eq(ACPP_APP_HIP_BITCODE_SUBDIR "{{ hip-install-root }}/{{ hip-bitcode-subdir }}")
+expect_eq(ACPP_APP_HIP_SYSDEPS_SUBDIR "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}")
 
 # Driver-only.
-expect_eq(ACPP_HIP_LINK_LINE "-Wl,-rpath={{ hip-lib-path }} -L{{ hip-lib-path }} -lamdhip64")
-expect_eq(ACPP_HIP_CXX_FLAGS "-isystem {{ toolchain-path }}/include/AdaptiveCpp/hipSYCL/std/hiplike -isystem {{ clang-include-path }} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I{{ hip-include-path }} --rocm-device-lib-path={{ hip-device-libs-dir }} --rocm-path={{ hip-path }} -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__")
+expect_eq(ACPP_HIP_LINK_LINE "-Wl,-rpath={{ hip-install-root }}/{{ hip-rt-subdir }} -L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")
+expect_eq(ACPP_HIP_CXX_FLAGS "-isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike -isystem {{ clang-include-path }} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I{{ hip-install-root }}/{{ hip-include-subdir }} --rocm-device-lib-path={{ hip-install-root }}/{{ hip-bitcode-subdir }} --rocm-path={{ hip-install-root }} -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__")
 
 message(STATUS "hip.cmake: parses clean, every default as declared")

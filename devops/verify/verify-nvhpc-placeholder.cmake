@@ -2,8 +2,9 @@
 # with cmake -P:
 #   cmake -P devops/verify/verify-nvhpc-placeholder.cmake
 #
-# Every nvhpc discovery export is empty; the options must fall to the
-# placeholder shape on every declaration.
+# Every nvhpc discovery export is empty; under `default` strategy the vendor
+# unit macro passes discovery's answer straight through, so the install root
+# and its subdir fact land empty too.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
@@ -25,6 +26,10 @@ set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
+
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
 
 # CUDA stand-ins (empty).
 set(ACPP_DISCOVERED_CUDA_FOUND OFF)
@@ -48,14 +53,13 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/cuda.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/nvhpc.cmake)
 
-# Deploy path is independent of discovery.
-expect_eq(ACPP_NVHPC_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/nvhpc")
-
-# Provenance: not found -> placeholder shape.
-expect_eq(ACPP_NVHPC_PATH "{{ toolchain-path }}/{{ nvhpc-deploy-path }}")
-expect_eq(ACPP_NVHPC_LIB_PATH "{{ toolchain-path }}/{{ nvhpc-deploy-path }}/{{ nvhpc-libdir }}")
+expect_eq(ACPP_NVHPC_SUBDIR "lib/hipSYCL/ext/nvhpc")
+expect_eq(ACPP_NVHPC_INSTALL_ROOT "")
+expect_eq(ACPP_NVHPC_RT_SUBDIR "")
+expect_eq(ACPP_APP_NVHPC_RT_SUBDIR "{{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }}")
 
 # nvc++ not found -> bare name.
 expect_eq(ACPP_NVCXX "nvc++")
+expect_eq(ACPP_NVCXX_LINK_LINE "-Mnorpath -Wl,-rpath={{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }} -Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }}")
 
 message(STATUS "nvhpc.cmake (placeholder): parses clean, every default as declared")

@@ -48,14 +48,20 @@ set(ACPP_DISCOVERED_AMATH_DIR "/opt/arm/armpl/lib")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 include(${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/core.cmake)
 
-expect_eq(ACPP_TOOLCHAIN_SLEEF_DIR "/usr/lib/aarch64-linux-gnu")
-expect_eq(ACPP_APP_SLEEF_DIR "/usr/lib/aarch64-linux-gnu")
-expect_eq(ACPP_TOOLCHAIN_AMATH_DIR "/opt/arm/armpl/lib")
-expect_eq(ACPP_APP_AMATH_DIR "/opt/arm/armpl/lib")
-expect_unset(ACPP_TOOLCHAIN_SVML_DIR)
-expect_unset(ACPP_APP_SVML_DIR)
+expect_eq(ACPP_SLEEF_INSTALL_ROOT "/usr/lib/aarch64-linux-gnu")
+expect_eq(ACPP_APP_SLEEF_INSTALL_ROOT "{{ sleef-install-root }}")
+expect_eq(ACPP_AMATH_INSTALL_ROOT "/opt/arm/armpl/lib")
+expect_eq(ACPP_APP_AMATH_INSTALL_ROOT "{{ amath-install-root }}")
+# SVML is x86-only and lives in the x86_64 arch file; aarch64 never declares
+# it at all.
+expect_unset(ACPP_SVML_SUBDIR)
+expect_unset(ACPP_SVML_INSTALL_ROOT)
 expect_eq(ACPP_VECTOR_MATH_LIB "libmvec")
 message(STATUS "aarch64/core.cmake: defaults as declared (no SVML)")
 

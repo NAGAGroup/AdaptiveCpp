@@ -26,6 +26,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # Level Zero discovery stand-ins: found, multiarch layout.
 set(ACPP_DISCOVERED_ZE_FOUND ON)
 set(ACPP_DISCOVERED_ZE_LOADER "/usr/lib/x86_64-linux-gnu/libze_loader.so.1.17.2")
@@ -36,11 +40,9 @@ set(ACPP_DISCOVERED_ZE_INCLUDE_DIR "/usr/include")
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/ze.cmake)
 
-# Deploy path.
-expect_eq(ACPP_ZE_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/ze")
-
-# Provenance: loader found, default strategy -> absolute.
-expect_eq(ACPP_ZE_PATH "/usr")
-expect_eq(ACPP_ZE_LIB_PATH "/usr/lib/x86_64-linux-gnu")
+expect_eq(ACPP_ZE_SUBDIR "lib/hipSYCL/ext/ze")
+expect_eq(ACPP_ZE_INSTALL_ROOT "/usr")
+expect_eq(ACPP_ZE_RT_SUBDIR "lib/x86_64-linux-gnu")
+expect_eq(ACPP_APP_ZE_RT_SUBDIR "{{ ze-install-root }}/{{ ze-rt-subdir }}")
 
 message(STATUS "ze.cmake: parses clean, every default as declared")

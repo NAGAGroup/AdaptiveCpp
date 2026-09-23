@@ -2,8 +2,9 @@
 # with cmake -P:
 #   cmake -P devops/verify/verify-ocl-placeholder.cmake
 #
-# Every OpenCL discovery export is empty; the options must fall to the
-# placeholder shape on every declaration.
+# Every OpenCL discovery export is empty; under `default` strategy the
+# vendor unit macro passes discovery's answer straight through, so the
+# install root and its subdir fact land empty too.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
@@ -26,6 +27,10 @@ set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
+# Stand-in for a real configure's GNUInstallDirs.
+set(CMAKE_INSTALL_LIBDIR "lib")
+set(CMAKE_INSTALL_BINDIR "bin")
+
 # OpenCL discovery: nothing found.
 set(ACPP_DISCOVERED_OCL_FOUND OFF)
 set(ACPP_DISCOVERED_OCL_LOADER "")
@@ -35,11 +40,9 @@ set(ACPP_DISCOVERED_OCL_LIBDIR "")
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/ocl.cmake)
 
-# Deploy path is independent of discovery.
-expect_eq(ACPP_OCL_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/ocl")
-
-# Provenance: not found -> placeholder shape.
-expect_eq(ACPP_OCL_PATH "{{ toolchain-path }}/{{ ocl-deploy-path }}")
-expect_eq(ACPP_OCL_LIB_PATH "{{ toolchain-path }}/{{ ocl-deploy-path }}/{{ ocl-libdir }}")
+expect_eq(ACPP_OCL_SUBDIR "lib/hipSYCL/ext/ocl")
+expect_eq(ACPP_OCL_INSTALL_ROOT "")
+expect_eq(ACPP_OCL_RT_SUBDIR "")
+expect_eq(ACPP_APP_OCL_RT_SUBDIR "{{ ocl-install-root }}/{{ ocl-rt-subdir }}")
 
 message(STATUS "ocl.cmake (placeholder): parses clean, every default as declared")
