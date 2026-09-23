@@ -31,22 +31,30 @@
         "libkernel-sscp-host-full.bc",
         "libkernel-sscp-host-fast-full.bc"
       ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin",
+      "dest": "{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin",
+      "files": [
+        "llvm-spirv.exe"
+      ]
     }
   ],
 
   "llvm": [
     {
+      "build-mode": "toolchain",
       "src": "{{ llvm-path }}/bin",
       "dest": "{{ llvm-deploy-path }}/bin",
       "files": [
         "clang++.exe",
         "llc.exe",
         "opt.exe",
-        "lld-link.exe",
-        "llvm-spirv.exe"
+        "lld-link.exe"
       ]
     },
     {
+      "build-mode": "toolchain",
       "src": "{{ libomp-path }}",
       "dest": "{{ libomp-deploy-path }}",
       "files": [
@@ -54,6 +62,7 @@
       ]
     },
     {
+      "build-mode": "toolchain",
       "src": "{{ clang-include-path }}",
       "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
       "files": [
@@ -62,7 +71,16 @@
     }
   ],
 
-  "external-permissive": [],
+  "external-permissive": [
+    {
+      "build-mode": "plugin",
+      "src": "{{ libomp-path }}",
+      "dest": "{{ libomp-deploy-path }}",
+      "files": [
+        "SHARED_LIB:libomp"
+      ]
+    }
+  ],
 
   "external-nonpermissive": []
 }

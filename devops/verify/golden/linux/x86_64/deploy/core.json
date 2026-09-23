@@ -31,22 +31,30 @@
         "libkernel-sscp-host-full.bc",
         "libkernel-sscp-host-fast-full.bc"
       ]
+    },
+    {
+      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
+      "dest": "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
+      "files": [
+        "llvm-spirv"
+      ]
     }
   ],
 
   "llvm": [
     {
+      "build-mode": "toolchain",
       "src": "{{ llvm-path }}/bin",
       "dest": "{{ llvm-deploy-path }}/bin",
       "files": [
         "clang++",
         "llc",
         "opt",
-        "ld.lld",
-        "llvm-spirv"
+        "ld.lld"
       ]
     },
     {
+      "build-mode": "toolchain",
       "src": "{{ llvm-path }}/{{ llvm-libdir }}",
       "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}",
       "files": [
@@ -54,6 +62,7 @@
       ]
     },
     {
+      "build-mode": "toolchain",
       "src": "{{ libomp-path }}",
       "dest": "{{ libomp-deploy-path }}",
       "files": [
@@ -61,6 +70,7 @@
       ]
     },
     {
+      "build-mode": "toolchain",
       "src": "{{ clang-include-path }}",
       "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
       "files": [
@@ -70,6 +80,14 @@
   ],
 
   "external-permissive": [
+    {
+      "build-mode": "plugin",
+      "src": "{{ libomp-path }}",
+      "dest": "{{ libomp-deploy-path }}",
+      "files": [
+        "SHARED_LIB:omp"
+      ]
+    },
     {
       "src": "{{ sleef-dir }}",
       "dest": "{{ acpp-libdir }}",
