@@ -3,37 +3,17 @@
 # Include after core.cmake, only when the Level Zero backend is enabled; the
 # helpers and the strategy control live in core. A loader-only unit: the
 # unit is the loader in the vendor's own library directory, nothing else.
+# Two knobs (ACPP_ZE_SUBDIR plus the loader/header hints), everything else
+# derived - see "Vendor units" in the common core file.
 
 include_guard(GLOBAL)
 
-# ---------------------------------------------------------------------------
-# Deploy path
-# ---------------------------------------------------------------------------
+acpp_declare_vendor_subdir(ZE ze)
+acpp_declare_vendor_root(ZE ze ACPP_DISCOVERED_ZE_PREFIX "${ACPP_DISCOVERED_ZE_PREFIX}")
 
-acpp_require_relative(ACPP_ZE_DEPLOY_PATH)
-if(NOT DEFINED ACPP_ZE_DEPLOY_PATH)
-  set(ACPP_ZE_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext/ze")
-endif()
-
-# ---------------------------------------------------------------------------
-# Provenance - where the deploy step copies from
-# ---------------------------------------------------------------------------
-
-acpp_declare_provenance(ACPP_ZE_PATH
-  ACPP_DISCOVERED_ZE_PREFIX "${ACPP_DISCOVERED_ZE_PREFIX}"
-  "{{ ze-deploy-path }}")
-
-if(NOT "${ACPP_DISCOVERED_ZE_PREFIX}" STREQUAL "")
-  set(_acpp_ze_abs_libdir "${ACPP_DISCOVERED_ZE_PREFIX}/${ACPP_DISCOVERED_ZE_LIBDIR}")
-else()
-  set(_acpp_ze_abs_libdir "")
-endif()
-
-acpp_declare_provenance(ACPP_ZE_LIB_PATH
-  ACPP_DISCOVERED_ZE_LIBDIR "${_acpp_ze_abs_libdir}"
-  "{{ ze-deploy-path }}/{{ ze-libdir }}")
+acpp_declare_vendor_subdir_fact(ZE RT ACPP_DISCOVERED_ZE_LIBDIR "${ACPP_DISCOVERED_ZE_LIBDIR}")
+acpp_declare_vendor_app_subdir(ZE ze RT)
 
 # The runtime reaches the loader through DT_NEEDED and RUNPATH; nothing is
-# read at run time.
-
-# Level Zero has no multipass flow; the driver passes nothing.
+# read at run time. Level Zero has no multipass flow; the driver passes
+# nothing.
