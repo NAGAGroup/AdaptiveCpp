@@ -1,21 +1,18 @@
 {
-  "nvhpc-deploy-path": {
-    "value": "@ACPP_NVHPC_DEPLOY_PATH@"
+  "nvhpc-subdir": {
+    "value": "@ACPP_NVHPC_SUBDIR@"
   },
-  "nvhpc-libdir": {
-    "value": "@ACPP_DISCOVERED_NVHPC_LIBDIR@"
+  "nvhpc-install-root": {
+    "value": "@ACPP_NVHPC_INSTALL_ROOT@"
+  },
+  "nvhpc-rt-subdir": {
+    "value": "@ACPP_NVHPC_RT_SUBDIR@"
   },
   "nvhpc-version-major": {
     "value": "@ACPP_DISCOVERED_NVHPC_VERSION_MAJOR@"
   },
   "nvhpc-version-minor": {
     "value": "@ACPP_DISCOVERED_NVHPC_VERSION_MINOR@"
-  },
-  "nvhpc-path": {
-    "value": "@ACPP_NVHPC_PATH@"
-  },
-  "nvhpc-lib-path": {
-    "value": "@ACPP_NVHPC_LIB_PATH@"
   },
   "nvcxx": {
     "value": "@ACPP_NVCXX@",

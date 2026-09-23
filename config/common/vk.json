@@ -1,14 +1,11 @@
 {
-  "vk-deploy-path": {
-    "value": "@ACPP_VK_DEPLOY_PATH@"
+  "vk-subdir": {
+    "value": "@ACPP_VK_SUBDIR@"
   },
-  "vk-libdir": {
-    "value": "@ACPP_DISCOVERED_VK_LIBDIR@"
+  "vk-install-root": {
+    "value": "@ACPP_VK_INSTALL_ROOT@"
   },
-  "vk-path": {
-    "value": "@ACPP_VK_PATH@"
-  },
-  "vk-lib-path": {
-    "value": "@ACPP_VK_LIB_PATH@"
+  "vk-rt-subdir": {
+    "value": "@ACPP_VK_RT_SUBDIR@"
   }
 }

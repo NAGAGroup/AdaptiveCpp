@@ -1,11 +1,9 @@
 {
-  "svml-dir": {
-    "value": "@ACPP_TOOLCHAIN_SVML_DIR@",
-    "envvar": "ACPP_SVML_DIR",
-    "app": {
-      "var": "ACPP_SVML_DIR",
-      "value": "@ACPP_APP_SVML_DIR@",
-      "runtime-configurable": true
-    }
+  "svml-subdir": {
+    "value": "@ACPP_SVML_SUBDIR@"
+  },
+  "svml-install-root": {
+    "value": "@ACPP_SVML_INSTALL_ROOT@",
+    "envvar": "ACPP_SVML_DIR"
   }
 }

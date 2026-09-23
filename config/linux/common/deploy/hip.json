@@ -1,17 +1,17 @@
 {
   "internal": [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL",
       "dest": "{{ acpp-libdir }}/hipSYCL",
       "files": ["SHARED_LIB:rt-backend-hip"]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "files": ["SHARED_LIB:llvm-to-amdgpu"]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
       "files": ["libkernel-sscp-amdgpu-amdhsa-full.bc"]
     }
@@ -20,22 +20,22 @@
     {
       "build-mode": "toolchain",
       "unless": "hiprtc-link",
-      "src": "{{ llvm-path }}/bin",
-      "dest": "{{ llvm-deploy-path }}/bin",
+      "src": "{{ acpp-root }}/bin",
+      "dest": "bin",
       "files": ["clang++"]
     },
     {
       "build-mode": "toolchain",
       "unless": "hiprtc-link",
       "src": "{{ clang-include-path }}",
-      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
+      "dest": "{{ acpp-libdir }}/clang/{{ llvm-version-major }}/include",
       "files": ["*"]
     }
   ],
   "external-permissive": [
     {
-      "src": "{{ hip-lib-path }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-libdir }}",
+      "src": "{{ hip-install-root }}/{{ hip-rt-subdir }}",
+      "dest": "{{ hip-subdir }}/{{ hip-rt-subdir }}",
       "files": [
         "SHARED_LIB:amdhip64",
         "SHARED_LIB:hsa-runtime64",
@@ -47,20 +47,24 @@
       ]
     },
     {
-      "src": "{{ hip-sysdeps-path }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-libdir }}/rocm_sysdeps/lib",
+      "src": "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}",
+      "dest": "{{ hip-subdir }}/{{ hip-sysdeps-subdir }}",
       "files": ["*"]
     },
     {
-      "src": "{{ hip-device-libs-dir }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-bitcode-dir }}",
+      "src": "{{ hip-install-root }}/{{ hip-bitcode-subdir }}",
+      "dest": "{{ hip-subdir }}/{{ hip-bitcode-subdir }}",
       "files": ["*"]
     },
     {
-      "src": "{{ hip-include-path }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-incdir }}",
+      "src": "{{ hip-install-root }}/{{ hip-include-subdir }}",
+      "dest": "{{ hip-subdir }}/{{ hip-include-subdir }}",
       "files": ["*"],
       "toolchain-only": true
     }
+  ],
+
+  "app-config": [
+    {"var": "ACPP_HIP_DEVICE_LIBS_DIR", "value": "@ACPP_APP_HIP_BITCODE_SUBDIR@", "runtime-configurable": true}
   ]
 }

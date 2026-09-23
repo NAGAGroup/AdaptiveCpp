@@ -4,12 +4,16 @@
   "external-permissive": [],
   "external-nonpermissive": [
     {
-      "src": "{{ svml-dir }}",
-      "dest": "{{ acpp-libdir }}",
+      "src": "{{ svml-install-root }}",
+      "dest": "{{ svml-subdir }}",
       "files": [
         "SHARED_LIB:svml",
         "SHARED_LIB:intlc"
       ]
     }
+  ],
+
+  "app-config": [
+    {"var": "ACPP_SVML_DIR", "value": "@ACPP_APP_SVML_INSTALL_ROOT@", "runtime-configurable": true}
   ]
 }

@@ -1,24 +1,29 @@
 {
-  "libnuma-path": {
-    "value": "@ACPP_LIBNUMA_PATH@",
+  "libomp-subdir": {
+    "value": "@ACPP_LIBOMP_SUBDIR@"
+  },
+  "libomp-install-root": {
+    "value": "@ACPP_LIBOMP_INSTALL_ROOT@"
+  },
+  "libnuma-subdir": {
+    "value": "@ACPP_LIBNUMA_SUBDIR@"
+  },
+  "libnuma-install-root": {
+    "value": "@ACPP_LIBNUMA_INSTALL_ROOT@",
     "envvar": "ACPP_LIBNUMA_PATH"
   },
-  "sleef-dir": {
-    "value": "@ACPP_TOOLCHAIN_SLEEF_DIR@",
-    "envvar": "ACPP_SLEEF_DIR",
-    "app": {
-      "var": "ACPP_SLEEF_DIR",
-      "value": "@ACPP_APP_SLEEF_DIR@",
-      "runtime-configurable": true
-    }
+  "sleef-subdir": {
+    "value": "@ACPP_SLEEF_SUBDIR@"
   },
-  "amath-dir": {
-    "value": "@ACPP_TOOLCHAIN_AMATH_DIR@",
-    "envvar": "ACPP_AMATH_DIR",
-    "app": {
-      "var": "ACPP_AMATH_DIR",
-      "value": "@ACPP_APP_AMATH_DIR@",
-      "runtime-configurable": true
-    }
+  "sleef-install-root": {
+    "value": "@ACPP_SLEEF_INSTALL_ROOT@",
+    "envvar": "ACPP_SLEEF_DIR"
+  },
+  "amath-subdir": {
+    "value": "@ACPP_AMATH_SUBDIR@"
+  },
+  "amath-install-root": {
+    "value": "@ACPP_AMATH_INSTALL_ROOT@",
+    "envvar": "ACPP_AMATH_DIR"
   }
 }
