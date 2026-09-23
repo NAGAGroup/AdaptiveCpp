@@ -55,9 +55,9 @@ is what says "this toolchain cannot do that".
 ```
 cmake/discovery.cmake                              every core find, split by build mode
 cmake/discovery/<backend>.cmake                    conditional sub-files per vendor
-cmake/options/common/core.cmake                    matrix-wide helpers, controls, JIT flags
-cmake/options/<platform>/common/core.cmake         platform-wide deploy paths, resources
-cmake/options/<platform>/common/<flow>.cmake       platform-wide vendor options
+cmake/options/common/core.cmake                    matrix-wide helpers, controls, JIT flags, vendor-unit macros
+cmake/options/<platform>/common/core.cmake         platform-wide resources, owned/machine provenance
+cmake/options/<platform>/common/<flow>.cmake       platform-wide vendor units (two knobs each; see below)
 cmake/options/<platform>/<arch>/core.cmake         arch delta (wiring's include point)
 cmake/options/<platform>/<arch>/<flow>.cmake        one-line include of the platform common
 config/common/core.json                            matrix-wide configuration entries
@@ -100,7 +100,7 @@ whole and are updated when a change is intended.
 
 **Platform and architecture axes.** The copies that existed before common
 was factored are gone; what the machine changes is now visible as the arch
-delta (`linux/x86_64`'s SVML resource and its deploy row), and everything
+delta (`linux/x86_64`'s SVML vendor unit and its copy row), and everything
 else is the platform's or the matrix's.
 
 ## Three syntaxes, three moments
@@ -109,40 +109,43 @@ else is the platform's or the matrix's.
 |---|---|---|
 | `@ACPP_OPTION@` | cmake `configure_file` | when building the toolchain |
 | `{{ entry-key }}` | the driver, to a fixpoint | when driving the toolchain |
-| `$ACPP_PATH` | the C++ runtime | when running an application |
+| `$ACPP_RUNTIME_ROOT` | the C++ runtime | when running an application |
 
-**Two roots, never one name.** `{{ toolchain-path }}` is the toolchain's own
-root, found by the driver from its own location. `$ACPP_PATH` is the deployed
-application's root. Neither exists in the other's world; a value naming the
-wrong root is an unresolved-key error rather than a subtly wrong path. This is
-a deliberate deviation from upstream, where `$ACPP_PATH` is expanded by both
-the Python driver and the C++ runtime, silently meaning the toolchain when
-driving and the deployment when running.
+**Two roots, never one name.** `{{ acpp-root }}` is the toolchain's own
+root, found by the driver from its own location. `$ACPP_RUNTIME_ROOT` is the
+deployed application's root, computed by the C++ runtime at its own run time
+(see the obligations - this computation is not implemented yet). Neither
+exists in the other's world; a value naming the wrong root is an
+unresolved-key error rather than a subtly wrong path. This is a deliberate
+deviation from upstream, where `$ACPP_PATH` is expanded by both the Python
+driver and the C++ runtime, silently meaning the toolchain when driving and
+the deployment when running.
 
 **Resolution is to a fixpoint.** Replace `{{ key }}` with its value repeatedly
 until none remain; report a cycle if a pass makes no progress. There is no
 chain ban and no fixed pass count.
 
-**Manifests contain no `@` at all.** They are copied verbatim, never
-configured, and resolve at deploy time from the configuration as it then
-stands. A `@` in a manifest source file is always a bug. This is what makes
-editing an installed configuration change deploy behaviour with no reinstall.
+**Manifests contain `@` in exactly one place: the `app-config` section.**
+Every copy row (`internal`, `llvm`, `external-permissive`,
+`external-nonpermissive`) is copied verbatim, never configured by cmake, and
+resolves its `{{ }}` tokens at deploy time from the configuration as it then
+stands — a `@` in a copy row is always a bug, and this is what makes editing
+an installed configuration change deploy behaviour with no reinstall. The
+`app-config` section is different on purpose (D7): its rows are baked by
+`configure_file` at build time, because their values must record what the
+toolchain build actually decided (an absolute discovered path under
+`default`, a `{{ }}`-templated one otherwise) — see "The manifest".
 
-**In cmake, write `\$ACPP_PATH`** in quoted strings. An unescaped
-`"$ACPP_PATH/..."` makes cmake attempt a variable reference — a warning now,
-an error under `CMP0010 NEW`.
+**In cmake, write `\$ACPP_RUNTIME_ROOT`** in quoted strings. An unescaped
+`"$ACPP_RUNTIME_ROOT/..."` makes cmake attempt a variable reference — a
+warning now, an error under `CMP0010 NEW`.
 
 ## The entry schema
 
 ```json
 "vector-math-lib": {
   "value":  "@ACPP_VECTOR_MATH_LIB@",
-  "envvar": "ACPP_VECTOR_MATH_LIB",
-  "app": {
-    "var": "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY",
-    "value": "{{ vector-math-lib }}",
-    "runtime-configurable": true
-  }
+  "envvar": "ACPP_VECTOR_MATH_LIB"
 }
 ```
 
@@ -156,12 +159,19 @@ user-facing surface is the environment variables, which keep their spelling.
 - **`envvar`** is the name the entry answers to on the toolchain side. Its
   absence means the entry is a fact — nothing anyone could type would make it
   true, so there is no override channel.
-- **`app`** present means the entry travels to a deployed application. `var`
-  is the key the application reads (keyed by `ACPP_*` names, which is what
-  `generate_configuration_identifier` builds). `value` is what gets written.
-  `runtime-configurable` is documentation only — the runtime consults the
-  environment before the file for every key, so nothing enforces it; real
-  enforcement would live in the runtime's setting traits.
+
+**The entry schema is driver-only (D7).** No entry carries an `app` block
+any more. Every value that used to travel to a deployed application through
+one — the device compiler, clang's resource directory, the LLVM tools,
+`llvm-spirv`, the JIT-host flags, `vector-math-lib`, a vendor unit's
+subdirs — now travels through the manifest's own `app-config` section
+instead, one row per value, keyed the same way (`var`/`value`, plus
+`runtime-configurable` carried across unchanged). See "The manifest". This
+is what "driver-only" means: a toolchain configuration entry answers only
+the question "what does the driver use while compiling", never "what does a
+deployed application read" - that second question is the manifest's, not
+the entry schema's, because it depends on which manifest (core's, or a
+vendor's) the value belongs to.
 
 **Three kinds of entry:**
 
@@ -169,13 +179,14 @@ user-facing surface is the environment variables, which keep their spelling.
   Have an `envvar`.
 - **Dependency facts** — `llvm-libdir`, `llvm-version-major`, the version
   entries, `plugin-linked-into-llvm`. No `envvar`.
-- **Provenance** — `llvm-path`, `libomp-path`, `libnuma-path`: where to copy
-  from, read only by deploy. Single-sided: no `app` block, no
-  `ACPP_TOOLCHAIN_`/`ACPP_APP_` pair; `core.cmake` declares them through
-  `acpp_declare_owned_provenance` (what we build: `llvm-path` and
-  `libomp-path` in toolchain mode) or `acpp_declare_provenance` (vendor
-  plugins: `libnuma-path` always, `libomp-path` in plugin mode), one
-  variable each.
+- **Provenance** — `llvm-path`, `libomp-path`: where to copy from, read
+  only by deploy. Single-sided: no `ACPP_TOOLCHAIN_`/`ACPP_APP_` pair;
+  `core.cmake` declares them through `acpp_declare_owned_provenance` (what
+  we build: `llvm-path` and `libomp-path` in toolchain mode), one variable
+  each. `libnuma`, like every other vendor unit, is not provenance any
+  more - it is `libnuma-subdir`/`libnuma-install-root`, the same two-knob
+  shape as `sleef`/`amath`/`svml`/`libomp` in plugin mode; see "The deploy
+  layout decides everything".
 
 ## Two-sided resources
 
@@ -184,20 +195,24 @@ the JIT when running an application. Those are different facts — the driver
 runs from the toolchain on a developer's machine, the JIT runs from the
 deployment on someone else's — so one value cannot describe both.
 
-A resource declares both sides, filled by a pair of cmake variables:
+A resource declares both sides, filled by a pair of cmake variables -
+`ACPP_TOOLCHAIN_<STEM>` for the driver, `ACPP_APP_<STEM>` for a deployed
+application. Only the driver side lives in the entry schema, driver-only
+(D7):
 
 ```json
 "device-clang-cmplr": {
   "value": "@ACPP_TOOLCHAIN_DEVICE_CMPLR@",
-  "envvar": "ACPP_CLANG",
-  "app": { "var": "ACPP_CLANG", "value": "@ACPP_APP_DEVICE_CMPLR@",
-           "runtime-configurable": true }
+  "envvar": "ACPP_CLANG"
 }
 ```
 
-Which shape a resource takes - discovered absolute, or the placeholder from
-two roots - is decided by ownership, not `ACPP_DEPLOYMENT_STRATEGY`. See
-"The deploy layout decides everything".
+The app side, `@ACPP_APP_DEVICE_CMPLR@`, is baked into a row of core's
+manifest's `app-config` section instead - `{"var": "ACPP_CLANG", "value":
+"@ACPP_APP_DEVICE_CMPLR@", "runtime-configurable": true}` - not into the
+entry itself. Which shape each side takes - discovered absolute, or the
+placeholder from two roots - is decided by ownership, not
+`ACPP_DEPLOYMENT_STRATEGY`. See "The deploy layout decides everything".
 
 ## The deploy layout decides everything
 
@@ -209,30 +224,92 @@ two roots - is decided by ownership, not `ACPP_DEPLOYMENT_STRATEGY`. See
   LLVM's) and the plugin file. Always the deploy-layout placeholder, on
   both sides, in every strategy including `default` - a strategy is a
   commitment about assets we do not build, and these are not that. There
-  is no `-D` override for the value; override the deploy path
-  (`ACPP_LLVM_DEPLOY_PATH` and similar) if the tree differs.
+  is no `-D` override for the value at all: what we build follows cmake's
+  own install directories under `{{ acpp-root }}` directly (`bin/clang++`,
+  `{{ acpp-libdir }}/libacpp-clang.so`) - there is no separate deploy-path
+  knob to override in the first place, on any platform.
 - **The machine's** (rule 2): in plugin mode, the LLVM we did not build -
   the device compiler, `llc`/`opt`/`lld`, clang's resource directory, and
   `cpu-cxx` (`CMAKE_CXX_COMPILER`, the bootstrap compiler). Always the
   discovered absolute path, on both sides, in every strategy - nothing is
   deployed, so the JIT reaches the same machine copy the driver does.
   Empty and not an error when discovery found no plugin to build. Override
-  through the underlying find's own cache variable (upstream's
-  `CLANG_EXECUTABLE_PATH` is one such `CACHE STRING`), never through the
+  through the underlying find's own cache variable - upstream's
+  `CLANG_EXECUTABLE_PATH` is that variable exactly (D3: plugin-mode
+  discovery's `find_program` now targets it directly, so `-DCLANG_EXECUTABLE_PATH=`
+  works precisely as it would against upstream), never through the
   resource's own name - there is nothing here for a publisher to commit to.
-- **Vendor plugins** (rule 3): assets we never build, in either mode -
-  CUDA, HIP, the OpenCL/Level Zero loaders, Vulkan, clspv, the HPC SDK
-  runtime, SLEEF/AMATH/libnuma, and libomp *in plugin mode* (rule 4: it
-  provides compute, so it is a vendor plugin there, not the machine's -
-  in toolchain mode it is ours instead, above). Governed by
-  `ACPP_DEPLOYMENT_STRATEGY`, `-D`-overridable only under `default`; see
-  "The four deployment strategies".
+- **Vendor units** (rule 3): assets we never build, in either mode - CUDA,
+  HIP, the OpenCL/Level Zero loaders, Vulkan, clspv, the HPC SDK runtime,
+  SLEEF/AMATH/SVML/libnuma, and libomp *in plugin mode* (rule 4: it
+  provides compute, so it is a vendor unit there, not the machine's - in
+  toolchain mode it is ours instead, above). Governed by
+  `ACPP_DEPLOYMENT_STRATEGY`; see "The four deployment strategies" and, for
+  the knobs a packager actually gets, immediately below.
 
-**`*_DEPLOY_PATH` is the publisher's, set when building the toolchain.** It
-says where something lands in a deployed application, baked into our RUNPATH
-and written to the configuration. Discovery never touches it. This applies
-to owned and vendor deploy paths alike; a machine resource has none, because
-nothing of it is ever deployed.
+**Every vendor unit gets exactly two packager knobs (D1).** The first is
+the find's own discovery hints - `CUDAToolkit_ROOT`, `LLVM_DIR`,
+`OpenCL_LIBRARY`, `WITH_*_BACKEND` - which belong to discovery and are
+never named here. The second is one install subdirectory,
+`ACPP_<VENDOR>_SUBDIR`, a pure subdirectory with no root in it, resolved at
+configure time exactly like `CMAKE_INSTALL_LIBDIR` itself - never deferred
+to a `{{ }}` placeholder. Its default is
+`<CMAKE_INSTALL_LIBDIR>/hipSYCL/ext/<vendor>` (`<CMAKE_INSTALL_BINDIR>`-
+based on Windows, matching where the rest of what we install already
+lands); an explicitly empty string installs the vendor unit straight at
+the install root - the conda case, where the packager's own layout already
+scopes it (worked through in full under "The manifest"). After discovery
+and that one knob, everything else about the vendor is derived: there is
+no per-resource `-D` override, in any strategy, of the vendor's own
+resource values - a user of the *installed* toolchain can still override
+any entry through the environment, at the moment they use it, unchanged.
+
+**A vendor's prefix is the common ancestor of everything discovery found
+for it (D2), never a hardcoded assumption about the layout.** Discovery
+computes it by walking up from one found path until every other found path
+for that vendor sits inside it - degenerating to `/` for genuinely
+unrelated paths, which is not a configure failure, just an unhelpful
+answer nothing downstream is forced to use. This replaced a set of
+`FATAL_ERROR "... is not inside ..."` checks that assumed a single
+toolkit-shaped root; a conda-packaged CUDA toolkit, whose runtime library
+sits at `targets/x86_64-linux/lib` under the environment prefix rather
+than a toolkit's own `lib64`, is exactly the shape that used to trip them
+and does not any more.
+
+**Each vendor unit exports itself as one root plus its own internal
+subdirs (D4).** `<vendor>-install-root` is where the driver finds the
+vendor: the discovered absolute prefix under `default`; under
+`managed`/`full`, `{{ acpp-root }}/{{ <vendor>-subdir }}` - identical in
+both, because `managed` differs from `full` only in whether cmake copies
+the vendor in, never in what the driver is told to expect. Its own
+internal layout - `<vendor>-rt-subdir`, `<vendor>-include-subdir`,
+`<vendor>-bin-subdir`, `<vendor>-libdevice-subdir` for CUDA, and their
+equivalents for HIP, the HPC SDK and the loader-only/executable units -
+are discovery's own relative facts, unconditional on strategy: nobody
+chooses a vendor's internal layout, only where the vendor unit as a whole
+lands. A link line composes the root with a subdir fact directly, e.g.
+CUDA's `-Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }} -L{{
+cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart` (no rpath on Windows,
+which has no RUNPATH concept).
+
+**What a deployed application reads bakes at build time, driver-only entry
+schema notwithstanding (D7).** For each vendor subdir fact, an
+`ACPP_APP_<VENDOR>_<X>_SUBDIR` cmake variable composes the app's own view:
+under `default`, `{{ <vendor>-install-root }}/{{ <vendor>-<x>-subdir }}`
+(the same absolute answer the driver found, since nothing is deployed);
+otherwise the literal `$ACPP_RUNTIME_ROOT/{{ <vendor>-subdir }}/{{
+<vendor>-<x>-subdir }}` the C++ runtime resolves at its own run time. This
+value is baked into a row of that vendor's manifest `app-config` section,
+never into the entry schema - see "The manifest".
+
+**Renames (D5).** `{{ toolchain-path }}` is `{{ acpp-root }}`.
+`$ACPP_PATH` is `$ACPP_RUNTIME_ROOT` in the C++ runtime and in manifest
+`app-config` values; the manifest's own root token for a deployment tree
+is `{{ acpp-runtime-root }}`. Every `*_DEPLOY_PATH`/`*-deploy-path` entry
+is `*_SUBDIR`/`*-subdir`. `ACPP_LLVM_DEPLOY_PATH`/`llvm-deploy-path` is
+gone outright, not renamed: what toolchain mode builds follows cmake's own
+install directories under `{{ acpp-root }}` directly, so there is nothing
+left for a separate LLVM-specific knob to say.
 
 **No facts are computed in an options file.** `acpp-libdir` comes from
 `@CMAKE_INSTALL_LIBDIR@`, `llvm-libdir` from `@LLVM_LIBDIR@` (which
@@ -276,12 +353,12 @@ Three audiences:
   `default` is the same-system case. `managed` is `full` minus cmake copying
   vendor libraries at install, because the publisher's package manager delivers
   them into the built layout — the conda scenario, where external dependencies
-  arrive as conda packages. The publisher sets deploy-path knobs to match the
-  layout that results once all bundled vendor items are in place; what we
-  build already has its layout, unconditionally (rule 1). `full` and
-  `full-permissive-only` are the easy path: defaults work, cmake installs
-  external dependencies alongside, deployment is straightforward for the
-  publisher's users.
+  arrive as conda packages. The publisher sets each vendor's install-subdir
+  knob (often empty, for a conda-shaped layout) to match the layout that
+  results once all bundled vendor items are in place; what we build already
+  has its layout, unconditionally (rule 1). `full` and `full-permissive-only`
+  are the easy path: defaults work, cmake installs external dependencies
+  alongside, deployment is straightforward for the publisher's users.
 - **The toolchain user** compiles applications and may deploy them. A
   `managed` toolchain's users may switch it into `full*` deployment — `acpp
   --acpp-deploy` then copies the conda-prefix vendor assets into the
@@ -301,11 +378,11 @@ message lists the resolved `external-nonpermissive` rows.
 among our own binaries, in every strategy (rule 1). The machine's
 toolchain, in plugin mode, is absolute (rule 2) - nothing of it is
 deployed, so there is nothing to be relative to. A vendor's RUNPATH is
-absolute under `default` and relative otherwise, derived from its
-`*_DEPLOY_PATH` knob like everything else vendor (rule 3). Anything not
-reachable from `$ORIGIN`/`@loader_path` is found by the loader's own
-mechanisms (`ld.so.cache`, `LD_LIBRARY_PATH`), which is unsupported
-territory — the design serves what it can predict.
+absolute under `default` and relative otherwise, derived from its own
+install-root and subdir facts like everything else vendor (rule 3).
+Anything not reachable from `$ORIGIN`/`@loader_path` is found by the
+loader's own mechanisms (`ld.so.cache`, `LD_LIBRARY_PATH`), which is
+unsupported territory — the design serves what it can predict.
 
 ## The manifest
 
@@ -333,13 +410,17 @@ user is allowed to change, so an app-needed vendor asset like `cudart`
 gets both: an install rule under the full strategies, and a manifest row.
 See `doc/source-obligations.md` for the harness this obligates.
 
-Four categories, which are the copy policy:
+Five categories: four are the copy policy, the fifth (D7) is application
+configuration, not a copy at all.
 
 ```json
-{ "internal": [ { "src": "{{ toolchain-path }}/{{ acpp-libdir }}",
+{ "internal": [ { "src": "{{ acpp-root }}/{{ acpp-libdir }}",
                   "dest": "{{ acpp-libdir }}",
                   "files": ["SHARED_LIB:acpp-rt"] } ],
-  "llvm": [...], "external-permissive": [...], "external-nonpermissive": [...] }
+  "llvm": [...], "external-permissive": [...], "external-nonpermissive": [...],
+  "app-config": [ { "var": "ACPP_CLANG",
+                     "value": "@ACPP_APP_DEVICE_CMPLR@",
+                     "runtime-configurable": true } ] }
 ```
 
 `src` is a directory named by an entry, `files` are relative to it, `dest` is
@@ -347,6 +428,35 @@ relative to the deployment root. `SHARED_LIB:` and `*` are the driver's
 existing mechanisms. The `"toolchain-only": true` flag is retired: what it
 used to mark — a row installed but never deployed — is now a per-vendor
 cmake install rule instead, home (b) above, not a manifest row at all.
+
+**`app-config` is where every value that used to be an entry's `app` block
+now lives (D7).** Its rows have no `src`/`dest`/`files` at all - they are
+not copied, they are *written*, at deploy time, into the deployed
+application's own configuration. `var` is the environment-variable-shaped
+name the application reads; `value` is baked by cmake's `configure_file`
+at build time from whichever `ACPP_APP_*` variable the options file
+computed - an absolute path under `default`, a `{{ }}`-templated one
+otherwise, exactly the same split every two-sided resource always had, just
+relocated out of the entry schema and into the manifest that actually owns
+the value (core's manifest for the driver-wide resources - the device
+compiler, `llc`/`opt`/`lld`, `llvm-spirv`, the JIT-host flags,
+`vector-math-lib`, sleef/amath - a vendor's own manifest for its own
+subdirs). `runtime-configurable` and `build-mode`/`"unless"` carry across
+onto `app-config` rows exactly as they worked on copy rows: a row without
+`build-mode` applies in both build modes, `"unless"` still gates on a
+compilation flow.
+
+**Why `app-config` is `@`-baked and copy rows are not.** A copy row's
+`{{ }}` tokens are resolved once, honestly, by the driver at drive time,
+reading the configuration as it then stands - editable, because a
+downstream user is allowed to repoint a vendor path. An `app-config` row's
+`value` records a decision the *toolchain build* made (what ownership and
+strategy computed the app-side value to be), which is a fact about that
+build, not something drive-time editing should silently change out from
+under a value the runtime will later trust. Both still use `{{ }}` inside
+that baked value where the driver or runtime must resolve something later
+(the vendor's install root, its own subdir) - baking and `{{ }}` resolution
+are not mutually exclusive, they answer different questions.
 
 **Clang and its headers are hip's rows, not core's.** The only JIT caller
 of clang is the generic-hip `clangJitLink` path, used when hipRTC isn't
@@ -379,14 +489,54 @@ other vendor plugin.
 **`llvm-spirv` is ours in both modes.** AdaptiveCpp builds its own fork of
 the SPIRV-LLVM-Translator (`doc/install-ocl.md`) and installs it under our
 own library directory, `hipSYCL/ext/llvm-spirv/bin/`, independent of
-`{{ llvm-deploy-path }}` - the machine's LLVM never supplies it, plugin or
-not. Its row is `internal`, unconditional, no `build-mode` key.
+cmake's own LLVM install directories - the machine's LLVM never supplies
+it, plugin or not. Its row is `internal`, unconditional, no `build-mode`
+key.
 
-**LLVM deploys as a unit** under `llvm-deploy-path`, preserving its
-internal bin-to-libdir relationship, because its binaries carry their own
-RUNPATH. The path defaults to `.`: toolchain mode is one prefix, one
-tree. Plugin mode bundles no LLVM at all (rule 2), so the path is unused
-there.
+**LLVM deploys as a unit under cmake's own install directories**, no
+separate deploy-path knob at all (D5): toolchain mode's LLVM lands at
+`{{ acpp-root }}/bin` and `{{ acpp-root }}/{{ acpp-libdir }}` directly,
+preserving its internal bin-to-libdir relationship because its binaries
+carry their own RUNPATH, and because "what we build follows cmake's own
+install directories" is rule 1 applied literally - one prefix, one tree,
+with nothing left for a fork-specific knob to say. Plugin mode bundles no
+LLVM at all (rule 2), so none of this applies there.
+
+### Conda-packaged CUDA, worked through
+
+A conda environment installs the CUDA toolkit at its own environment
+prefix, with the runtime libraries under `targets/x86_64-linux/lib` rather
+than a toolkit's own top-level `lib64`. A packager building AdaptiveCpp
+into that same conda environment sets the one vendor knob CUDA gets,
+`-DACPP_CUDA_SUBDIR=`, to the empty string (D1(b)): the vendor unit
+installs straight at the install root, because the conda environment's own
+layout already scopes it - there is no `hipSYCL/ext/cuda` subtree to
+invent.
+
+Discovery still finds a CUDA toolkit exactly as it would anywhere else
+(D2): `cuda-install-root` resolves to the conda prefix - the common
+ancestor of wherever the toolkit's libdir, includedir, bindir and
+`nvvm/libdevice` actually sit - and `cuda-rt-subdir` resolves to
+`targets/x86_64-linux/lib`, whatever the toolkit's own layout says (D4).
+Nothing about the vendor's internal layout is a packager's choice, only
+where the vendor unit as a whole lands.
+
+A driver-resolved manifest copy row still reads `"src": "{{
+cuda-install-root }}/{{ cuda-rt-subdir }}"`, completely unaffected by which
+knob produced `cuda-install-root`'s value or whether `cuda-subdir` is empty
+- copy rows do not mention `cuda-subdir` in their `src` at all, only in
+`dest` (D6). The one place the empty subdir shows up is the app-config row
+(D7): under `managed`/`full` its baked value is the literal
+`$ACPP_RUNTIME_ROOT/{{ cuda-subdir }}/{{ cuda-libdevice-subdir }}` - an
+empty `cuda-subdir` sitting between two literal slashes in that template,
+so a naive `{{ }}` substitution of it produces a doubled slash,
+`$ACPP_RUNTIME_ROOT//nvvm/libdevice`. Nothing in the options layer
+special-cases this: `cuda-subdir` is a deferred `{{ }}` token throughout
+configure, never concatenated by cmake with anything until the deploy
+engine resolves `{{ }}` tokens at drive time - normalizing the doubled
+slash there is the deploy engine's obligation (`doc/source-obligations.md`),
+not something the options layer should paper over by special-casing an
+empty subdir.
 
 ## Discovery
 
@@ -418,13 +568,14 @@ is what `LD_LIBRARY_PATH` and `ld.so.conf` exist for. The diagnostic argument
 for shims was also wrong: `common::load_library` already appends `dlerror()`,
 so a missing vendor library is reported by name today.
 
-**One `*_DEPLOY_PATH` knob per vendor**, in the same shape as
-`ACPP_LLVM_DEPLOY_PATH`. Each vendor unit deploys whole under its deploy
-path, default `{{ acpp-libdir }}/hipSYCL/ext/<vendor>`, in the vendor's own
-relative layout as its find module reports it; nobody chooses that internal
-layout. A `managed` publisher sets the knob to match the layout their
-package manager produces. RUNPATH is derived from the deploy path and that
-layout.
+**Two packager knobs per vendor unit (D1)** - discovery's own hints, and
+one install subdirectory, `ACPP_<VENDOR>_SUBDIR`, default
+`{{ acpp-libdir }}/hipSYCL/ext/<vendor>`. Each vendor unit deploys whole
+under that subdir, in the vendor's own relative layout as its find module
+reports it; nobody chooses that internal layout. A `managed` publisher sets
+the knob to match the layout their package manager produces - often empty,
+for a conda-shaped install (worked through under "The manifest"). RUNPATH
+is derived from the vendor's install root and its own subdir facts.
 
 There is no vendor zone, no `ACPP_TARGET` (the vendor-zone placeholder is
 gone; `ACPP_TARGETS`, the driver's `--acpp-targets` option, stays), and no
@@ -467,9 +618,13 @@ multipass flow, so it carries no link line.
 **Executable units** (clspv) are vendor units whose deployable is a
 program the JIT invokes at application run time, not a library. The
 executable is a two-sided resource (`ACPP_CLSPV`), and the compiler reads
-it through `try_retrieve_settings_variable`. The unit deploys under
-`{{ acpp-libdir }}/hipSYCL/ext/clspv` with its bindir, following the same
-prefix-and-relative-path rule as the library units.
+it through `try_retrieve_settings_variable`. Unlike the other vendor
+subdir facts, its two cmake-level strings (`ACPP_TOOLCHAIN_CLSPV`,
+`ACPP_APP_CLSPV`) compose `{{ clspv-install-root }}/{{ clspv-bin-subdir
+}}/clspv` directly and need no strategy branch of their own at configure
+time, because `clspv-install-root` already carries that branch. The unit
+deploys under `{{ acpp-libdir }}/hipSYCL/ext/clspv` by default with its own
+bindir, following the same two-knob rule as the library units.
 
 **Flows without a vendor unit.** The omp flows carry no unit and no
 manifest of their own: the CPU backend is internal, already in core's
@@ -488,11 +643,13 @@ OpenMP runtimes.
 **Windows.** Vendor units on Windows hold their DLLs in the vendor's
 bin-relative directory (deployable) and their import libraries in the
 lib-relative directory (toolchain-only, needed only to drive the multipass
-flows). The deploy path default is `{{ acpp-bindir }}/hipSYCL/ext/<vendor>`.
+flows). The install-subdir default is `{{ acpp-bindir }}/hipSYCL/ext/<vendor>`.
 With no RUNPATH, the runtime's existing `AddDllDirectory` is the Windows
 form of the derived RUNPATH, fed from the application configuration: each
-vendor's DLL directory is a two-sided resource
-(`ACPP_<VENDOR>_DLL_DIR`). `SHARED_LIB:<name>` resolves to `<name>.dll`
+vendor's DLL directory is the same `<vendor>-bin-subdir` fact every other
+platform has, carried to a deployed application through an `app-config`
+row (`ACPP_<VENDOR>_DLL_DIR`) rather than a resource of its own -
+CUDA/OCL/ZE all take this shape. `SHARED_LIB:<name>` resolves to `<name>.dll`
 on Windows and the `files` entries in deploy manifests are
 template-expanded like `src` and `dest`, so a versioned DLL like
 `cudart64_12.dll` is written as
