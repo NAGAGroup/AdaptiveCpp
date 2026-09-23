@@ -245,6 +245,30 @@ not exist in the Python driver. The driver reads values and expands
   a duplicate key is a configure error.
 - `devops/verify/golden` is the reference the merge must reproduce.
 
+### Wiring-slice obligations left by the ownership rule
+
+- The deploy engine filters manifest rows by `"build-mode"` at configure
+  time against `LLVM_ADAPTIVECPP_LINK_INTO_TOOLS`: a row tagged
+  `"toolchain"` or `"plugin"` is dropped when the build is the other
+  mode; a row carrying no `build-mode` key applies in both. This is the
+  same absence-based rule the merge already uses for a flow whose
+  dependencies were not found - here the axis is build mode instead of
+  discovery.
+- The `llvm` category deploys in every strategy when it is present at
+  all (rule 1: it exists only in toolchain mode, and is unconditional
+  there); `internal` already deploys under `default` too, and needs no
+  new obligation - it always has.
+- RUNPATH wiring follows ownership, not strategy: our own binaries carry
+  a `$ORIGIN`/`@loader_path`-relative RUNPATH to each other in every
+  strategy; in plugin mode, the link to `libLLVM` (or the equivalent
+  machine library) is absolute, because nothing of the machine's LLVM is
+  deployed; a vendor's RUNPATH is absolute under `default` and relative
+  otherwise, from its own `*_DEPLOY_PATH`.
+- Upstream's own core deployment manifest (the `libLLVM`, `llc`/`opt`/
+  `lld`, `omp` and `gomp` rows built into its deploy-manifest generation)
+  is replaced by this fork's manifest, not merged with it: a plugin build
+  here installs none of those rows, by rule 2, where upstream's would.
+
 ### Obligations on the deploy engine
 
 - The final deploy manifest is one merge of core's manifest and every

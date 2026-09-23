@@ -12,8 +12,8 @@ to match the source.
 **Fidelity.** The fork adds no functionality except relocatability and the
 deployment mechanism; every backend's enable condition and discovery match
 upstream's. This keeps the fork a drop-in: a user who never asks about
-paths gets the toolchain upstream would have built. The one deliberate
-departure so far is OpenCL's 2.1 version floor; see the obligations.
+paths gets the toolchain upstream would have built. Where the fork departs,
+it is deliberate and narrow; see below.
 
 **The prolog.** Discovery runs first, then the fetches (some gated on
 what discovery found), then the options files; below that the tree only
@@ -21,6 +21,29 @@ adds sources and install rules. A find must see the machine as it is, so
 a fetched dependency never stands in for something the build machine must
 have; and nothing finds or fetches once the options files have started
 reading discovery's exports.
+
+**Deliberate departures.**
+
+- OpenCL's 2.1 version floor: upstream's OpenCL find carries no minimum
+  version, so it finds Apple's 1.2 framework and later fails to link; the
+  floor rejects it the same way on every platform (see the obligations).
+- Plugin mode ships no LLVM pieces. Upstream's own core manifest lists
+  `libLLVM`, `llc`/`opt`/`lld`, `omp` and `gomp` regardless of mode; here
+  those belong to the machine (rule 2 under "The four deployment
+  strategies") and are never rows.
+- Toolchain mode's `cpu-cxx` is our own `clang++`. Upstream's equivalent,
+  `CMAKE_CXX_COMPILER`, is the bootstrap compiler in every mode; here that
+  is true only in plugin mode - toolchain mode builds its own compiler and
+  drives with it.
+- `default` deploys what we build. Upstream's `default`-equivalent writes
+  a configuration and copies nothing; here rule 1 makes our own runtime,
+  and LLVM when we build it, unconditional on strategy.
+
+**Naming.** "Linked" is called toolchain mode in this document, for the
+build that links AdaptiveCpp into the LLVM tools it also builds. A later
+rename pass will give the cmake identifiers
+(`LLVM_ADAPTIVECPP_LINK_INTO_TOOLS`) the same name; they keep their
+current spelling until then.
 
 ## The source tree
 
@@ -149,7 +172,10 @@ user-facing surface is the environment variables, which keep their spelling.
 - **Provenance** — `llvm-path`, `libomp-path`, `libnuma-path`: where to copy
   from, read only by deploy. Single-sided: no `app` block, no
   `ACPP_TOOLCHAIN_`/`ACPP_APP_` pair; `core.cmake` declares them through
-  `acpp_declare_provenance`, one variable each.
+  `acpp_declare_owned_provenance` (what we build: `llvm-path` and
+  `libomp-path` in toolchain mode) or `acpp_declare_provenance` (vendor
+  plugins: `libnuma-path` always, `libomp-path` in plugin mode), one
+  variable each.
 
 ## Two-sided resources
 
@@ -169,27 +195,44 @@ A resource declares both sides, filled by a pair of cmake variables:
 }
 ```
 
-Under `default` both sides are the discovered absolute path. Under the
-placeholder strategies they are the same relative location from two roots:
-`{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++` and
-`$ACPP_PATH/{{ llvm-deploy-path }}/bin/clang++`.
+Which shape a resource takes - discovered absolute, or the placeholder from
+two roots - is decided by ownership, not `ACPP_DEPLOYMENT_STRATEGY`. See
+"The deploy layout decides everything".
 
 ## The deploy layout decides everything
 
+**Ownership decides a resource's shape, not the strategy.** Three kinds:
+
+- **Ours** (rule 1): what we build. In toolchain mode that is the device
+  compiler, `llc`/`opt`/`lld`, `cpu-cxx`, clang's resource directory and
+  libomp; in every mode it is also `llvm-spirv` (our own translator, never
+  LLVM's) and the plugin file. Always the deploy-layout placeholder, on
+  both sides, in every strategy including `default` - a strategy is a
+  commitment about assets we do not build, and these are not that. There
+  is no `-D` override for the value; override the deploy path
+  (`ACPP_LLVM_DEPLOY_PATH` and similar) if the tree differs.
+- **The machine's** (rule 2): in plugin mode, the LLVM we did not build -
+  the device compiler, `llc`/`opt`/`lld`, clang's resource directory, and
+  `cpu-cxx` (`CMAKE_CXX_COMPILER`, the bootstrap compiler). Always the
+  discovered absolute path, on both sides, in every strategy - nothing is
+  deployed, so the JIT reaches the same machine copy the driver does.
+  Empty and not an error when discovery found no plugin to build. Override
+  through the underlying find's own cache variable (upstream's
+  `CLANG_EXECUTABLE_PATH` is one such `CACHE STRING`), never through the
+  resource's own name - there is nothing here for a publisher to commit to.
+- **Vendor plugins** (rule 3): assets we never build, in either mode -
+  CUDA, HIP, the OpenCL/Level Zero loaders, Vulkan, clspv, the HPC SDK
+  runtime, SLEEF/AMATH/libnuma, and libomp *in plugin mode* (rule 4: it
+  provides compute, so it is a vendor plugin there, not the machine's -
+  in toolchain mode it is ours instead, above). Governed by
+  `ACPP_DEPLOYMENT_STRATEGY`, `-D`-overridable only under `default`; see
+  "The four deployment strategies".
+
 **`*_DEPLOY_PATH` is the publisher's, set when building the toolchain.** It
 says where something lands in a deployed application, baked into our RUNPATH
-and written to the configuration. Discovery never touches it.
-
-**Path entries are derived from it.** Under the placeholder strategies the
-toolchain's own tree has the same shape as a deployment, so "where is LLVM in
-the toolchain" and "where does LLVM land in an application" are one question
-from two roots. Only under `default` does discovery answer instead.
-
-**A resource value is builder-overridable only under `default`.** Choosing any
-other strategy is a commitment that the package contains what it needs; paths
-follow from the layout rather than being set one at a time. A `-D` outside
-`default` is a fatal error naming the deploy path to set instead. A user of
-the installed toolchain can still override anything through the environment.
+and written to the configuration. Discovery never touches it. This applies
+to owned and vendor deploy paths alike; a machine resource has none, because
+nothing of it is ever deployed.
 
 **No facts are computed in an options file.** `acpp-libdir` comes from
 `@CMAKE_INSTALL_LIBDIR@`, `llvm-libdir` from `@LLVM_LIBDIR@` (which
@@ -202,16 +245,30 @@ reaching into whichever variable a particular find happened to use.
 
 ## The four deployment strategies
 
-The strategy decides two things and nothing more: the initial values written
-into the installed configuration, and whether `cmake --install` copies
-external assets in. It says nothing about how a later deployment behaves.
+**Rule 1.** What we build is installed and deployed with apps in every
+strategy, `default` included - it is always ours (see "The deploy layout
+decides everything").
 
-| | values | install copies | deploy copies |
+**Rule 2.** In plugin mode the machine's own toolchain - LLVM, `libLLVM`,
+`clang`, `llc`/`opt`/`lld`, `cpu-cxx` (`CMAKE_CXX_COMPILER`) - is the
+discovered absolute path in every strategy, never shipped, no manifest
+row. A strategy governs assets we do not build; the machine's own
+toolchain is never an asset we build.
+
+The strategy governs only vendor plugins - assets we do not build (rule 3
+above), and libomp specifically in plugin mode (rule 4). It decides two
+things and nothing more: the initial values written into the installed
+configuration for those assets, and whether `cmake --install` copies them
+in. It says nothing about how a later deployment behaves, and nothing
+about what we build or the machine's toolchain, which rules 1 and 2
+already settled.
+
+| | vendor values | install copies vendors | deploy copies |
 |---|---|---|---|
-| `default` | absolute | nothing | nothing; writes a configuration only |
-| `managed` | placeholder | nothing | `internal`, `llvm` when we built it |
-| `full-permissive-only` | placeholder | permissive | + `llvm` always, `external-permissive` |
-| `full` | placeholder | everything | + `external-nonpermissive`, behind the gate |
+| `default` | absolute | nothing | ours only |
+| `managed` | placeholder | nothing | ours only; packager provides vendors |
+| `full-permissive-only` | placeholder | permissive | + permissive vendors |
+| `full` | placeholder | everything | + nonpermissive vendors, behind the gate |
 
 Three audiences:
 
@@ -219,15 +276,18 @@ Three audiences:
   `default` is the same-system case. `managed` is `full` minus cmake copying
   vendor libraries at install, because the publisher's package manager delivers
   them into the built layout — the conda scenario, where external dependencies
-  arrive as conda packages. The publisher sets `ACPP_LLVM_DEPLOY_PATH` and
-  similar knobs to match the layout that results once all bundled items are in
-  place. `full` and `full-permissive-only` are the easy path: defaults work,
-  cmake installs external dependencies alongside, deployment is straightforward
-  for the publisher's users.
+  arrive as conda packages. The publisher sets deploy-path knobs to match the
+  layout that results once all bundled vendor items are in place; what we
+  build already has its layout, unconditionally (rule 1). `full` and
+  `full-permissive-only` are the easy path: defaults work, cmake installs
+  external dependencies alongside, deployment is straightforward for the
+  publisher's users.
 - **The toolchain user** compiles applications and may deploy them. A
   `managed` toolchain's users may switch it into `full*` deployment — `acpp
-  --acpp-deploy` then copies the conda-prefix LLVM into the application's
-  deployment at the layout the rewritten ELFs expect.
+  --acpp-deploy` then copies the conda-prefix vendor assets into the
+  application's deployment at the layout the rewritten ELFs expect. Our own
+  runtime, and LLVM when we built it, deploy the same way under every
+  strategy already, because rule 1 settled that.
 - **The application user** runs the deployed application. They have no knobs.
 
 `full-permissive-only` exists so that wanting a self-contained toolchain does
@@ -237,10 +297,15 @@ sets protects nobody.
 The gate is `ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN`; its failure
 message lists the resolved `external-nonpermissive` rows.
 
-`RUNPATH` is the layout: it is derived from `*_DEPLOY_PATH` knobs, not
-configured independently. Anything not reachable from `$ORIGIN` is found by
-the loader's own mechanisms (`ld.so.cache`, `LD_LIBRARY_PATH`), which is
-unsupported territory — the design serves what it can predict.
+**RUNPATH follows ownership.** Ours is `$ORIGIN`/`@loader_path`-relative
+among our own binaries, in every strategy (rule 1). The machine's
+toolchain, in plugin mode, is absolute (rule 2) - nothing of it is
+deployed, so there is nothing to be relative to. A vendor's RUNPATH is
+absolute under `default` and relative otherwise, derived from its
+`*_DEPLOY_PATH` knob like everything else vendor (rule 3). Anything not
+reachable from `$ORIGIN`/`@loader_path` is found by the loader's own
+mechanisms (`ld.so.cache`, `LD_LIBRARY_PATH`), which is unsupported
+territory — the design serves what it can predict.
 
 ## The manifest
 
@@ -257,15 +322,36 @@ Four categories, which are the copy policy:
 relative to the deployment root. `SHARED_LIB:` and `*` are the driver's
 existing mechanisms. A group carrying `"toolchain-only": true` is installed
 into the toolchain under `full*` and never deployed to an application —
-headers, executables the JIT does not invoke. `llvm` is its own category
-because the rule is "we copy LLVM when we built it, or when you asked for
-everything" — provenance, not licence.
+headers, executables the JIT does not invoke.
 
-**LLVM deploys as a unit** under `llvm-deploy-path`, preserving its internal
-bin-to-libdir relationship, because its binaries carry their own RUNPATH.
-The default is mode-branched: linked build → `.`, plugin build →
-`{{ acpp-libdir }}/hipSYCL/ext`. Both build modes (plugin ext-shaped, linked
-dot-shaped) are in scope.
+**`llvm` is ours in toolchain mode, and only in toolchain mode.** It holds
+what toolchain mode builds - the device compiler, `llc`/`opt`/`lld`,
+libomp, clang's resource headers, `libLLVM` where a dylib is built - and
+it is deployed in every strategy, `default` included (rule 1); it does
+not exist in plugin mode at all, because none of that is ours to ship
+there (rule 2). Every row carries an optional `"build-mode": "toolchain"
+| "plugin"` key; a row without one applies in both modes. The installed
+manifest holds only the rows whose build-mode matches
+`LLVM_ADAPTIVECPP_LINK_INTO_TOOLS`, or carry none: the deploy engine
+filters at configure time, the same way a flow's fragments are simply
+absent when discovery found nothing for it.
+
+**libomp splits by mode**, per rule 4: a `"build-mode": "toolchain"` row in
+`llvm`, always deployed with it; a `"build-mode": "plugin"` row in
+`external-permissive`, governed by `ACPP_DEPLOYMENT_STRATEGY` like any
+other vendor plugin.
+
+**`llvm-spirv` is ours in both modes.** AdaptiveCpp builds its own fork of
+the SPIRV-LLVM-Translator (`doc/install-ocl.md`) and installs it under our
+own library directory, `hipSYCL/ext/llvm-spirv/bin/`, independent of
+`{{ llvm-deploy-path }}` - the machine's LLVM never supplies it, plugin or
+not. Its row is `internal`, unconditional, no `build-mode` key.
+
+**LLVM deploys as a unit** under `llvm-deploy-path`, preserving its
+internal bin-to-libdir relationship, because its binaries carry their own
+RUNPATH. The path defaults to `.`: toolchain mode is one prefix, one
+tree. Plugin mode bundles no LLVM at all (rule 2), so the path is unused
+there.
 
 ## Discovery
 
@@ -351,10 +437,18 @@ it through `try_retrieve_settings_variable`. The unit deploys under
 prefix-and-relative-path rule as the library units.
 
 **Flows without a vendor unit.** The omp flows carry no unit and no
-manifest: the CPU backend is internal and libomp is the LLVM unit's, both
-already in core's manifest. Upstream's CPU backend is unconditionally
-built, so omp is core, not a vendor: the link line and compile flags live
-in each platform's core.cmake, because the OpenMP flag is the platform's.
+manifest of their own: the CPU backend is internal, already in core's
+manifest. Upstream's CPU backend is unconditionally built, so omp is
+core, not a vendor: the link line and compile flags live in each
+platform's core.cmake, because the OpenMP flag is the platform's. libomp
+itself splits by ownership (rule 4): ours in toolchain mode, a vendor
+plugin in plugin mode - see "The manifest". The OMP flag follows the same
+split: plugin mode is upstream's `DEFAULT_OMP_FLAG` exactly (`-Xclang
+-fopenmp` when the machine's bootstrap compiler is AppleClang, else
+`-fopenmp`); toolchain mode is plain `-fopenmp` always, because `cpu-cxx`
+is our own `clang++`, never AppleClang. A user linking GOMP instead of
+LLVM's libomp edits their own manifest; the fork does not choose between
+OpenMP runtimes.
 
 **Windows.** Vendor units on Windows hold their DLLs in the vendor's
 bin-relative directory (deployable) and their import libraries in the
