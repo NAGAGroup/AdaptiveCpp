@@ -45,8 +45,13 @@ prefix (e.g., `"default-clang"`, `"default-cuda-path"`). The configuration
 model says keys carry no prefix.
 
 The driver expands `$ACPP_PATH` via a two-pass substitution dictionary (lines
-760, 768, 775). The configuration model says resolution is to a fixpoint using
-`{{ key }}` syntax; no `{{ }}` resolver exists in the driver.
+760, 768, 775) — upstream's spelling, unrenamed since bin/acpp is untouched
+by this campaign. The configuration model now names two distinct roots,
+`{{ acpp-root }}` (the driver's own) and `$ACPP_RUNTIME_ROOT` (a deployed
+application's, computed by the C++ runtime); the driver's `$ACPP_PATH` conflates
+them the way upstream always did. The obligation is the same one D5 named for
+the C++ runtime: rename to the two-root vocabulary, then resolve `{{ key }}`
+to a fixpoint - no `{{ }}` resolver exists in the driver today.
 
 The driver hardcodes `"lib"` in four places:
 - `bin/acpp:761` — `os.path.join(self.acpp_installation_path, "lib")`
@@ -69,9 +74,10 @@ XDG search order, and the one-per-process semantics do not exist.
 ### The driver's fixpoint resolver
 
 The `{{ key }}` fixpoint resolver described in the configuration model does
-not exist in the Python driver. The driver reads values and expands
-`$ACPP_PATH` by string substitution only; it does not resolve
-`{{ }}` references between entries.
+not exist in the Python driver. The driver reads values and expands its own
+(upstream-spelled) `$ACPP_PATH` by string substitution only; it does not
+resolve `{{ }}` references between entries, and it has no notion yet of the
+model's two distinct roots (`{{ acpp-root }}` vs. `$ACPP_RUNTIME_ROOT`).
 
 ### Install rpaths that hardcode lib
 
@@ -139,9 +145,11 @@ on whether a conflict is there to resolve at all.
   `find_package(CUDA)` is removed.
 - `src/runtime/CMakeLists.txt`: `rt-backend-cuda` links via `CUDA::cudart`
   `CUDA::cuda_driver` and carries a RUNPATH entry that the wiring derives
-  from `{{ cuda-deploy-path }}/{{ cuda-libdir }}`.
+  from `{{ cuda-install-root }}/{{ cuda-rt-subdir }}`.
 - `bin/acpp` lines ~1038-1044: `cuda_lib_path` property hardcodes a
-  `lib64` fallback; reads `default-cuda-lib-path`.
+  `lib64` fallback; reads `default-cuda-lib-path`, an entry name that no
+  longer exists — the replacement is composing `cuda-install-root` with
+  `cuda-rt-subdir`, not a single absolute-path entry.
 - `cmake/adaptivecpp-config.cmake.in`: `ACPP_CUDA_PATH` stays (user-facing
   cmake export).
 - `bin/acpp` cuda_nvcxx_invocation: reads `nvcxx` and `nvcxx-link-line`
@@ -161,9 +169,10 @@ on whether a conflict is there to resolve at all.
   cache variables.
 - `src/runtime/CMakeLists.txt`: `rt-backend-hip` keeps `hip::host` and
   gains the derived RUNPATH entry to
-  `{{ hip-deploy-path }}/{{ hip-libdir }}`.
+  `{{ hip-install-root }}/{{ hip-rt-subdir }}`.
 - `bin/acpp` ~1051-1055: `rocm_lib_path` property hardcodes `"lib"`
-  fallback; reads the entry.
+  fallback; reads the entry — now `hip-install-root` composed with
+  `hip-rt-subdir`, not a single absolute-path entry.
 - `cmake/adaptivecpp-config.cmake.in`: `ACPP_ROCM_PATH` stays.
 
 ### Wiring-slice obligations left by the OpenCL slice
@@ -185,7 +194,7 @@ on whether a conflict is there to resolve at all.
   are created there from `ACPP_FETCHED_OCL_HEADERS_DIR` and
   `ACPP_FETCHED_OCL_CXX_HEADERS_DIR`. `rt-backend-ocl` keeps linking
   `${OpenCL_LIBRARIES}` (not a loader variable of our own) and gains the
-  derived RUNPATH entry to `{{ ocl-deploy-path }}/{{ ocl-libdir }}`.
+  derived RUNPATH entry to `{{ ocl-install-root }}/{{ ocl-rt-subdir }}`.
 - Deploy engine: `SHARED_LIB:<name>` resolves to `lib<name>.so` and the
   engine follows the symlink chain, so the dev symlink must exist in the
   source directory, which is the same thing `find_package(OpenCL)` needs
@@ -212,7 +221,7 @@ on whether a conflict is there to resolve at all.
 - `src/runtime/CMakeLists.txt`: `rt-backend-ze` adds
   `target_include_directories(PRIVATE ${ACPP_DISCOVERED_ZE_INCLUDE_DIR})`
   and the derived RUNPATH entry to
-  `{{ ze-deploy-path }}/{{ ze-libdir }}`.
+  `{{ ze-install-root }}/{{ ze-rt-subdir }}`.
 - `bin/acpp` `available_components` gains `"ze"` and the OpenCL deploy
   note gets a Level Zero sibling (loader only; the driver is the user's).
 - `doc/install-spirv.md`: the `-DWITH_LEVEL_ZERO_BACKEND=ON` sentence
@@ -255,7 +264,9 @@ on whether a conflict is there to resolve at all.
   DLL directory on Windows (LLVM's bin), not the import-lib directory;
   the plugin-discovery half must `FATAL_ERROR` on Windows (linked-only).
 - `bin/acpp`: `acpp_plugin_path` reads `plugin-path` and `cuda_lib_path`
-  reads `cuda-lib-path`; the hardcoded `lib/x64` fallback goes.
+  reads the composition of `cuda-install-root` and `cuda-rt-subdir` (there
+  is no single `cuda-lib-path` entry any more); the hardcoded `lib/x64`
+  fallback goes.
 
 ### Wiring-slice obligations left by the windows/aarch64 slice
 
@@ -286,7 +297,7 @@ on whether a conflict is there to resolve at all.
   `${ACPP_DISCOVERED_VK_LOADER}` and
   `${ACPP_DISCOVERED_VK_SPIRV_TOOLS_LIBRARY}`, includes
   `${ACPP_DISCOVERED_VK_INCLUDE_DIR}`, gains the derived RUNPATH entry to
-  `{{ vk-deploy-path }}/{{ vk-libdir }}`.
+  `{{ vk-install-root }}/{{ vk-rt-subdir }}`.
 - Nightly check: `rt-backend-vk`'s `DT_NEEDED` must omit `SPIRV-Tools`
   (it is a static archive, build-only).
 - `bin/acpp` `available_components` gains `"vk"`.
@@ -326,7 +337,7 @@ on whether a conflict is there to resolve at all.
   strategy; in plugin mode, the link to `libLLVM` (or the equivalent
   machine library) is absolute, because nothing of the machine's LLVM is
   deployed; a vendor's RUNPATH is absolute under `default` and relative
-  otherwise, from its own `*_DEPLOY_PATH`.
+  otherwise, derived from its own install-root and subdir facts.
 - Upstream's own core deployment manifest (the `libLLVM`, `llc`/`opt`/
   `lld`, `omp` and `gomp` rows built into its deploy-manifest generation)
   is replaced by this fork's manifest, not merged with it: a plugin build
@@ -363,14 +374,19 @@ what the split still owes.
   depend on them being present, and moving them is exactly the wiring
   work this section defers. Today's inventory, by grep:
   - `config/windows/common/deploy/cuda.json` — three rows: CUDA's C++
-    headers (`cuda-include-path`, `"*"`), the import library
-    (`cuda-lib-path`, `cudart.lib`), and the nvcc-adjacent tools a
-    multipass build drives (`cuda-bin-path`, `ptxas.exe`/`fatbinary.exe`).
+    headers (`{{ cuda-install-root }}/{{ cuda-include-subdir }}`, `"*"`),
+    the import library (`{{ cuda-install-root }}/{{ cuda-rt-subdir }}`,
+    `cudart.lib`), and the nvcc-adjacent tools a multipass build drives
+    (`{{ cuda-install-root }}/{{ cuda-bin-subdir }}`,
+    `ptxas.exe`/`fatbinary.exe`) — the path model composes these inline
+    now, where the entries used to be named singly (`cuda-include-path`,
+    `cuda-lib-path`, `cuda-bin-path`).
   - `config/linux/common/deploy/cuda.json` — two rows: the same headers,
     and the same tools (`ptxas`/`fatbinary`); no import-library row,
     Linux has no equivalent.
   - `config/linux/common/deploy/hip.json` — one row: HIP's own headers
-    (`hip-include-path`, `"*"`).
+    (`{{ hip-install-root }}/{{ hip-include-subdir }}`, `"*"`; was
+    `hip-include-path`).
   - Each has an identical copy in its golden(s) under
     `devops/verify/golden/`; no macOS manifest carries the flag (no
     CUDA or HIP backend there).
@@ -379,3 +395,39 @@ what the split still owes.
   above) — the sync check the corrected ruling requires, not yet
   written. It fails independently of whether the manifest was hand-edited
   correctly; that is the point of keeping the two definitions apart.
+
+### Wiring-slice obligations left by the path model
+
+- **The deploy engine normalizes the doubled slash an empty
+  `<vendor>-subdir` produces.** An `app-config` row's baked template under
+  `managed`/`full` is `$ACPP_RUNTIME_ROOT/{{ <vendor>-subdir }}/{{
+  <vendor>-<x>-subdir }}`; when a packager sets the vendor's subdir knob to
+  the empty string (the conda case: the vendor installs straight at the
+  root), a naive `{{ }}` substitution of that template leaves two adjacent
+  `/` where the literal text supplied one on each side of the now-empty
+  token, e.g. `$ACPP_RUNTIME_ROOT//nvvm/libdevice`. cmake never produces or
+  sees this - `<vendor>-subdir` is a deferred `{{ }}` token throughout
+  configure, never concatenated with its actual value until the deploy
+  engine resolves `{{ }}` tokens at drive time - so normalizing the doubled
+  slash there is the deploy engine's obligation, not a case the options
+  layer should special-case. `devops/verify/verify-strategy-cuda.cmake`
+  demonstrates the naive substitution and documents this obligation; it
+  does not exercise the (not yet written) deploy engine itself.
+- **Windows CI must cover what a Linux harness runner cannot.**
+  `acpp_declare_vendor_subdir`'s default branches on the real `WIN32`
+  platform macro, which is false while `devops/verify/verify-windows-*.cmake`
+  run under `cmake -P` on a Linux CI runner; those harnesses pre-set every
+  `ACPP_<VENDOR>_SUBDIR` explicitly before including the vendor's options
+  file, the same override path a real packager has, so they can assert the
+  bindir-rooted composition without ever exercising the `WIN32` branch
+  itself. That branch - and everything downstream of it defaulting
+  correctly on an actual Windows configure - is untested until a Windows
+  CI leg runs the real thing.
+- **The C++ runtime must compute `$ACPP_RUNTIME_ROOT` at its own run
+  time.** The configuration model names it as one of the two roots (see
+  "Three syntaxes, three moments"), and every `app-config` row under
+  `managed`/`full` is written in terms of it, but nothing in `src/runtime`
+  computes it yet - the same gap `settings.cpp`'s obligation above already
+  named for application-configuration discovery more broadly. Until it
+  exists, a deployed application under `managed`/`full` has no way to
+  resolve the vendor-subdir compositions the toolchain build baked for it.
