@@ -46,8 +46,10 @@ set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 
 expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$HOME/Library/Application Support/AdaptiveCpp/app-cfgs")
-expect_eq(ACPP_TOOLCHAIN_LLD "/opt/acpp/bin/ld64.lld")
-expect_eq(ACPP_APP_LLD "/opt/acpp/bin/ld64.lld")
+# LLD is ours in toolchain mode (rule 1): always the deploy-layout
+# placeholder, `default` strategy notwithstanding.
+expect_eq(ACPP_TOOLCHAIN_LLD "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/ld64.lld")
+expect_eq(ACPP_APP_LLD "\$ACPP_PATH/{{ llvm-deploy-path }}/bin/ld64.lld")
 expect_eq(ACPP_VECTOR_MATH_LIB "none")
 expect_eq(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-path }} -lomp")
 expect_eq(ACPP_CPU_CXX "{{ toolchain-path }}/{{ llvm-deploy-path }}/bin/clang++")

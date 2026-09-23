@@ -2,11 +2,15 @@
 # cmake -P:
 #   cmake -P devops/verify/verify-core-plugin.cmake
 #
-# Companion to verify-core.cmake, which covers the linked build. Script mode
-# cannot take -D overrides and include_guard(GLOBAL) in the options file
-# prevents including it twice in one process, so the two modes are separate
-# files. This one asserts only the values that depend on the mode; every
-# other default is shared and covered by the linked harness.
+# Companion to verify-core.cmake, which covers the toolchain build. Script
+# mode cannot take -D overrides and include_guard(GLOBAL) in the options
+# file prevents including it twice in one process, so the two modes are
+# separate files. This one asserts the ownership-governed entries: in
+# plugin mode the device compiler, the LLVM tools and cpu-cxx belong to the
+# machine (rule 2) - always the discovered absolute path, in every
+# strategy - and libomp is a vendor plugin (rule 4), governed by
+# ACPP_DEPLOYMENT_STRATEGY like any other. Every other default is shared
+# and covered by the toolchain harness.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
@@ -23,11 +27,22 @@ set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "/opt/amath/lib")
 set(ACPP_DISCOVERED_SVML_DIR "")
 
+# Stand-in for the bootstrap compiler AdaptiveCpp itself was built with -
+# upstream's HIPSYCL_CPU_CXX, CMAKE_CXX_COMPILER exactly. Script mode never
+# runs project(), so nothing sets this without the stand-in.
+set(CMAKE_CXX_COMPILER "/usr/bin/g++")
+
 # The plugin build: AdaptiveCpp added to an existing LLVM, not linked into
 # one we build.
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS OFF)
 
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
+
+function(expect_unset name)
+  if(DEFINED ${name})
+    message(FATAL_ERROR "${name} should be unset, is '${${name}}'")
+  endif()
+endfunction()
 
 function(expect_eq name expected)
   if(NOT "${${name}}" STREQUAL "${expected}")
@@ -35,11 +50,47 @@ function(expect_eq name expected)
   endif()
 endfunction()
 
-# The plugin build's toolchain tree is ours alone; a bundled LLVM unit
-# travels under our library directory.
-expect_eq(ACPP_LLVM_DEPLOY_PATH "{{ acpp-libdir }}/hipSYCL/ext")
+# LLVM is the machine's in plugin mode (rule 2): never bundled, so the
+# deploy path is unused and empty, and there is no LLVM provenance at all.
+expect_eq(ACPP_LLVM_DEPLOY_PATH "")
+expect_eq(ACPP_LLVM_PATH "")
+expect_unset(ACPP_TOOLCHAIN_LLVM_PATH)
+expect_unset(ACPP_APP_LLVM_PATH)
 
-# The compiler plugin exists as a deployable file only in the plugin build.
+# libomp is a vendor plugin here (rule 4), independent of the (unused) LLVM
+# deploy path, governed by ACPP_DEPLOYMENT_STRATEGY like any other; found
+# and `default` strategy, so it takes the discovered absolute path.
+expect_eq(ACPP_LIBOMP_DEPLOY_PATH "{{ acpp-libdir }}")
+expect_eq(ACPP_LIBOMP_PATH "/usr/lib/llvm-21/lib")
+expect_unset(ACPP_TOOLCHAIN_LIBOMP_PATH)
+expect_unset(ACPP_APP_LIBOMP_PATH)
+
+# The device compiler, the LLVM tools and clang's resource directory belong
+# to the machine (rule 2): both sides are the discovered absolute path,
+# `default` strategy notwithstanding - there is no placeholder shape for
+# these in plugin mode at all.
+expect_eq(ACPP_TOOLCHAIN_DEVICE_CMPLR "/usr/lib/llvm-21/bin/clang++")
+expect_eq(ACPP_APP_DEVICE_CMPLR "/usr/lib/llvm-21/bin/clang++")
+expect_eq(ACPP_TOOLCHAIN_LLC "/usr/lib/llvm-21/bin/llc")
+expect_eq(ACPP_APP_LLC "/usr/lib/llvm-21/bin/llc")
+expect_eq(ACPP_TOOLCHAIN_OPT "/usr/lib/llvm-21/bin/opt")
+expect_eq(ACPP_APP_OPT "/usr/lib/llvm-21/bin/opt")
+expect_eq(ACPP_TOOLCHAIN_LLD "/usr/lib/llvm-21/bin/ld.lld")
+expect_eq(ACPP_APP_LLD "/usr/lib/llvm-21/bin/ld.lld")
+# llvm-spirv is ours in both modes (not LLVM's): the machine's LLVM never
+# supplies it, plugin or not, so it stays the deploy-layout placeholder
+# here too, unaffected by what discovery found for the plugin.
+expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_PATH/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
+expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
+
+# cpu-cxx is the machine's build compiler (rule 2), upstream's exact
+# formula: CMAKE_CXX_COMPILER, absolute, unconditional.
+expect_eq(ACPP_CPU_CXX "/usr/bin/g++")
+
+# The compiler plugin exists as a deployable file only in the plugin build,
+# and it is ours (rule 1): always the placeholder, no override.
 expect_eq(ACPP_PLUGIN_PATH "{{ toolchain-path }}/{{ acpp-libdir }}/libacpp-clang.so")
 
 message(STATUS "core.cmake (plugin mode): parses clean, mode-dependent defaults as declared")
