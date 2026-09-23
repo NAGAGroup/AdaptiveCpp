@@ -1,7 +1,8 @@
-# The prolog's first part: every fetch the build needs, run before
-# discovery so that a find can see what was fetched. Below discovery and
-# the options files, the tree only adds sources and install rules; nothing
-# below this point may fetch.
+# The prolog's second part: the fetches that depend on what discovery
+# found. The prolog runs discovery first, then these fetches, then the
+# options files; below that the tree only adds sources and install rules.
+# A fetch never feeds a find: a find must see the machine as it is, so
+# this file runs after cmake/discovery.cmake, never before it.
 #
 # The root's CMAKE_POLICY_VERSION_MINIMUM 3.5 (needed for ocl-cxx-headers
 # under cmake 4) must be set before this file runs.
@@ -10,15 +11,11 @@
 
 include_guard(GLOBAL)
 
-# Upstream's OpenCL gate, unchanged: the fetch is skipped once
-# WITH_SSCP_COMPILER or WITH_OPENCL_BACKEND is known and false. Both start
-# undefined, so the first configure always fetches; a later configure that
-# has turned either off skips it.
-if((DEFINED WITH_SSCP_COMPILER AND NOT WITH_SSCP_COMPILER) OR
-   (DEFINED WITH_OPENCL_BACKEND AND NOT WITH_OPENCL_BACKEND))
-  set(ACPP_FETCHED_OCL_HEADERS_DIR "")
-  set(ACPP_FETCHED_OCL_CXX_HEADERS_DIR "")
-else()
+# Upstream fetches only inside if(WITH_OPENCL_BACKEND), which defaults
+# from the find; this follows the same rule, deferring to an explicit
+# override if the caller has set one.
+if((DEFINED WITH_OPENCL_BACKEND AND WITH_OPENCL_BACKEND) OR
+   (NOT DEFINED WITH_OPENCL_BACKEND AND ACPP_DISCOVERED_OCL_FOUND))
   include(FetchContent)
 
   FetchContent_Declare(ocl-headers
@@ -34,4 +31,7 @@ else()
   )
   FetchContent_MakeAvailable(ocl-cxx-headers)
   set(ACPP_FETCHED_OCL_CXX_HEADERS_DIR "${ocl-cxx-headers_SOURCE_DIR}/include")
+else()
+  set(ACPP_FETCHED_OCL_HEADERS_DIR "")
+  set(ACPP_FETCHED_OCL_CXX_HEADERS_DIR "")
 endif()

@@ -1,18 +1,17 @@
 # OpenCL backend discovery.
 #
 # Loaded by cmake/discovery.cmake after the core half; exports
-# ACPP_DISCOVERED_OCL_*. Not found is the normalized empty string. The unit
-# is the ICD loader; the headers are the fetched ones (cmake/fetch.cmake).
+# ACPP_DISCOVERED_OCL_*. Not found is the normalized empty string.
 #
-# Upstream's gate, unchanged: when WITH_SSCP_COMPILER has been explicitly
-# turned off, OpenCL is not searched for at all.
-#
-# find_package(OpenCL) rather than find_library, because the fork adds no
-# functionality beyond relocatability and the deployment mechanism:
-# upstream's OpenCL is FindOpenCL's, and this unit only redirects where
-# FindOpenCL looks for headers, at the fetched copy, so `found` depends on
-# the machine's loader alone while FindOpenCL's vendor SDK hints for the
-# loader itself still apply.
+# Upstream's find, moved here unchanged except for the 2.1 minimum: it
+# runs behind the WITH_SSCP_COMPILER gate, against the machine's own
+# OpenCL headers and library, which ship as a pair, so the version this
+# reads is the machine's own. 2.1 is the lowest version the backend links
+# against (CL-HPP at target 210, SVM from 2.0, clCreateProgramWithIL from
+# 2.1), which rejects a 1.2 implementation - such as Apple's OpenCL
+# framework - the same way on every platform; no platform-specific code is
+# needed. The fetched Khronos headers (cmake/fetch.cmake) run after this
+# and only compile the backend; they never decide whether OpenCL is found.
 
 include_guard(GLOBAL)
 
@@ -25,26 +24,7 @@ if(DEFINED WITH_SSCP_COMPILER AND NOT WITH_SSCP_COMPILER)
   return()
 endif()
 
-# Apple's OpenCL framework is OpenCL 1.2; the backend compiles against the
-# Khronos headers at CL_HPP_TARGET_OPENCL_VERSION 210 and builds programs
-# from SPIR-V with cl::Program(context, IL) (src/runtime/ocl/ocl_code_object.cpp
-# 71), which needs clCreateProgramWithIL, a 2.1 entry point the framework
-# does not export; upstream's macOS CI turns the backend off by hand for
-# this reason.
-if(APPLE)
-  set(ACPP_DISCOVERED_OCL_FOUND OFF)
-  set(ACPP_DISCOVERED_OCL_LOADER "")
-  set(ACPP_DISCOVERED_OCL_PREFIX "")
-  set(ACPP_DISCOVERED_OCL_LIBDIR "")
-  set(ACPP_DISCOVERED_OCL_BINDIR "")
-  return()
-endif()
-
-if(ACPP_FETCHED_OCL_HEADERS_DIR)
-  set(OpenCL_INCLUDE_DIR "${ACPP_FETCHED_OCL_HEADERS_DIR}")
-endif()
-
-find_package(OpenCL QUIET)
+find_package(OpenCL 2.1 QUIET)
 
 if(OpenCL_FOUND AND OpenCL_LIBRARY AND NOT "${OpenCL_LIBRARY}" MATCHES "-NOTFOUND$")
   set(ACPP_DISCOVERED_OCL_FOUND ON)
