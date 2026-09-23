@@ -1,20 +1,36 @@
 # OpenCL backend discovery.
 #
 # Loaded by cmake/discovery.cmake after the core half; exports
-# ACPP_DISCOVERED_OCL_*. Not found is the normalized empty string.
-# The unit is the ICD loader and nothing else.
+# ACPP_DISCOVERED_OCL_*. Not found is the normalized empty string. The unit
+# is the ICD loader; the headers are the fetched ones (cmake/fetch.cmake).
 #
-# find_library rather than FindOpenCL because the headers are ours
-# (FetchContent'd from Khronos) and the loader is the only thing the
-# machine supplies. FindOpenCL's REQUIRED_VARS include OpenCL_INCLUDE_DIR,
-# which we never use, and its version comes from whichever system headers
-# it finds, which is neither the loader nor what we compile against.
+# Upstream's gate, unchanged: when WITH_SSCP_COMPILER has been explicitly
+# turned off, OpenCL is not searched for at all.
+#
+# find_package(OpenCL) rather than find_library, because the fork adds no
+# functionality beyond relocatability and the deployment mechanism:
+# upstream's OpenCL is FindOpenCL's, and this unit only redirects where
+# FindOpenCL looks for headers, at the fetched copy, so `found` depends on
+# the machine's loader alone while FindOpenCL's vendor SDK hints for the
+# loader itself still apply.
 
 include_guard(GLOBAL)
 
-# Apple's OpenCL framework is what find_library would return on macOS, and
-# it is deprecated, is not an ICD loader and accepts no SPIR-V. The OpenCL
-# unit does not exist on macOS.
+if(DEFINED WITH_SSCP_COMPILER AND NOT WITH_SSCP_COMPILER)
+  set(ACPP_DISCOVERED_OCL_FOUND OFF)
+  set(ACPP_DISCOVERED_OCL_LOADER "")
+  set(ACPP_DISCOVERED_OCL_PREFIX "")
+  set(ACPP_DISCOVERED_OCL_LIBDIR "")
+  set(ACPP_DISCOVERED_OCL_BINDIR "")
+  return()
+endif()
+
+# Apple's OpenCL framework is OpenCL 1.2; the backend compiles against the
+# Khronos headers at CL_HPP_TARGET_OPENCL_VERSION 210 and builds programs
+# from SPIR-V with cl::Program(context, IL) (src/runtime/ocl/ocl_code_object.cpp
+# 71), which needs clCreateProgramWithIL, a 2.1 entry point the framework
+# does not export; upstream's macOS CI turns the backend off by hand for
+# this reason.
 if(APPLE)
   set(ACPP_DISCOVERED_OCL_FOUND OFF)
   set(ACPP_DISCOVERED_OCL_LOADER "")
@@ -24,14 +40,18 @@ if(APPLE)
   return()
 endif()
 
-find_library(ACPP_OCL_LOADER_LIBRARY NAMES OpenCL)
+if(ACPP_FETCHED_OCL_HEADERS_DIR)
+  set(OpenCL_INCLUDE_DIR "${ACPP_FETCHED_OCL_HEADERS_DIR}")
+endif()
 
-if(ACPP_OCL_LOADER_LIBRARY AND NOT "${ACPP_OCL_LOADER_LIBRARY}" MATCHES "-NOTFOUND$")
+find_package(OpenCL QUIET)
+
+if(OpenCL_FOUND AND OpenCL_LIBRARY AND NOT "${OpenCL_LIBRARY}" MATCHES "-NOTFOUND$")
   set(ACPP_DISCOVERED_OCL_FOUND ON)
 
-  # find_library answers with the dev symlink; the real file is what deploy
+  # find_package answers with the dev symlink; the real file is what deploy
   # copies and what SHARED_LIB: resolves to.
-  get_filename_component(_acpp_ocl_real "${ACPP_OCL_LOADER_LIBRARY}" REALPATH)
+  get_filename_component(_acpp_ocl_real "${OpenCL_LIBRARY}" REALPATH)
   set(ACPP_DISCOVERED_OCL_LOADER "${_acpp_ocl_real}")
 
   get_filename_component(_acpp_ocl_libdir "${_acpp_ocl_real}" DIRECTORY)
@@ -47,15 +67,15 @@ if(ACPP_OCL_LOADER_LIBRARY AND NOT "${ACPP_OCL_LOADER_LIBRARY}" MATCHES "-NOTFOU
   endif()
   set(ACPP_DISCOVERED_OCL_LIBDIR "${_acpp_ocl_rel}")
 
-  # On Windows find_library answers with the import library; the DLL is what
-  # deploys and what the runtime must reach through AddDllDirectory. This
-  # branch is parse-checked on Linux and exercised on Windows only.
+  # On Windows find_package answers with the import library; the DLL is
+  # what deploys and what the runtime must reach through AddDllDirectory.
+  # This branch is parse-checked on Linux and exercised on Windows only.
   if(WIN32)
     find_file(ACPP_OCL_LOADER_DLL NAMES OpenCL.dll
       HINTS "${ACPP_DISCOVERED_OCL_PREFIX}/bin" NO_DEFAULT_PATH)
     if(NOT ACPP_OCL_LOADER_DLL OR "${ACPP_OCL_LOADER_DLL}" MATCHES "-NOTFOUND$")
       message(FATAL_ERROR
-        "OpenCL import library found at ${ACPP_OCL_LOADER_LIBRARY} but "
+        "OpenCL import library found at ${OpenCL_LIBRARY} but "
         "OpenCL.dll was not found in ${ACPP_DISCOVERED_OCL_PREFIX}/bin")
     endif()
     get_filename_component(_acpp_ocl_dlldir "${ACPP_OCL_LOADER_DLL}" DIRECTORY)

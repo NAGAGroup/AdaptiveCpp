@@ -1,10 +1,17 @@
 # Discovery check for the OpenCL backend, run with cmake -P:
 #   cmake -P devops/verify/verify-discovery-ocl.cmake
 #
-# find_library runs in script mode, so this harness exercises the real
-# discovery on the current machine.
+# find_package(OpenCL) defines the imported target OpenCL::OpenCL, which
+# needs add_library; that is not available in script mode. This harness
+# therefore only runs when cmake is invoked with a project context (the
+# staging configure). In script mode it SKIPs unconditionally.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+
+if(CMAKE_SCRIPT_MODE_FILE)
+  message(STATUS "SKIP: find_package(OpenCL) requires project mode")
+  return()
+endif()
 
 include(${ACPP_REPO_ROOT}/cmake/discovery/ocl.cmake)
 
