@@ -106,26 +106,31 @@ not exist in the Python driver. The driver reads values and expands
 ### Wiring-slice obligations left by the OpenCL slice
 
 - Root `CMakeLists.txt`: `find_package(OpenCL QUIET)` at ~205-211 moves
-  into `discovery/ocl.cmake` unchanged in behaviour, still behind the
-  `WITH_SSCP_COMPILER` gate; the `WITH_OPENCL_BACKEND` default from
-  `OpenCL_FOUND` at ~235-243 becomes `ACPP_DISCOVERED_OCL_FOUND`.
+  into `discovery/ocl.cmake` behind the `WITH_SSCP_COMPILER` gate with a
+  2.1 minimum, a deliberate departure: upstream PR 1778 showed that
+  without it macOS finds Apple's 1.2 `OpenCL.framework` and
+  `rt-backend-ocl` fails to link (`clCreateProgramWithIL`,
+  `clCreateCommandQueueWithProperties`, the SVM entry points), which is
+  why upstream's macOS CI passes `-DWITH_OPENCL_BACKEND=OFF`; with the
+  floor the framework is simply not found. The `WITH_OPENCL_BACKEND`
+  default from `OpenCL_FOUND` at ~235-243 becomes
+  `ACPP_DISCOVERED_OCL_FOUND`.
 - `src/runtime/CMakeLists.txt`: the `FetchContent` blocks for
-  `ocl-headers` and `ocl-cxx-headers` move to `cmake/fetch.cmake`; the
-  `ocl-headers` and `ocl-cxx-headers` INTERFACE targets are created there
-  from `ACPP_FETCHED_OCL_HEADERS_DIR` and `ACPP_FETCHED_OCL_CXX_HEADERS_DIR`.
-  `rt-backend-ocl` keeps linking `${OpenCL_LIBRARIES}` (not a loader
-  variable of our own) and gains the derived RUNPATH entry to
-  `{{ ocl-deploy-path }}/{{ ocl-libdir }}`.
+  `ocl-headers` and `ocl-cxx-headers` move to `cmake/fetch.cmake`, which
+  runs after discovery and only when OpenCL was found or the backend is
+  forced on; the `ocl-headers` and `ocl-cxx-headers` INTERFACE targets
+  are created there from `ACPP_FETCHED_OCL_HEADERS_DIR` and
+  `ACPP_FETCHED_OCL_CXX_HEADERS_DIR`. `rt-backend-ocl` keeps linking
+  `${OpenCL_LIBRARIES}` (not a loader variable of our own) and gains the
+  derived RUNPATH entry to `{{ ocl-deploy-path }}/{{ ocl-libdir }}`.
 - Deploy engine: `SHARED_LIB:<name>` resolves to `lib<name>.so` and the
   engine follows the symlink chain, so the dev symlink must exist in the
   source directory, which is the same thing `find_package(OpenCL)` needs
   at configure; a loader-only system carrying just `libOpenCL.so.1` needs
   the engine to accept a soname when the dev symlink is absent.
-- Nightly question: on a macOS machine with only Apple's OpenCL
-  framework, confirm that `rt-backend-ocl` links (CL-HPP at
-  `CL_HPP_TARGET_OPENCL_VERSION` 210 calls `clCreateProgramWithIL`, which
-  the framework does not export); if it does not link, that is upstream's
-  behaviour too and why its macOS CI turns the backend off.
+- A macOS user with a real ICD loader (for example PoCL through the
+  Khronos loader) points `OpenCL_LIBRARY` and `OpenCL_INCLUDE_DIR` at it,
+  since CMake searches frameworks first.
 
 ### Wiring-slice obligations left by the Level Zero slice
 

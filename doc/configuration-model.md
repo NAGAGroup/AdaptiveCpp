@@ -12,13 +12,15 @@ to match the source.
 **Fidelity.** The fork adds no functionality except relocatability and the
 deployment mechanism; every backend's enable condition and discovery match
 upstream's. This keeps the fork a drop-in: a user who never asks about
-paths gets the toolchain upstream would have built.
+paths gets the toolchain upstream would have built. The one deliberate
+departure so far is OpenCL's 2.1 version floor; see the obligations.
 
-**The prolog.** Every fetch the build needs (`FetchContent`,
-`ExternalProject`) runs first, then discovery, then the options files;
-below that the tree only adds sources and install rules. A find has to be
-able to see what was fetched, and nothing may fetch once the options files
-have started reading discovery's exports.
+**The prolog.** Discovery runs first, then the fetches (some gated on
+what discovery found), then the options files; below that the tree only
+adds sources and install rules. A find must see the machine as it is, so
+a fetched dependency never stands in for something the build machine must
+have; and nothing finds or fetches once the options files have started
+reading discovery's exports.
 
 ## The source tree
 
@@ -380,10 +382,9 @@ spelling is `lib<name>.dylib`, and the host JIT links Mach-O with
 `ld64.lld`. Metal has no vendor unit: the runtime compiles MSL through the
 system Metal framework at run time, so nothing external is deployed;
 metal-cpp is a build-only discovery requirement (like Level Zero's headers)
-and never a row. OpenCL does not exist on macOS — Apple's OpenCL framework
-is deprecated, is not an ICD loader and accepts no SPIR-V, so
-`discovery/ocl.cmake` reports not-found on `APPLE`. No CUDA, Level Zero,
-HIP or NVHPC on macOS. The Vulkan unit on macOS carries the loader and
+and never a row. OpenCL is discovered on macOS as everywhere else; Apple's
+framework is 1.2 and falls below the 2.1 floor, so it is not found. No
+CUDA, Level Zero, HIP or NVHPC on macOS. The Vulkan unit on macOS carries the loader and
 MoltenVK (the ICD, Apache-2) in its external-permissive rows; ICD
 registration stays the user's environment, consistent with the OCL_ICD
 ruling.
