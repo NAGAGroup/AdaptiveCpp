@@ -1,42 +1,18 @@
 {
-  "internal": [
+  "app-config" : 
+  [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
-      "dest": "{{ acpp-libdir }}/hipSYCL",
-      "files": ["SHARED_LIB:rt-backend-hip"]
-    },
-    {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
-      "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
-      "files": ["SHARED_LIB:llvm-to-amdgpu"]
-    },
-    {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
-      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
-      "files": ["libkernel-sscp-amdgpu-amdhsa-full.bc"]
+      "runtime-configurable" : true,
+      "value" : "@ACPP_APP_HIP_BITCODE_SUBDIR@",
+      "var" : "ACPP_HIP_DEVICE_LIBS_DIR"
     }
   ],
-  "llvm": [
+  "external-permissive" : 
+  [
     {
-      "build-mode": "toolchain",
-      "unless": "hiprtc-link",
-      "src": "{{ llvm-path }}/bin",
-      "dest": "{{ llvm-deploy-path }}/bin",
-      "files": ["clang++"]
-    },
-    {
-      "build-mode": "toolchain",
-      "unless": "hiprtc-link",
-      "src": "{{ clang-include-path }}",
-      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}/clang/{{ llvm-version-major }}/include",
-      "files": ["*"]
-    }
-  ],
-  "external-permissive": [
-    {
-      "src": "{{ hip-lib-path }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-libdir }}",
-      "files": [
+      "dest" : "{{ hip-subdir }}/{{ hip-rt-subdir }}",
+      "files" : 
+      [
         "SHARED_LIB:amdhip64",
         "SHARED_LIB:hsa-runtime64",
         "SHARED_LIB:amd_comgr",
@@ -44,23 +20,59 @@
         "SHARED_LIB:hiprtc-builtins",
         "SHARED_LIB:rocprofiler-register",
         "SHARED_LIB:rocm-core"
-      ]
+      ],
+      "src" : "{{ hip-install-root }}/{{ hip-rt-subdir }}"
     },
     {
-      "src": "{{ hip-sysdeps-path }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-libdir }}/rocm_sysdeps/lib",
-      "files": ["*"]
+      "dest" : "{{ hip-subdir }}/{{ hip-sysdeps-subdir }}",
+      "files" : [ "*" ],
+      "src" : "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}"
     },
     {
-      "src": "{{ hip-device-libs-dir }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-bitcode-dir }}",
-      "files": ["*"]
+      "dest" : "{{ hip-subdir }}/{{ hip-bitcode-subdir }}",
+      "files" : [ "*" ],
+      "src" : "{{ hip-install-root }}/{{ hip-bitcode-subdir }}"
     },
     {
-      "src": "{{ hip-include-path }}",
-      "dest": "{{ hip-deploy-path }}/{{ hip-incdir }}",
-      "files": ["*"],
-      "toolchain-only": true
+      "dest" : "{{ hip-subdir }}/{{ hip-include-subdir }}",
+      "files" : [ "*" ],
+      "src" : "{{ hip-install-root }}/{{ hip-include-subdir }}",
+      "toolchain-only" : true
+    }
+  ],
+  "internal" : 
+  [
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL",
+      "files" : [ "SHARED_LIB:rt-backend-hip" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL"
+    },
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "files" : [ "SHARED_LIB:llvm-to-amdgpu" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend"
+    },
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files" : [ "libkernel-sscp-amdgpu-amdhsa-full.bc" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
+    }
+  ],
+  "llvm" : 
+  [
+    {
+      "build-mode" : "toolchain",
+      "dest" : "bin",
+      "files" : [ "clang++" ],
+      "src" : "{{ acpp-root }}/bin",
+      "unless" : "hiprtc-link"
+    },
+    {
+      "build-mode" : "toolchain",
+      "dest" : "{{ acpp-libdir }}/clang/{{ llvm-version-major }}/include",
+      "files" : [ "*" ],
+      "src" : "{{ clang-include-path }}",
+      "unless" : "hiprtc-link"
     }
   ]
 }

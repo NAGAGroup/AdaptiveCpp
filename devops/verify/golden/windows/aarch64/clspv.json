@@ -1,23 +1,19 @@
 {
-  "clspv-deploy-path": {
-    "value": "@ACPP_CLSPV_DEPLOY_PATH@"
+  "clspv" : 
+  {
+    "envvar" : "ACPP_CLSPV",
+    "value" : "@ACPP_TOOLCHAIN_CLSPV@"
   },
-  "clspv-bindir": {
-    "value": "@ACPP_DISCOVERED_CLSPV_BINDIR@"
+  "clspv-bin-subdir" : 
+  {
+    "value" : "@ACPP_CLSPV_BIN_SUBDIR@"
   },
-  "clspv-path": {
-    "value": "@ACPP_CLSPV_PATH@"
+  "clspv-install-root" : 
+  {
+    "value" : "@ACPP_CLSPV_INSTALL_ROOT@"
   },
-  "clspv-bin-path": {
-    "value": "@ACPP_CLSPV_BIN_PATH@"
-  },
-  "clspv": {
-    "value": "@ACPP_TOOLCHAIN_CLSPV@",
-    "envvar": "ACPP_CLSPV",
-    "app": {
-      "var": "ACPP_CLSPV",
-      "value": "@ACPP_APP_CLSPV@",
-      "runtime-configurable": true
-    }
+  "clspv-subdir" : 
+  {
+    "value" : "@ACPP_CLSPV_SUBDIR@"
   }
 }

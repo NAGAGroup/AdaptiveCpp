@@ -1,23 +1,15 @@
 {
-  "ze-deploy-path": {
-    "value": "@ACPP_ZE_DEPLOY_PATH@"
+  "ze-bin-subdir" : 
+  {
+    "envvar" : "ACPP_ZE_DLL_DIR",
+    "value" : "@ACPP_ZE_BIN_SUBDIR@"
   },
-  "ze-bindir": {
-    "value": "@ACPP_DISCOVERED_ZE_BINDIR@"
+  "ze-install-root" : 
+  {
+    "value" : "@ACPP_ZE_INSTALL_ROOT@"
   },
-  "ze-path": {
-    "value": "@ACPP_ZE_PATH@"
-  },
-  "ze-bin-path": {
-    "value": "@ACPP_ZE_BIN_PATH@"
-  },
-  "ze-dll-dir": {
-    "value": "@ACPP_TOOLCHAIN_ZE_DLL_DIR@",
-    "envvar": "ACPP_ZE_DLL_DIR",
-    "app": {
-      "var": "ACPP_ZE_DLL_DIR",
-      "value": "@ACPP_APP_ZE_DLL_DIR@",
-      "runtime-configurable": true
-    }
+  "ze-subdir" : 
+  {
+    "value" : "@ACPP_ZE_SUBDIR@"
   }
 }

@@ -1,21 +1,23 @@
 {
-  "internal": [
+  "external-permissive" : 
+  [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
-      "dest": "{{ acpp-libdir }}/hipSYCL",
-      "files": ["SHARED_LIB:rt-backend-ocl"]
-    },
-    {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
-      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
-      "files": ["libkernel-sscp-spirv-full.bc"]
+      "dest" : "{{ ocl-subdir }}/{{ ocl-rt-subdir }}",
+      "files" : [ "SHARED_LIB:OpenCL" ],
+      "src" : "{{ ocl-install-root }}/{{ ocl-rt-subdir }}"
     }
   ],
-  "external-permissive": [
+  "internal" : 
+  [
     {
-      "src": "{{ ocl-lib-path }}",
-      "dest": "{{ ocl-deploy-path }}/{{ ocl-libdir }}",
-      "files": ["SHARED_LIB:OpenCL"]
+      "dest" : "{{ acpp-libdir }}/hipSYCL",
+      "files" : [ "SHARED_LIB:rt-backend-ocl" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL"
+    },
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files" : [ "libkernel-sscp-spirv-full.bc" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     }
   ]
 }

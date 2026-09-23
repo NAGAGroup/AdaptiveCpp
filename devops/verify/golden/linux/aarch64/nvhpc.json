@@ -1,28 +1,32 @@
 {
-  "nvhpc-deploy-path": {
-    "value": "@ACPP_NVHPC_DEPLOY_PATH@"
+  "nvcxx" : 
+  {
+    "envvar" : "ACPP_NVCXX",
+    "value" : "@ACPP_NVCXX@"
   },
-  "nvhpc-libdir": {
-    "value": "@ACPP_DISCOVERED_NVHPC_LIBDIR@"
+  "nvcxx-link-line" : 
+  {
+    "envvar" : "ACPP_NVCXX_LINK_LINE",
+    "value" : "@ACPP_NVCXX_LINK_LINE@"
   },
-  "nvhpc-version-major": {
-    "value": "@ACPP_DISCOVERED_NVHPC_VERSION_MAJOR@"
+  "nvhpc-install-root" : 
+  {
+    "value" : "@ACPP_NVHPC_INSTALL_ROOT@"
   },
-  "nvhpc-version-minor": {
-    "value": "@ACPP_DISCOVERED_NVHPC_VERSION_MINOR@"
+  "nvhpc-rt-subdir" : 
+  {
+    "value" : "@ACPP_NVHPC_RT_SUBDIR@"
   },
-  "nvhpc-path": {
-    "value": "@ACPP_NVHPC_PATH@"
+  "nvhpc-subdir" : 
+  {
+    "value" : "@ACPP_NVHPC_SUBDIR@"
   },
-  "nvhpc-lib-path": {
-    "value": "@ACPP_NVHPC_LIB_PATH@"
+  "nvhpc-version-major" : 
+  {
+    "value" : "@ACPP_DISCOVERED_NVHPC_VERSION_MAJOR@"
   },
-  "nvcxx": {
-    "value": "@ACPP_NVCXX@",
-    "envvar": "ACPP_NVCXX"
-  },
-  "nvcxx-link-line": {
-    "value": "@ACPP_NVCXX_LINK_LINE@",
-    "envvar": "ACPP_NVCXX_LINK_LINE"
+  "nvhpc-version-minor" : 
+  {
+    "value" : "@ACPP_DISCOVERED_NVHPC_VERSION_MINOR@"
   }
 }

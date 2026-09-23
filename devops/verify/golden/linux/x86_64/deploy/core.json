@@ -1,115 +1,161 @@
 {
-  "internal": [
+  "app-config" : 
+  [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}",
-      "dest": "{{ acpp-libdir }}",
-      "files": [
-        "SHARED_LIB:acpp-rt",
-        "SHARED_LIB:acpp-common"
-      ]
+      "runtime-configurable" : true,
+      "value" : "@ACPP_APP_DEVICE_CMPLR@",
+      "var" : "ACPP_CLANG"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
-      "dest": "{{ acpp-libdir }}/hipSYCL",
-      "files": [
-        "SHARED_LIB:rt-backend-omp"
-      ]
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_CLANG_INCLUDE_PATH@",
+      "var" : "ACPP_CLANG_INCLUDE_PATH"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
-      "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
-      "files": [
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_LLC@",
+      "var" : "ACPP_LLC"
+    },
+    {
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_OPT@",
+      "var" : "ACPP_OPT"
+    },
+    {
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_LLD@",
+      "var" : "ACPP_LLD"
+    },
+    {
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_LLVMSPIRV@",
+      "var" : "ACPP_LLVMSPIRV"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-llc-cpu-flag }}",
+      "var" : "ACPP_JIT_HOST_LLC_CPU_FLAG"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-opt-cpu-flag }}",
+      "var" : "ACPP_JIT_HOST_OPT_CPU_FLAG"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-llc-flags }}",
+      "var" : "ACPP_JIT_HOST_LLC_FLAGS"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-opt-flags }}",
+      "var" : "ACPP_JIT_HOST_OPT_FLAGS"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ vector-math-lib }}",
+      "var" : "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "@ACPP_APP_SLEEF_INSTALL_ROOT@",
+      "var" : "ACPP_SLEEF_DIR"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "@ACPP_APP_AMATH_INSTALL_ROOT@",
+      "var" : "ACPP_AMATH_DIR"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "@ACPP_APP_SVML_INSTALL_ROOT@",
+      "var" : "ACPP_SVML_DIR"
+    }
+  ],
+  "external-nonpermissive" : 
+  [
+    {
+      "dest" : "{{ svml-subdir }}",
+      "files" : [ "SHARED_LIB:svml", "SHARED_LIB:intlc" ],
+      "src" : "{{ svml-install-root }}"
+    }
+  ],
+  "external-permissive" : 
+  [
+    {
+      "build-mode" : "plugin",
+      "dest" : "{{ libomp-subdir }}",
+      "files" : [ "SHARED_LIB:omp" ],
+      "src" : "{{ libomp-install-root }}"
+    },
+    {
+      "dest" : "{{ sleef-subdir }}",
+      "files" : [ "SHARED_LIB:sleefgnuabi" ],
+      "src" : "{{ sleef-install-root }}"
+    },
+    {
+      "dest" : "{{ amath-subdir }}",
+      "files" : [ "SHARED_LIB:amath" ],
+      "src" : "{{ amath-install-root }}"
+    },
+    {
+      "dest" : "{{ libnuma-subdir }}",
+      "files" : [ "SHARED_LIB:numa" ],
+      "src" : "{{ libnuma-install-root }}"
+    }
+  ],
+  "internal" : 
+  [
+    {
+      "dest" : "{{ acpp-libdir }}",
+      "files" : [ "SHARED_LIB:acpp-rt", "SHARED_LIB:acpp-common" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}"
+    },
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL",
+      "files" : [ "SHARED_LIB:rt-backend-omp" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL"
+    },
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "files" : 
+      [
         "SHARED_LIB:llvm-to-backend",
         "SHARED_LIB:llvm-to-host",
         "SHARED_LIB:llvm-to-spirv"
-      ]
+      ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
-      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
-      "files": [
-        "libkernel-sscp-host-full.bc",
-        "libkernel-sscp-host-fast-full.bc"
-      ]
+      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files" : [ "libkernel-sscp-host-full.bc", "libkernel-sscp-host-fast-full.bc" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
-      "dest": "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
-      "files": [
-        "llvm-spirv"
-      ]
+      "dest" : "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
+      "files" : [ "llvm-spirv" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin"
     }
   ],
-
-  "llvm": [
+  "llvm" : 
+  [
     {
-      "build-mode": "toolchain",
-      "src": "{{ llvm-path }}/bin",
-      "dest": "{{ llvm-deploy-path }}/bin",
-      "files": [
-        "llc",
-        "opt",
-        "ld.lld"
-      ]
+      "build-mode" : "toolchain",
+      "dest" : "bin",
+      "files" : [ "llc", "opt", "ld.lld" ],
+      "src" : "{{ acpp-root }}/bin"
     },
     {
-      "build-mode": "toolchain",
-      "src": "{{ llvm-path }}/{{ llvm-libdir }}",
-      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}",
-      "files": [
-        "SHARED_LIB:LLVM"
-      ]
+      "build-mode" : "toolchain",
+      "dest" : "{{ acpp-libdir }}",
+      "files" : [ "SHARED_LIB:LLVM" ],
+      "src" : "{{ llvm-path }}"
     },
     {
-      "build-mode": "toolchain",
-      "src": "{{ libomp-path }}",
-      "dest": "{{ libomp-deploy-path }}",
-      "files": [
-        "SHARED_LIB:omp"
-      ]
-    }
-  ],
-
-  "external-permissive": [
-    {
-      "build-mode": "plugin",
-      "src": "{{ libomp-path }}",
-      "dest": "{{ libomp-deploy-path }}",
-      "files": [
-        "SHARED_LIB:omp"
-      ]
-    },
-    {
-      "src": "{{ sleef-dir }}",
-      "dest": "{{ acpp-libdir }}",
-      "files": [
-        "SHARED_LIB:sleefgnuabi"
-      ]
-    },
-    {
-      "src": "{{ amath-dir }}",
-      "dest": "{{ acpp-libdir }}",
-      "files": [
-        "SHARED_LIB:amath"
-      ]
-    },
-    {
-      "src": "{{ libnuma-path }}",
-      "dest": "{{ acpp-libdir }}",
-      "files": [
-        "SHARED_LIB:numa"
-      ]
-    }
-  ],
-
-  "external-nonpermissive": [
-    {
-      "src": "{{ svml-dir }}",
-      "dest": "{{ acpp-libdir }}",
-      "files": [
-        "SHARED_LIB:svml",
-        "SHARED_LIB:intlc"
-      ]
+      "build-mode" : "toolchain",
+      "dest" : "{{ acpp-libdir }}",
+      "files" : [ "SHARED_LIB:omp" ],
+      "src" : "{{ libomp-path }}"
     }
   ]
 }

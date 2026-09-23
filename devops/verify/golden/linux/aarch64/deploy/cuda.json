@@ -1,43 +1,53 @@
 {
-  "internal": [
+  "app-config" : 
+  [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
-      "dest": "{{ acpp-libdir }}/hipSYCL",
-      "files": ["SHARED_LIB:rt-backend-cuda"]
-    },
-    {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
-      "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
-      "files": ["SHARED_LIB:llvm-to-ptx"]
-    },
-    {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
-      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
-      "files": ["libkernel-sscp-ptx-full.bc"]
+      "runtime-configurable" : true,
+      "value" : "@ACPP_APP_CUDA_LIBDEVICE_SUBDIR@",
+      "var" : "ACPP_CUDA_LIBDEVICE_DIR"
     }
   ],
-  "external-nonpermissive": [
+  "external-nonpermissive" : 
+  [
     {
-      "src": "{{ cuda-lib-path }}",
-      "dest": "{{ cuda-deploy-path }}/{{ cuda-libdir }}",
-      "files": ["SHARED_LIB:cudart"]
+      "dest" : "{{ cuda-subdir }}/{{ cuda-rt-subdir }}",
+      "files" : [ "SHARED_LIB:cudart" ],
+      "src" : "{{ cuda-install-root }}/{{ cuda-rt-subdir }}"
     },
     {
-      "src": "{{ cuda-libdevice-dir }}",
-      "dest": "{{ cuda-deploy-path }}/nvvm/libdevice",
-      "files": ["libdevice.10.bc"]
+      "dest" : "{{ cuda-subdir }}/nvvm/libdevice",
+      "files" : [ "libdevice.10.bc" ],
+      "src" : "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}"
     },
     {
-      "src": "{{ cuda-include-path }}",
-      "dest": "{{ cuda-deploy-path }}/{{ cuda-incdir }}",
-      "files": ["*"],
-      "toolchain-only": true
+      "dest" : "{{ cuda-subdir }}/{{ cuda-include-subdir }}",
+      "files" : [ "*" ],
+      "src" : "{{ cuda-install-root }}/{{ cuda-include-subdir }}",
+      "toolchain-only" : true
     },
     {
-      "src": "{{ cuda-bin-path }}",
-      "dest": "{{ cuda-deploy-path }}/{{ cuda-bindir }}",
-      "files": ["ptxas", "fatbinary"],
-      "toolchain-only": true
+      "dest" : "{{ cuda-subdir }}/{{ cuda-bin-subdir }}",
+      "files" : [ "ptxas", "fatbinary" ],
+      "src" : "{{ cuda-install-root }}/{{ cuda-bin-subdir }}",
+      "toolchain-only" : true
+    }
+  ],
+  "internal" : 
+  [
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL",
+      "files" : [ "SHARED_LIB:rt-backend-cuda" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL"
+    },
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "files" : [ "SHARED_LIB:llvm-to-ptx" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend"
+    },
+    {
+      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files" : [ "libkernel-sscp-ptx-full.bc" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     }
   ]
 }

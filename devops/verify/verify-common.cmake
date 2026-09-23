@@ -65,7 +65,7 @@ endfunction()
 # ---------------------------------------------------------------------------
 function(_merge_deploy result_var base overlay overlay_label)
   set(_result "${base}")
-  foreach(_group internal llvm external-permissive external-nonpermissive)
+  foreach(_group internal llvm external-permissive external-nonpermissive app-config)
     string(JSON _base_arr ERROR_VARIABLE _berr GET "${_result}" "${_group}")
     string(JSON _over_arr ERROR_VARIABLE _oerr GET "${overlay}" "${_group}")
     if(NOT _oerr)

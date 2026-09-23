@@ -1,216 +1,194 @@
 {
-  "acpp-libdir": {
-    "value": "@CMAKE_INSTALL_LIBDIR@"
+  "acpp-libdir" : 
+  {
+    "value" : "@CMAKE_INSTALL_LIBDIR@"
   },
-  "llvm-libdir": {
-    "value": "@ACPP_DISCOVERED_LLVM_LIBDIR@"
+  "amath-install-root" : 
+  {
+    "envvar" : "ACPP_AMATH_DIR",
+    "value" : "@ACPP_AMATH_INSTALL_ROOT@"
   },
-  "llvm-deploy-path": {
-    "value": "@ACPP_LLVM_DEPLOY_PATH@"
+  "amath-subdir" : 
+  {
+    "value" : "@ACPP_AMATH_SUBDIR@"
   },
-  "libomp-deploy-path": {
-    "value": "@ACPP_LIBOMP_DEPLOY_PATH@"
+  "clang-include-path" : 
+  {
+    "envvar" : "ACPP_CLANG_INCLUDE_PATH",
+    "value" : "@ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH@"
   },
-  "default-strategy-app-cfg-dir": {
-    "value": "@ACPP_DEFAULT_STRATEGY_APP_CFG_DIR@",
-    "envvar": "ACPP_DEFAULT_STRATEGY_APP_CFG_DIR"
+  "cpu-cxx" : 
+  {
+    "envvar" : "ACPP_CPU_CXX",
+    "value" : "@ACPP_CPU_CXX@"
   },
-  "deployment-strategy": {
-    "value": "@ACPP_DEPLOYMENT_STRATEGY@",
-    "envvar": "ACPP_DEPLOYMENT_STRATEGY"
+  "default-strategy-app-cfg-dir" : 
+  {
+    "envvar" : "ACPP_DEFAULT_STRATEGY_APP_CFG_DIR",
+    "value" : "@ACPP_DEFAULT_STRATEGY_APP_CFG_DIR@"
   },
-
-  "version-major": {
-    "value": "@ACPP_VERSION_MAJOR@"
+  "deployment-strategy" : 
+  {
+    "envvar" : "ACPP_DEPLOYMENT_STRATEGY",
+    "value" : "@ACPP_DEPLOYMENT_STRATEGY@"
   },
-  "version-minor": {
-    "value": "@ACPP_VERSION_MINOR@"
+  "device-clang-cmplr" : 
+  {
+    "envvar" : "ACPP_CLANG",
+    "value" : "@ACPP_TOOLCHAIN_DEVICE_CMPLR@"
   },
-  "version-patch": {
-    "value": "@ACPP_VERSION_PATCH@"
+  "is-dryrun" : 
+  {
+    "envvar" : "ACPP_DRYRUN",
+    "value" : "@ACPP_DRYRUN@"
   },
-  "version-suffix": {
-    "value": "@ACPP_VERSION_SUFFIX@"
+  "is-explicit-multipass" : 
+  {
+    "envvar" : "ACPP_EXPLICIT_MULTIPASS",
+    "value" : "@ACPP_EXPLICIT_MULTIPASS@"
   },
-  "llvm-version-major": {
-    "value": "@LLVM_VERSION_MAJOR@"
+  "jit-host-llc-cpu-flag" : 
+  {
+    "envvar" : "ACPP_JIT_HOST_LLC_CPU_FLAG",
+    "value" : "@ACPP_JIT_HOST_LLC_CPU_FLAG@"
   },
-  "plugin-linked-into-llvm": {
-    "value": "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@"
+  "jit-host-llc-flags" : 
+  {
+    "envvar" : "ACPP_JIT_HOST_LLC_FLAGS",
+    "value" : "@ACPP_JIT_HOST_LLC_FLAGS@"
   },
-
-  "llvm-path": {
-    "value": "@ACPP_LLVM_PATH@",
-    "envvar": "ACPP_LLVM_PATH"
+  "jit-host-opt-cpu-flag" : 
+  {
+    "envvar" : "ACPP_JIT_HOST_OPT_CPU_FLAG",
+    "value" : "@ACPP_JIT_HOST_OPT_CPU_FLAG@"
   },
-  "libomp-path": {
-    "value": "@ACPP_LIBOMP_PATH@",
-    "envvar": "ACPP_LIBOMP_PATH"
+  "jit-host-opt-flags" : 
+  {
+    "envvar" : "ACPP_JIT_HOST_OPT_FLAGS",
+    "value" : "@ACPP_JIT_HOST_OPT_FLAGS@"
   },
-  "libnuma-path": {
-    "value": "@ACPP_LIBNUMA_PATH@",
-    "envvar": "ACPP_LIBNUMA_PATH"
+  "libnuma-install-root" : 
+  {
+    "envvar" : "ACPP_LIBNUMA_PATH",
+    "value" : "@ACPP_LIBNUMA_INSTALL_ROOT@"
   },
-
-  "device-clang-cmplr": {
-    "value": "@ACPP_TOOLCHAIN_DEVICE_CMPLR@",
-    "envvar": "ACPP_CLANG",
-    "app": {
-      "var": "ACPP_CLANG",
-      "value": "@ACPP_APP_DEVICE_CMPLR@",
-      "runtime-configurable": true
-    }
+  "libnuma-subdir" : 
+  {
+    "value" : "@ACPP_LIBNUMA_SUBDIR@"
   },
-  "cpu-cxx": {
-    "value": "@ACPP_CPU_CXX@",
-    "envvar": "ACPP_CPU_CXX"
+  "libomp-install-root" : 
+  {
+    "value" : "@ACPP_LIBOMP_INSTALL_ROOT@"
   },
-  "clang-include-path": {
-    "value": "@ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH@",
-    "envvar": "ACPP_CLANG_INCLUDE_PATH",
-    "app": {
-      "var": "ACPP_CLANG_INCLUDE_PATH",
-      "value": "@ACPP_APP_CLANG_INCLUDE_PATH@",
-      "runtime-configurable": false
-    }
+  "libomp-path" : 
+  {
+    "envvar" : "ACPP_LIBOMP_PATH",
+    "value" : "@ACPP_LIBOMP_PATH@"
   },
-  "plugin-path": {
-    "value": "@ACPP_PLUGIN_PATH@",
-    "envvar": "ACPP_PLUGIN_PATH"
+  "libomp-subdir" : 
+  {
+    "value" : "@ACPP_LIBOMP_SUBDIR@"
   },
-
-  "llc": {
-    "value": "@ACPP_TOOLCHAIN_LLC@",
-    "envvar": "ACPP_LLC",
-    "app": {
-      "var": "ACPP_LLC",
-      "value": "@ACPP_APP_LLC@",
-      "runtime-configurable": false
-    }
+  "llc" : 
+  {
+    "envvar" : "ACPP_LLC",
+    "value" : "@ACPP_TOOLCHAIN_LLC@"
   },
-  "opt": {
-    "value": "@ACPP_TOOLCHAIN_OPT@",
-    "envvar": "ACPP_OPT",
-    "app": {
-      "var": "ACPP_OPT",
-      "value": "@ACPP_APP_OPT@",
-      "runtime-configurable": false
-    }
+  "lld" : 
+  {
+    "envvar" : "ACPP_LLD",
+    "value" : "@ACPP_TOOLCHAIN_LLD@"
   },
-  "lld": {
-    "value": "@ACPP_TOOLCHAIN_LLD@",
-    "envvar": "ACPP_LLD",
-    "app": {
-      "var": "ACPP_LLD",
-      "value": "@ACPP_APP_LLD@",
-      "runtime-configurable": false
-    }
+  "llvm-libdir" : 
+  {
+    "value" : "@ACPP_DISCOVERED_LLVM_LIBDIR@"
   },
-  "llvm-spirv": {
-    "value": "@ACPP_TOOLCHAIN_LLVMSPIRV@",
-    "envvar": "ACPP_LLVMSPIRV",
-    "app": {
-      "var": "ACPP_LLVMSPIRV",
-      "value": "@ACPP_APP_LLVMSPIRV@",
-      "runtime-configurable": false
-    }
+  "llvm-path" : 
+  {
+    "envvar" : "ACPP_LLVM_PATH",
+    "value" : "@ACPP_LLVM_PATH@"
   },
-
-  "jit-host-llc-cpu-flag": {
-    "value": "@ACPP_JIT_HOST_LLC_CPU_FLAG@",
-    "envvar": "ACPP_JIT_HOST_LLC_CPU_FLAG",
-    "app": {
-      "var": "ACPP_JIT_HOST_LLC_CPU_FLAG",
-      "value": "{{ jit-host-llc-cpu-flag }}",
-      "runtime-configurable": true
-    }
+  "llvm-spirv" : 
+  {
+    "envvar" : "ACPP_LLVMSPIRV",
+    "value" : "@ACPP_TOOLCHAIN_LLVMSPIRV@"
   },
-  "jit-host-opt-cpu-flag": {
-    "value": "@ACPP_JIT_HOST_OPT_CPU_FLAG@",
-    "envvar": "ACPP_JIT_HOST_OPT_CPU_FLAG",
-    "app": {
-      "var": "ACPP_JIT_HOST_OPT_CPU_FLAG",
-      "value": "{{ jit-host-opt-cpu-flag }}",
-      "runtime-configurable": true
-    }
+  "llvm-version-major" : 
+  {
+    "value" : "@LLVM_VERSION_MAJOR@"
   },
-  "jit-host-llc-flags": {
-    "value": "@ACPP_JIT_HOST_LLC_FLAGS@",
-    "envvar": "ACPP_JIT_HOST_LLC_FLAGS",
-    "app": {
-      "var": "ACPP_JIT_HOST_LLC_FLAGS",
-      "value": "{{ jit-host-llc-flags }}",
-      "runtime-configurable": true
-    }
+  "omp-cxx-flags" : 
+  {
+    "envvar" : "ACPP_OMP_CXX_FLAGS",
+    "value" : "@ACPP_OMP_CXX_FLAGS@"
   },
-  "jit-host-opt-flags": {
-    "value": "@ACPP_JIT_HOST_OPT_FLAGS@",
-    "envvar": "ACPP_JIT_HOST_OPT_FLAGS",
-    "app": {
-      "var": "ACPP_JIT_HOST_OPT_FLAGS",
-      "value": "{{ jit-host-opt-flags }}",
-      "runtime-configurable": true
-    }
+  "omp-link-line" : 
+  {
+    "envvar" : "ACPP_OMP_LINK_LINE",
+    "value" : "@ACPP_OMP_LINK_LINE@"
   },
-
-  "vector-math-lib": {
-    "value": "@ACPP_VECTOR_MATH_LIB@",
-    "envvar": "ACPP_VECTOR_MATH_LIB",
-    "app": {
-      "var": "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY",
-      "value": "{{ vector-math-lib }}",
-      "runtime-configurable": true
-    }
+  "opt" : 
+  {
+    "envvar" : "ACPP_OPT",
+    "value" : "@ACPP_TOOLCHAIN_OPT@"
   },
-  "sleef-dir": {
-    "value": "@ACPP_TOOLCHAIN_SLEEF_DIR@",
-    "envvar": "ACPP_SLEEF_DIR",
-    "app": {
-      "var": "ACPP_SLEEF_DIR",
-      "value": "@ACPP_APP_SLEEF_DIR@",
-      "runtime-configurable": true
-    }
+  "plugin-linked-into-llvm" : 
+  {
+    "value" : "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@"
   },
-  "amath-dir": {
-    "value": "@ACPP_TOOLCHAIN_AMATH_DIR@",
-    "envvar": "ACPP_AMATH_DIR",
-    "app": {
-      "var": "ACPP_AMATH_DIR",
-      "value": "@ACPP_APP_AMATH_DIR@",
-      "runtime-configurable": true
-    }
+  "plugin-path" : 
+  {
+    "envvar" : "ACPP_PLUGIN_PATH",
+    "value" : "@ACPP_PLUGIN_PATH@"
   },
-
-  "targets": {
-    "value": "@ACPP_TARGETS@",
-    "envvar": "ACPP_TARGETS"
+  "save-temps" : 
+  {
+    "envvar" : "ACPP_SAVE_TEMPS",
+    "value" : "@ACPP_SAVE_TEMPS@"
   },
-  "sequential-link-line": {
-    "value": "@ACPP_SEQUENTIAL_LINK_LINE@",
-    "envvar": "ACPP_SEQUENTIAL_LINK_LINE"
+  "sequential-cxx-flags" : 
+  {
+    "envvar" : "ACPP_SEQUENTIAL_CXX_FLAGS",
+    "value" : "@ACPP_SEQUENTIAL_CXX_FLAGS@"
   },
-  "sequential-cxx-flags": {
-    "value": "@ACPP_SEQUENTIAL_CXX_FLAGS@",
-    "envvar": "ACPP_SEQUENTIAL_CXX_FLAGS"
+  "sequential-link-line" : 
+  {
+    "envvar" : "ACPP_SEQUENTIAL_LINK_LINE",
+    "value" : "@ACPP_SEQUENTIAL_LINK_LINE@"
   },
-  "omp-link-line": {
-    "value": "@ACPP_OMP_LINK_LINE@",
-    "envvar": "ACPP_OMP_LINK_LINE"
+  "sleef-install-root" : 
+  {
+    "envvar" : "ACPP_SLEEF_DIR",
+    "value" : "@ACPP_SLEEF_INSTALL_ROOT@"
   },
-  "omp-cxx-flags": {
-    "value": "@ACPP_OMP_CXX_FLAGS@",
-    "envvar": "ACPP_OMP_CXX_FLAGS"
+  "sleef-subdir" : 
+  {
+    "value" : "@ACPP_SLEEF_SUBDIR@"
   },
-  "is-dryrun": {
-    "value": "@ACPP_DRYRUN@",
-    "envvar": "ACPP_DRYRUN"
+  "targets" : 
+  {
+    "envvar" : "ACPP_TARGETS",
+    "value" : "@ACPP_TARGETS@"
   },
-  "save-temps": {
-    "value": "@ACPP_SAVE_TEMPS@",
-    "envvar": "ACPP_SAVE_TEMPS"
+  "vector-math-lib" : 
+  {
+    "envvar" : "ACPP_VECTOR_MATH_LIB",
+    "value" : "@ACPP_VECTOR_MATH_LIB@"
   },
-  "is-explicit-multipass": {
-    "value": "@ACPP_EXPLICIT_MULTIPASS@",
-    "envvar": "ACPP_EXPLICIT_MULTIPASS"
+  "version-major" : 
+  {
+    "value" : "@ACPP_VERSION_MAJOR@"
+  },
+  "version-minor" : 
+  {
+    "value" : "@ACPP_VERSION_MINOR@"
+  },
+  "version-patch" : 
+  {
+    "value" : "@ACPP_VERSION_PATCH@"
+  },
+  "version-suffix" : 
+  {
+    "value" : "@ACPP_VERSION_SUFFIX@"
   }
 }

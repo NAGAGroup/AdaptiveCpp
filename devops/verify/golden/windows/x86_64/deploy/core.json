@@ -1,77 +1,118 @@
 {
-  "internal": [
+  "app-config" : 
+  [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}",
-      "dest": "{{ acpp-bindir }}",
-      "files": [
-        "SHARED_LIB:acpp-rt",
-        "SHARED_LIB:acpp-common"
-      ]
+      "runtime-configurable" : true,
+      "value" : "@ACPP_APP_DEVICE_CMPLR@",
+      "var" : "ACPP_CLANG"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL",
-      "dest": "{{ acpp-bindir }}/hipSYCL",
-      "files": [
-        "SHARED_LIB:rt-backend-omp"
-      ]
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_CLANG_INCLUDE_PATH@",
+      "var" : "ACPP_CLANG_INCLUDE_PATH"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
-      "dest": "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
-      "files": [
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_LLC@",
+      "var" : "ACPP_LLC"
+    },
+    {
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_OPT@",
+      "var" : "ACPP_OPT"
+    },
+    {
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_LLD@",
+      "var" : "ACPP_LLD"
+    },
+    {
+      "runtime-configurable" : false,
+      "value" : "@ACPP_APP_LLVMSPIRV@",
+      "var" : "ACPP_LLVMSPIRV"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-llc-cpu-flag }}",
+      "var" : "ACPP_JIT_HOST_LLC_CPU_FLAG"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-opt-cpu-flag }}",
+      "var" : "ACPP_JIT_HOST_OPT_CPU_FLAG"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-llc-flags }}",
+      "var" : "ACPP_JIT_HOST_LLC_FLAGS"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ jit-host-opt-flags }}",
+      "var" : "ACPP_JIT_HOST_OPT_FLAGS"
+    },
+    {
+      "runtime-configurable" : true,
+      "value" : "{{ vector-math-lib }}",
+      "var" : "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY"
+    }
+  ],
+  "external-nonpermissive" : [],
+  "external-permissive" : 
+  [
+    {
+      "build-mode" : "plugin",
+      "dest" : "{{ libomp-subdir }}",
+      "files" : [ "SHARED_LIB:libomp" ],
+      "src" : "{{ libomp-install-root }}"
+    }
+  ],
+  "internal" : 
+  [
+    {
+      "dest" : "{{ acpp-bindir }}",
+      "files" : [ "SHARED_LIB:acpp-rt", "SHARED_LIB:acpp-common" ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}"
+    },
+    {
+      "dest" : "{{ acpp-bindir }}/hipSYCL",
+      "files" : [ "SHARED_LIB:rt-backend-omp" ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL"
+    },
+    {
+      "dest" : "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "files" : 
+      [
         "SHARED_LIB:llvm-to-backend",
         "SHARED_LIB:llvm-to-host",
         "SHARED_LIB:llvm-to-spirv"
-      ]
+      ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
-      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
-      "files": [
-        "libkernel-sscp-host-full.bc",
-        "libkernel-sscp-host-fast-full.bc"
-      ]
+      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files" : [ "libkernel-sscp-host-full.bc", "libkernel-sscp-host-fast-full.bc" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin",
-      "dest": "{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin",
-      "files": [
-        "llvm-spirv.exe"
-      ]
+      "dest" : "{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin",
+      "files" : [ "llvm-spirv.exe" ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin"
     }
   ],
-
-  "llvm": [
+  "llvm" : 
+  [
     {
-      "build-mode": "toolchain",
-      "src": "{{ llvm-path }}/bin",
-      "dest": "{{ llvm-deploy-path }}/bin",
-      "files": [
-        "llc.exe",
-        "opt.exe",
-        "lld-link.exe"
-      ]
+      "build-mode" : "toolchain",
+      "dest" : "{{ acpp-bindir }}",
+      "files" : [ "llc.exe", "opt.exe", "lld-link.exe" ],
+      "src" : "{{ llvm-path }}"
     },
     {
-      "build-mode": "toolchain",
-      "src": "{{ libomp-path }}",
-      "dest": "{{ libomp-deploy-path }}",
-      "files": [
-        "SHARED_LIB:libomp"
-      ]
+      "build-mode" : "toolchain",
+      "dest" : "{{ acpp-bindir }}",
+      "files" : [ "SHARED_LIB:libomp" ],
+      "src" : "{{ libomp-path }}"
     }
-  ],
-
-  "external-permissive": [
-    {
-      "build-mode": "plugin",
-      "src": "{{ libomp-path }}",
-      "dest": "{{ libomp-deploy-path }}",
-      "files": [
-        "SHARED_LIB:libomp"
-      ]
-    }
-  ],
-
-  "external-nonpermissive": []
+  ]
 }

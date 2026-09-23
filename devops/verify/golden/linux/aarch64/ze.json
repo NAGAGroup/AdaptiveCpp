@@ -1,14 +1,14 @@
 {
-  "ze-deploy-path": {
-    "value": "@ACPP_ZE_DEPLOY_PATH@"
+  "ze-install-root" : 
+  {
+    "value" : "@ACPP_ZE_INSTALL_ROOT@"
   },
-  "ze-libdir": {
-    "value": "@ACPP_DISCOVERED_ZE_LIBDIR@"
+  "ze-rt-subdir" : 
+  {
+    "value" : "@ACPP_ZE_RT_SUBDIR@"
   },
-  "ze-path": {
-    "value": "@ACPP_ZE_PATH@"
-  },
-  "ze-lib-path": {
-    "value": "@ACPP_ZE_LIB_PATH@"
+  "ze-subdir" : 
+  {
+    "value" : "@ACPP_ZE_SUBDIR@"
   }
 }

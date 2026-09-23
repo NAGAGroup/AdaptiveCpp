@@ -1,9 +1,10 @@
 {
-  "external-nonpermissive": [
+  "external-nonpermissive" : 
+  [
     {
-      "src": "{{ nvhpc-lib-path }}",
-      "dest": "{{ nvhpc-deploy-path }}/{{ nvhpc-libdir }}",
-      "files": ["*"]
+      "dest" : "{{ nvhpc-subdir }}/{{ nvhpc-rt-subdir }}",
+      "files" : [ "*" ],
+      "src" : "{{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }}"
     }
   ]
 }

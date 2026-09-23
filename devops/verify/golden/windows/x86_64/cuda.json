@@ -1,60 +1,47 @@
 {
-  "cuda-deploy-path": {
-    "value": "@ACPP_CUDA_DEPLOY_PATH@"
+  "cuda-bin-subdir" : 
+  {
+    "envvar" : "ACPP_CUDA_DLL_DIR",
+    "value" : "@ACPP_CUDA_BIN_SUBDIR@"
   },
-  "cuda-libdir": {
-    "value": "@ACPP_DISCOVERED_CUDA_LIBDIR@"
+  "cuda-cxx-flags" : 
+  {
+    "envvar" : "ACPP_CUDA_CXX_FLAGS",
+    "value" : "@ACPP_CUDA_CXX_FLAGS@"
   },
-  "cuda-incdir": {
-    "value": "@ACPP_DISCOVERED_CUDA_INCDIR@"
+  "cuda-include-subdir" : 
+  {
+    "value" : "@ACPP_CUDA_INCLUDE_SUBDIR@"
   },
-  "cuda-bindir": {
-    "value": "@ACPP_DISCOVERED_CUDA_BINDIR@"
+  "cuda-install-root" : 
+  {
+    "envvar" : "ACPP_CUDA_PATH",
+    "value" : "@ACPP_CUDA_INSTALL_ROOT@"
   },
-  "cuda-version-major": {
-    "value": "@ACPP_DISCOVERED_CUDA_VERSION_MAJOR@"
+  "cuda-libdevice-subdir" : 
+  {
+    "envvar" : "ACPP_CUDA_LIBDEVICE_DIR",
+    "value" : "@ACPP_CUDA_LIBDEVICE_SUBDIR@"
   },
-  "cuda-version-minor": {
-    "value": "@ACPP_DISCOVERED_CUDA_VERSION_MINOR@"
+  "cuda-link-line" : 
+  {
+    "envvar" : "ACPP_CUDA_LINK_LINE",
+    "value" : "@ACPP_CUDA_LINK_LINE@"
   },
-  "cuda-path": {
-    "value": "@ACPP_CUDA_PATH@",
-    "envvar": "ACPP_CUDA_PATH"
+  "cuda-rt-subdir" : 
+  {
+    "value" : "@ACPP_CUDA_RT_SUBDIR@"
   },
-  "cuda-lib-path": {
-    "value": "@ACPP_CUDA_LIB_PATH@",
-    "envvar": "ACPP_CUDA_LIB_PATH"
+  "cuda-subdir" : 
+  {
+    "value" : "@ACPP_CUDA_SUBDIR@"
   },
-  "cuda-include-path": {
-    "value": "@ACPP_CUDA_INCLUDE_PATH@"
+  "cuda-version-major" : 
+  {
+    "value" : "@ACPP_DISCOVERED_CUDA_VERSION_MAJOR@"
   },
-  "cuda-bin-path": {
-    "value": "@ACPP_CUDA_BIN_PATH@"
-  },
-  "cuda-libdevice-dir": {
-    "value": "@ACPP_TOOLCHAIN_CUDA_LIBDEVICE_DIR@",
-    "envvar": "ACPP_CUDA_LIBDEVICE_DIR",
-    "app": {
-      "var": "ACPP_CUDA_LIBDEVICE_DIR",
-      "value": "@ACPP_APP_CUDA_LIBDEVICE_DIR@",
-      "runtime-configurable": true
-    }
-  },
-  "cuda-dll-dir": {
-    "value": "@ACPP_TOOLCHAIN_CUDA_DLL_DIR@",
-    "envvar": "ACPP_CUDA_DLL_DIR",
-    "app": {
-      "var": "ACPP_CUDA_DLL_DIR",
-      "value": "@ACPP_APP_CUDA_DLL_DIR@",
-      "runtime-configurable": true
-    }
-  },
-  "cuda-link-line": {
-    "value": "@ACPP_CUDA_LINK_LINE@",
-    "envvar": "ACPP_CUDA_LINK_LINE"
-  },
-  "cuda-cxx-flags": {
-    "value": "@ACPP_CUDA_CXX_FLAGS@",
-    "envvar": "ACPP_CUDA_CXX_FLAGS"
+  "cuda-version-minor" : 
+  {
+    "value" : "@ACPP_DISCOVERED_CUDA_VERSION_MINOR@"
   }
 }

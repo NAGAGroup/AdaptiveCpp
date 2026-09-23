@@ -1,21 +1,22 @@
 {
-  "internal": [
+  "external-nonpermissive" : [],
+  "external-permissive" : [],
+  "internal" : 
+  [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL",
-      "dest": "{{ acpp-bindir }}/hipSYCL",
-      "files": ["SHARED_LIB:rt-backend-vk"]
+      "dest" : "{{ acpp-bindir }}/hipSYCL",
+      "files" : [ "SHARED_LIB:rt-backend-vk" ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
-      "dest": "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
-      "files": ["SHARED_LIB:llvm-to-clspv"]
+      "dest" : "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "files" : [ "SHARED_LIB:llvm-to-clspv" ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend"
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
-      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
-      "files": ["libkernel-sscp-clspv-full.bc"]
+      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files" : [ "libkernel-sscp-clspv-full.bc" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     }
-  ],
-  "external-permissive": [],
-  "external-nonpermissive": []
+  ]
 }
