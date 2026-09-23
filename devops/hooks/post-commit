@@ -1,0 +1,43 @@
+#!/usr/bin/env nu
+
+# Retains this commit's full `git show` (message and diff) into the
+# acpp-fork Hindsight bank, so the bank's knowledge of the fork follows
+# the branch. Nothing is replaced: each commit becomes a new memory,
+# stamped with the time it was retained, not the time it was committed.
+# This hook never blocks or fails a commit — every path it can take
+# ends by exiting 0.
+
+def main [] {
+  let log = (git rev-parse --git-path acpp-bank-retain.log)
+  let sha = (git rev-parse --short HEAD)
+  let time = (date now | date to-timezone UTC | format date "%FT%TZ")
+
+  let token = ($env.HINDSIGHT_API_TOKEN? | default "")
+  if ($token | str trim | is-empty) {
+    $"($time) ($sha) skipped: HINDSIGHT_API_TOKEN not set\n" | save --append $log
+    print -e $"acpp-bank-retain: skipped, see ($log)"
+    exit 0
+  }
+
+  let content = (git show --no-color HEAD)
+
+  let outcome = (try {
+    let resp = (http post --max-time 30sec --headers [authorization $token] --content-type application/json "https://api.hindsight.vectorize.io/v1/default/banks/acpp-fork/memories" {items: [{timestamp: $time, content: $content, metadata: {type: "diff"}}], async: true})
+    if ($resp.success? == true) {
+      {ok: true, id: ($resp.operation_id? | default ""), err: ""}
+    } else {
+      {ok: false, id: "", err: $"unexpected response: ($resp)"}
+    }
+  } catch { |e|
+    {ok: false, id: "", err: ($e.msg)}
+  })
+
+  if $outcome.ok {
+    $"($time) ($sha) ok operation_id=($outcome.id)\n" | save --append $log
+  } else {
+    $"($time) ($sha) error: ($outcome.err)\n" | save --append $log
+    print -e $"acpp-bank-retain: error, see ($log)"
+  }
+
+  exit 0
+}
