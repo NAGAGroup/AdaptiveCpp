@@ -1,8 +1,10 @@
-# Defaults check for the OMP options file, run with cmake -P:
+# Defaults check for the omp values, run with cmake -P:
 #   cmake -P devops/verify/verify-omp.cmake
 #
-# The omp values are strategy-independent and name no location, so there is
-# no placeholder variant.
+# The CPU backend is always built (upstream's WITH_CPU_BACKEND is
+# unconditionally true), so the omp flows have no vendor unit: the two
+# values live in core.cmake and are checked there. There is no placeholder
+# variant; the values are strategy-independent and name no location.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
@@ -26,9 +28,8 @@ set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
-include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/omp.cmake)
 
 expect_eq(ACPP_OMP_LINK_LINE "-fopenmp")
 expect_eq(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
 
-message(STATUS "omp.cmake: parses clean, every default as declared")
+message(STATUS "core.cmake: omp values as declared")

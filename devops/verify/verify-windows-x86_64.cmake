@@ -24,8 +24,7 @@ set(_win_cmake_files
   ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/core.cmake
   ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/cuda.cmake
   ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ocl.cmake
-  ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ze.cmake
-  ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/omp.cmake)
+  ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ze.cmake)
 foreach(_f ${_win_cmake_files})
   execute_process(
     COMMAND ${CMAKE_COMMAND} -P "${_f}"
@@ -126,13 +125,11 @@ expect_eq(ACPP_TOOLCHAIN_ZE_DLL_DIR "C:/vendor/bin")
 expect_eq(ACPP_APP_ZE_DLL_DIR "C:/vendor/bin")
 message(STATUS "windows/x86_64/ze.cmake: found defaults as declared")
 
-# ---- OMP ----
-
-include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/omp.cmake)
+# ---- OMP (now core) ----
 
 expect_eq(ACPP_OMP_LINK_LINE "-fopenmp")
 expect_eq(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
-message(STATUS "windows/x86_64/omp.cmake: defaults as declared")
+message(STATUS "windows/x86_64 core.cmake: omp values as declared")
 
 # ---- VK found ----
 

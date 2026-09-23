@@ -23,8 +23,7 @@ set(_aarch64_cmake_files
   ${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/nvhpc.cmake
   ${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/hip.cmake
   ${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/ocl.cmake
-  ${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/ze.cmake
-  ${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/omp.cmake)
+  ${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/ze.cmake)
 foreach(_f ${_aarch64_cmake_files})
   execute_process(
     COMMAND ${CMAKE_COMMAND} -P "${_f}"

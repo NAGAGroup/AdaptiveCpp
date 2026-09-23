@@ -95,3 +95,19 @@ endif()
 if(NOT DEFINED ACPP_SEQUENTIAL_LINK_LINE)
   set(ACPP_SEQUENTIAL_LINK_LINE "-llibomp")
 endif()
+
+# The CPU backend is always built (upstream's WITH_CPU_BACKEND is
+# unconditionally true), so the omp flows have no vendor unit: this is
+# core, not a vendor file. The link line and flags are the platform's,
+# which is why they live here rather than matrix-wide; the omp link line
+# carries no rpath to libomp: under the omp flows the application's own
+# link binds libomp, so the RUNPATH is the application builder's.
+if(NOT DEFINED ACPP_OMP_LINK_LINE)
+  set(ACPP_OMP_LINK_LINE "-fopenmp")
+endif()
+
+# -D_ENABLE_EXTENDED_ALIGNED_STORAGE is needed for correctly aligned local
+# memory on CPU.
+if(NOT DEFINED ACPP_OMP_CXX_FLAGS)
+  set(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
+endif()

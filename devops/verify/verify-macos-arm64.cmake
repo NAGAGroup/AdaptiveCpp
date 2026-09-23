@@ -18,8 +18,7 @@ endfunction()
 # ---- Parse check ----
 
 set(_macos_cmake_files
-  ${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake
-  ${ACPP_REPO_ROOT}/cmake/options/macos/arm64/omp.cmake)
+  ${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 foreach(_f ${_macos_cmake_files})
   execute_process(
     COMMAND ${CMAKE_COMMAND} -P "${_f}"
@@ -59,13 +58,11 @@ expect_unset(ACPP_TOOLCHAIN_AMATH_DIR)
 expect_unset(ACPP_TOOLCHAIN_SVML_DIR)
 message(STATUS "macos/arm64/core.cmake: defaults as declared")
 
-# ---- OMP ----
-
-include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/omp.cmake)
+# ---- OMP (now core) ----
 
 expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
 expect_eq(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
-message(STATUS "macos/arm64/omp.cmake: defaults as declared")
+message(STATUS "macos/arm64 core.cmake: omp values as declared")
 
 # ---- VK found ----
 

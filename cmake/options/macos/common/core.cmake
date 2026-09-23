@@ -137,3 +137,18 @@ endif()
 if(NOT DEFINED ACPP_SEQUENTIAL_LINK_LINE)
   set(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-path }} -lomp")
 endif()
+
+# The CPU backend is always built (upstream's WITH_CPU_BACKEND is
+# unconditionally true), so the omp flows have no vendor unit: this is
+# core, not a vendor file. On macOS clang does not find libomp on its own,
+# so the omp link line names the directory too, unlike the other
+# platforms; the multipass exemption still applies to rpath.
+if(NOT DEFINED ACPP_OMP_LINK_LINE)
+  set(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
+endif()
+
+# -D_ENABLE_EXTENDED_ALIGNED_STORAGE is needed for correctly aligned local
+# memory on CPU.
+if(NOT DEFINED ACPP_OMP_CXX_FLAGS)
+  set(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
+endif()

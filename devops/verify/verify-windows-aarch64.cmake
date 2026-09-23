@@ -19,8 +19,7 @@ set(_win_arm_cmake_files
   ${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/core.cmake
   ${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/cuda.cmake
   ${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/ocl.cmake
-  ${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/ze.cmake
-  ${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/omp.cmake)
+  ${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/ze.cmake)
 foreach(_f ${_win_arm_cmake_files})
   execute_process(
     COMMAND ${CMAKE_COMMAND} -P "${_f}"
