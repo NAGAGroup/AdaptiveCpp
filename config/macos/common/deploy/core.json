@@ -1,7 +1,7 @@
 {
   "internal": [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}",
       "dest": "{{ acpp-libdir }}",
       "files": [
         "SHARED_LIB:acpp-rt",
@@ -9,14 +9,14 @@
       ]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL",
       "dest": "{{ acpp-libdir }}/hipSYCL",
       "files": [
         "SHARED_LIB:rt-backend-omp"
       ]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "files": [
         "SHARED_LIB:llvm-to-backend",
@@ -25,7 +25,7 @@
       ]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
       "files": [
         "libkernel-sscp-host-full.bc",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
       "dest": "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
       "files": [
         "llvm-spirv"
@@ -44,8 +44,8 @@
   "llvm": [
     {
       "build-mode": "toolchain",
-      "src": "{{ llvm-path }}/bin",
-      "dest": "{{ llvm-deploy-path }}/bin",
+      "src": "{{ acpp-root }}/bin",
+      "dest": "bin",
       "files": [
         "llc",
         "opt",
@@ -54,8 +54,8 @@
     },
     {
       "build-mode": "toolchain",
-      "src": "{{ llvm-path }}/{{ llvm-libdir }}",
-      "dest": "{{ llvm-deploy-path }}/{{ llvm-libdir }}",
+      "src": "{{ llvm-path }}",
+      "dest": "{{ acpp-libdir }}",
       "files": [
         "SHARED_LIB:LLVM"
       ]
@@ -63,7 +63,7 @@
     {
       "build-mode": "toolchain",
       "src": "{{ libomp-path }}",
-      "dest": "{{ libomp-deploy-path }}",
+      "dest": "{{ acpp-libdir }}",
       "files": [
         "SHARED_LIB:omp"
       ]
@@ -73,13 +73,27 @@
   "external-permissive": [
     {
       "build-mode": "plugin",
-      "src": "{{ libomp-path }}",
-      "dest": "{{ libomp-deploy-path }}",
+      "src": "{{ libomp-install-root }}",
+      "dest": "{{ libomp-subdir }}",
       "files": [
         "SHARED_LIB:omp"
       ]
     }
   ],
 
-  "external-nonpermissive": []
+  "external-nonpermissive": [],
+
+  "app-config": [
+    {"var": "ACPP_CLANG", "value": "@ACPP_APP_DEVICE_CMPLR@", "runtime-configurable": true},
+    {"var": "ACPP_CLANG_INCLUDE_PATH", "value": "@ACPP_APP_CLANG_INCLUDE_PATH@", "runtime-configurable": false},
+    {"var": "ACPP_LLC", "value": "@ACPP_APP_LLC@", "runtime-configurable": false},
+    {"var": "ACPP_OPT", "value": "@ACPP_APP_OPT@", "runtime-configurable": false},
+    {"var": "ACPP_LLD", "value": "@ACPP_APP_LLD@", "runtime-configurable": false},
+    {"var": "ACPP_LLVMSPIRV", "value": "@ACPP_APP_LLVMSPIRV@", "runtime-configurable": false},
+    {"var": "ACPP_JIT_HOST_LLC_CPU_FLAG", "value": "{{ jit-host-llc-cpu-flag }}", "runtime-configurable": true},
+    {"var": "ACPP_JIT_HOST_OPT_CPU_FLAG", "value": "{{ jit-host-opt-cpu-flag }}", "runtime-configurable": true},
+    {"var": "ACPP_JIT_HOST_LLC_FLAGS", "value": "{{ jit-host-llc-flags }}", "runtime-configurable": true},
+    {"var": "ACPP_JIT_HOST_OPT_FLAGS", "value": "{{ jit-host-opt-flags }}", "runtime-configurable": true},
+    {"var": "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY", "value": "{{ vector-math-lib }}", "runtime-configurable": true}
+  ]
 }

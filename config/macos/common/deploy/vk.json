@@ -1,25 +1,25 @@
 {
   "internal": [
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL",
       "dest": "{{ acpp-libdir }}/hipSYCL",
       "files": ["SHARED_LIB:rt-backend-vk"]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "dest": "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "files": ["SHARED_LIB:llvm-to-clspv"]
     },
     {
-      "src": "{{ toolchain-path }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
       "files": ["libkernel-sscp-clspv-full.bc"]
     }
   ],
   "external-permissive": [
     {
-      "src": "{{ vk-lib-path }}",
-      "dest": "{{ vk-deploy-path }}/{{ vk-libdir }}",
+      "src": "{{ vk-install-root }}/{{ vk-rt-subdir }}",
+      "dest": "{{ vk-subdir }}/{{ vk-rt-subdir }}",
       "files": ["SHARED_LIB:vulkan", "SHARED_LIB:MoltenVK"]
     }
   ],

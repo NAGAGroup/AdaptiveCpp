@@ -2,10 +2,14 @@
   "internal": [],
   "external-permissive": [
     {
-      "src": "{{ clspv-bin-path }}",
-      "dest": "{{ clspv-deploy-path }}/{{ clspv-bindir }}",
+      "src": "{{ clspv-install-root }}/{{ clspv-bin-subdir }}",
+      "dest": "{{ clspv-subdir }}/{{ clspv-bin-subdir }}",
       "files": ["clspv"]
     }
   ],
-  "external-nonpermissive": []
+  "external-nonpermissive": [],
+
+  "app-config": [
+    {"var": "ACPP_CLSPV", "value": "@ACPP_APP_CLSPV@", "runtime-configurable": true}
+  ]
 }
