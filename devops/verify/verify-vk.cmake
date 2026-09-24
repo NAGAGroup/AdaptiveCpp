@@ -40,6 +40,6 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/vk.cmake)
 expect_eq(ACPP_VK_SUBDIR "lib/hipSYCL/ext/vk")
 expect_eq(ACPP_VK_INSTALL_ROOT "/usr")
 expect_eq(ACPP_VK_RT_SUBDIR "lib/x86_64-linux-gnu")
-expect_eq(ACPP_APP_VK_RT_SUBDIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
+expect_eq(ACPP_APP_VK_RT_DIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
 
 message(STATUS "vk.cmake: parses clean, every default as declared")

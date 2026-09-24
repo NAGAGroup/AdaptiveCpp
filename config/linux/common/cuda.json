@@ -16,8 +16,7 @@
     "value": "@ACPP_CUDA_BIN_SUBDIR@"
   },
   "cuda-libdevice-subdir": {
-    "value": "@ACPP_CUDA_LIBDEVICE_SUBDIR@",
-    "envvar": "ACPP_CUDA_LIBDEVICE_DIR"
+    "value": "@ACPP_CUDA_LIBDEVICE_SUBDIR@"
   },
   "cuda-version-major": {
     "value": "@ACPP_DISCOVERED_CUDA_VERSION_MAJOR@"

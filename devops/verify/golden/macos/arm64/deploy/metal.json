@@ -4,17 +4,17 @@
   "internal" : 
   [
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL",
       "files" : [ "SHARED_LIB:rt-backend-metal" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "files" : [ "SHARED_LIB:llvm-to-metal" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files" : [ "libkernel-sscp-metal-full.bc" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     }

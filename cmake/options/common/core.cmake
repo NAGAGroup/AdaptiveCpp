@@ -205,13 +205,13 @@ endmacro()
 # own {{ }} entries. Otherwise it is composed from the literal
 # $ACPP_RUNTIME_ROOT the C++ runtime resolves at its own run time, matching
 # where the manifest's copy rows actually deploy the vendor.
-macro(acpp_declare_vendor_app_subdir stem lower x)
+macro(acpp_declare_vendor_app_dir stem lower x)
   string(TOLOWER "${x}" _acpp_vendor_app_subdir_x)
   if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
-    set(ACPP_APP_${stem}_${x}_SUBDIR
+    set(ACPP_APP_${stem}_${x}_DIR
       "{{ ${lower}-install-root }}/{{ ${lower}-${_acpp_vendor_app_subdir_x}-subdir }}")
   else()
-    set(ACPP_APP_${stem}_${x}_SUBDIR
+    set(ACPP_APP_${stem}_${x}_DIR
       "\$ACPP_RUNTIME_ROOT/{{ ${lower}-subdir }}/{{ ${lower}-${_acpp_vendor_app_subdir_x}-subdir }}")
   endif()
   unset(_acpp_vendor_app_subdir_x)

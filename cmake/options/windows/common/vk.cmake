@@ -13,7 +13,7 @@ acpp_declare_vendor_subdir(VK vk)
 acpp_declare_vendor_root(VK vk ACPP_DISCOVERED_VK_PREFIX "${ACPP_DISCOVERED_VK_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(VK RT ACPP_DISCOVERED_VK_LIBDIR "${ACPP_DISCOVERED_VK_LIBDIR}")
-acpp_declare_vendor_app_subdir(VK vk RT)
+acpp_declare_vendor_app_dir(VK vk RT)
 
 # The Vulkan SDK on Windows ships only the import library; the loader
 # vulkan-1.dll lives in System32, installed by graphics drivers or the

@@ -25,7 +25,7 @@ acpp_declare_vendor_root(NVHPC nvhpc ACPP_DISCOVERED_NVHPC_PREFIX "${ACPP_DISCOV
 # ---------------------------------------------------------------------------
 
 acpp_declare_vendor_subdir_fact(NVHPC RT ACPP_DISCOVERED_NVHPC_LIBDIR "${ACPP_DISCOVERED_NVHPC_LIBDIR}")
-acpp_declare_vendor_app_subdir(NVHPC nvhpc RT)
+acpp_declare_vendor_app_dir(NVHPC nvhpc RT)
 
 # ---------------------------------------------------------------------------
 # Driver-only

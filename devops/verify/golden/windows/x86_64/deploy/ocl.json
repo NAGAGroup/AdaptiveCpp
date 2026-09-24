@@ -3,14 +3,14 @@
   [
     {
       "runtime-configurable" : true,
-      "value" : "@ACPP_APP_OCL_BIN_SUBDIR@",
+      "value" : "@ACPP_APP_OCL_BIN_DIR@",
       "var" : "ACPP_OCL_DLL_DIR"
     }
   ],
   "external-permissive" : 
   [
     {
-      "dest" : "{{ ocl-subdir }}/{{ ocl-bin-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ ocl-subdir }}/{{ ocl-bin-subdir }}",
       "files" : [ "SHARED_LIB:OpenCL" ],
       "src" : "{{ ocl-install-root }}/{{ ocl-bin-subdir }}"
     }
@@ -18,12 +18,12 @@
   "internal" : 
   [
     {
-      "dest" : "{{ acpp-bindir }}/hipSYCL",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL",
       "files" : [ "SHARED_LIB:rt-backend-ocl" ],
       "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files" : [ "libkernel-sscp-spirv-full.bc" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     }

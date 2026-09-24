@@ -5,7 +5,7 @@
   "external-nonpermissive": [
     {
       "src": "{{ svml-install-root }}",
-      "dest": "{{ svml-subdir }}",
+      "dest": "{{ acpp-runtime-root }}/{{ svml-subdir }}",
       "files": [
         "SHARED_LIB:svml",
         "SHARED_LIB:intlc"

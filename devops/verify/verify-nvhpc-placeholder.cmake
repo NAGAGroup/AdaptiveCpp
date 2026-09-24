@@ -56,7 +56,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/nvhpc.cmake)
 expect_eq(ACPP_NVHPC_SUBDIR "lib/hipSYCL/ext/nvhpc")
 expect_eq(ACPP_NVHPC_INSTALL_ROOT "")
 expect_eq(ACPP_NVHPC_RT_SUBDIR "")
-expect_eq(ACPP_APP_NVHPC_RT_SUBDIR "{{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }}")
+expect_eq(ACPP_APP_NVHPC_RT_DIR "{{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }}")
 
 # nvc++ not found -> bare name.
 expect_eq(ACPP_NVCXX "nvc++")

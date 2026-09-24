@@ -1,7 +1,7 @@
 {
   "ocl-bin-subdir" : 
   {
-    "envvar" : "ACPP_OCL_DLL_DIR",
+
     "value" : "@ACPP_OCL_BIN_SUBDIR@"
   },
   "ocl-install-root" : 

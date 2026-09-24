@@ -50,9 +50,13 @@ if(ACPP_LLVM_COMPONENT)
   # Linked: derive from the parent build's install prefix
   # -------------------------------------------------------------------------
   # The parent installs everything into one prefix - LLVM's tools and
-  # libraries, its libomp, and AdaptiveCpp itself - which is why
-  # llvm-deploy-path defaults to "." and every placeholder built on it names
-  # the toolchain root.
+  # libraries, its libomp, and AdaptiveCpp itself - so LLVM's own install
+  # prefix simply is CMAKE_INSTALL_PREFIX, the same {{ acpp-root }} every
+  # other placeholder resolves against. There is no separate
+  # llvm-deploy-path knob: it is gone outright (D5), not renamed - what
+  # toolchain mode builds follows cmake's own install directories under
+  # {{ acpp-root }} directly, so there is nothing left for a
+  # fork-specific knob to say.
 
   set(ACPP_DISCOVERED_LLVM_PREFIX "${CMAKE_INSTALL_PREFIX}")
   set(ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_PREFIX}/bin")

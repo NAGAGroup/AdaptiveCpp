@@ -59,7 +59,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/nvhpc.cmake)
 expect_eq(ACPP_NVHPC_SUBDIR "lib/hipSYCL/ext/nvhpc")
 expect_eq(ACPP_NVHPC_INSTALL_ROOT "/opt/nvidia/hpc_sdk/Linux_x86_64/25.5/REDIST")
 expect_eq(ACPP_NVHPC_RT_SUBDIR "compilers/lib")
-expect_eq(ACPP_APP_NVHPC_RT_SUBDIR "{{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }}")
+expect_eq(ACPP_APP_NVHPC_RT_DIR "{{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }}")
 
 # Driver-only: nvc++ found -> discovered path.
 expect_eq(ACPP_NVCXX "/opt/nvidia/hpc_sdk/Linux_x86_64/25.5/compilers/bin/nvc++")

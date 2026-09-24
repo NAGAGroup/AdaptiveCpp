@@ -3,14 +3,14 @@
   [
     {
       "runtime-configurable" : true,
-      "value" : "@ACPP_APP_ZE_BIN_SUBDIR@",
+      "value" : "@ACPP_APP_ZE_BIN_DIR@",
       "var" : "ACPP_ZE_DLL_DIR"
     }
   ],
   "external-permissive" : 
   [
     {
-      "dest" : "{{ ze-subdir }}/{{ ze-bin-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ ze-subdir }}/{{ ze-bin-subdir }}",
       "files" : [ "SHARED_LIB:ze_loader" ],
       "src" : "{{ ze-install-root }}/{{ ze-bin-subdir }}"
     }
@@ -18,12 +18,12 @@
   "internal" : 
   [
     {
-      "dest" : "{{ acpp-bindir }}/hipSYCL",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL",
       "files" : [ "SHARED_LIB:rt-backend-ze" ],
       "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files" : [ "libkernel-sscp-spirv-full.bc" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     }

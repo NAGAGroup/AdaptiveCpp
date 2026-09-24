@@ -62,7 +62,7 @@
   [
     {
       "build-mode" : "plugin",
-      "dest" : "{{ libomp-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ libomp-subdir }}",
       "files" : [ "SHARED_LIB:libomp" ],
       "src" : "{{ libomp-install-root }}"
     }
@@ -70,17 +70,17 @@
   "internal" : 
   [
     {
-      "dest" : "{{ acpp-bindir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}",
       "files" : [ "SHARED_LIB:acpp-rt", "SHARED_LIB:acpp-common" ],
       "src" : "{{ acpp-root }}/{{ acpp-bindir }}"
     },
     {
-      "dest" : "{{ acpp-bindir }}/hipSYCL",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL",
       "files" : [ "SHARED_LIB:rt-backend-omp" ],
       "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL"
     },
     {
-      "dest" : "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
       "files" : 
       [
         "SHARED_LIB:llvm-to-backend",
@@ -90,12 +90,12 @@
       "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files" : [ "libkernel-sscp-host-full.bc", "libkernel-sscp-host-fast-full.bc" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     },
     {
-      "dest" : "{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin",
       "files" : [ "llvm-spirv.exe" ],
       "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin"
     }
@@ -104,13 +104,13 @@
   [
     {
       "build-mode" : "toolchain",
-      "dest" : "{{ acpp-bindir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}",
       "files" : [ "llc.exe", "opt.exe", "lld-link.exe" ],
       "src" : "{{ llvm-path }}"
     },
     {
       "build-mode" : "toolchain",
-      "dest" : "{{ acpp-bindir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}",
       "files" : [ "SHARED_LIB:libomp" ],
       "src" : "{{ libomp-path }}"
     }

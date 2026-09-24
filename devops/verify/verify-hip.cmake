@@ -56,10 +56,10 @@ expect_eq(ACPP_HIP_BITCODE_SUBDIR "lib/llvm/amdgcn/bitcode")
 expect_eq(ACPP_HIP_SYSDEPS_SUBDIR "lib/rocm_sysdeps/lib")
 
 # The application's own view of each (D7).
-expect_eq(ACPP_APP_HIP_RT_SUBDIR "{{ hip-install-root }}/{{ hip-rt-subdir }}")
-expect_eq(ACPP_APP_HIP_INCLUDE_SUBDIR "{{ hip-install-root }}/{{ hip-include-subdir }}")
-expect_eq(ACPP_APP_HIP_BITCODE_SUBDIR "{{ hip-install-root }}/{{ hip-bitcode-subdir }}")
-expect_eq(ACPP_APP_HIP_SYSDEPS_SUBDIR "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}")
+expect_eq(ACPP_APP_HIP_RT_DIR "{{ hip-install-root }}/{{ hip-rt-subdir }}")
+expect_eq(ACPP_APP_HIP_INCLUDE_DIR "{{ hip-install-root }}/{{ hip-include-subdir }}")
+expect_eq(ACPP_APP_HIP_BITCODE_DIR "{{ hip-install-root }}/{{ hip-bitcode-subdir }}")
+expect_eq(ACPP_APP_HIP_SYSDEPS_DIR "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}")
 
 # Driver-only.
 expect_eq(ACPP_HIP_LINK_LINE "-Wl,-rpath={{ hip-install-root }}/{{ hip-rt-subdir }} -L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")

@@ -75,7 +75,7 @@
   "external-nonpermissive" : 
   [
     {
-      "dest" : "{{ svml-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ svml-subdir }}",
       "files" : [ "SHARED_LIB:svml", "SHARED_LIB:intlc" ],
       "src" : "{{ svml-install-root }}"
     }
@@ -84,22 +84,22 @@
   [
     {
       "build-mode" : "plugin",
-      "dest" : "{{ libomp-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ libomp-subdir }}",
       "files" : [ "SHARED_LIB:omp" ],
       "src" : "{{ libomp-install-root }}"
     },
     {
-      "dest" : "{{ sleef-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ sleef-subdir }}",
       "files" : [ "SHARED_LIB:sleefgnuabi" ],
       "src" : "{{ sleef-install-root }}"
     },
     {
-      "dest" : "{{ amath-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ amath-subdir }}",
       "files" : [ "SHARED_LIB:amath" ],
       "src" : "{{ amath-install-root }}"
     },
     {
-      "dest" : "{{ libnuma-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ libnuma-subdir }}",
       "files" : [ "SHARED_LIB:numa" ],
       "src" : "{{ libnuma-install-root }}"
     }
@@ -107,17 +107,17 @@
   "internal" : 
   [
     {
-      "dest" : "{{ acpp-libdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}",
       "files" : [ "SHARED_LIB:acpp-rt", "SHARED_LIB:acpp-common" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL",
       "files" : [ "SHARED_LIB:rt-backend-omp" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "files" : 
       [
         "SHARED_LIB:llvm-to-backend",
@@ -127,12 +127,12 @@
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files" : [ "libkernel-sscp-host-full.bc", "libkernel-sscp-host-fast-full.bc" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin",
       "files" : [ "llvm-spirv" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin"
     }
@@ -141,19 +141,19 @@
   [
     {
       "build-mode" : "toolchain",
-      "dest" : "bin",
+      "dest" : "{{ acpp-runtime-root }}/bin",
       "files" : [ "llc", "opt", "ld.lld" ],
       "src" : "{{ acpp-root }}/bin"
     },
     {
       "build-mode" : "toolchain",
-      "dest" : "{{ acpp-libdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}",
       "files" : [ "SHARED_LIB:LLVM" ],
       "src" : "{{ llvm-path }}"
     },
     {
       "build-mode" : "toolchain",
-      "dest" : "{{ acpp-libdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}",
       "files" : [ "SHARED_LIB:omp" ],
       "src" : "{{ libomp-path }}"
     }

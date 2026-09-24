@@ -415,7 +415,7 @@ configuration, not a copy at all.
 
 ```json
 { "internal": [ { "src": "{{ acpp-root }}/{{ acpp-libdir }}",
-                  "dest": "{{ acpp-libdir }}",
+                  "dest": "{{ acpp-runtime-root }}/{{ acpp-libdir }}",
                   "files": ["SHARED_LIB:acpp-rt"] } ],
   "llvm": [...], "external-permissive": [...], "external-nonpermissive": [...],
   "app-config": [ { "var": "ACPP_CLANG",
@@ -423,11 +423,14 @@ configuration, not a copy at all.
                      "runtime-configurable": true } ] }
 ```
 
-`src` is a directory named by an entry, `files` are relative to it, `dest` is
-relative to the deployment root. `SHARED_LIB:` and `*` are the driver's
-existing mechanisms. The `"toolchain-only": true` flag is retired: what it
-used to mark — a row installed but never deployed — is now a per-vendor
-cmake install rule instead, home (b) above, not a manifest row at all.
+`src` is a directory named by an entry, `files` are relative to it, `dest`
+names `{{ acpp-runtime-root }}` explicitly - the manifest's own root token
+for a deployment tree (D5) - rather than leaving the deployment root
+implicit; the deploy engine resolves it at drive time exactly like every
+other `{{ }}` token. `SHARED_LIB:` and `*` are the driver's existing
+mechanisms. The `"toolchain-only": true` flag is retired: what it used to
+mark — a row installed but never deployed — is now a per-vendor cmake
+install rule instead, home (b) above, not a manifest row at all.
 
 **`app-config` is where every value that used to be an entry's `app` block
 now lives (D7).** Its rows have no `src`/`dest`/`files` at all - they are

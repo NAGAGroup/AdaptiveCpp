@@ -1,7 +1,7 @@
 {
   "hip-bitcode-subdir" : 
   {
-    "envvar" : "ACPP_HIP_DEVICE_LIBS_DIR",
+
     "value" : "@ACPP_HIP_BITCODE_SUBDIR@"
   },
   "hip-cxx-flags" : 

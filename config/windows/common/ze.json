@@ -6,7 +6,6 @@
     "value": "@ACPP_ZE_INSTALL_ROOT@"
   },
   "ze-bin-subdir": {
-    "value": "@ACPP_ZE_BIN_SUBDIR@",
-    "envvar": "ACPP_ZE_DLL_DIR"
+    "value": "@ACPP_ZE_BIN_SUBDIR@"
   }
 }

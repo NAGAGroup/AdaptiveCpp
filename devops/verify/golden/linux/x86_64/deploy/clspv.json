@@ -11,7 +11,7 @@
   "external-permissive" : 
   [
     {
-      "dest" : "{{ clspv-subdir }}/{{ clspv-bin-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ clspv-subdir }}/{{ clspv-bin-subdir }}",
       "files" : [ "clspv" ],
       "src" : "{{ clspv-install-root }}/{{ clspv-bin-subdir }}"
     }

@@ -14,7 +14,7 @@ acpp_declare_vendor_subdir(CLSPV clspv)
 acpp_declare_vendor_root(CLSPV clspv ACPP_DISCOVERED_CLSPV_PREFIX "${ACPP_DISCOVERED_CLSPV_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(CLSPV BIN ACPP_DISCOVERED_CLSPV_BINDIR "${ACPP_DISCOVERED_CLSPV_BINDIR}")
-acpp_declare_vendor_app_subdir(CLSPV clspv BIN)
+acpp_declare_vendor_app_dir(CLSPV clspv BIN)
 
 # The executable itself: both strings compose {{ clspv-install-root }} with
 # the bin subdir and the file name directly; the toolchain side needs no

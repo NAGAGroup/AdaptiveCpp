@@ -35,10 +35,10 @@ acpp_declare_vendor_subdir_fact(HIP SYSDEPS ACPP_DISCOVERED_HIP_LIBDIR "${_acpp_
 
 # The application's own view of each (D7): the manifest's app-config
 # section embeds these via @VAR@; Piece 3's concern to wire in.
-acpp_declare_vendor_app_subdir(HIP hip RT)
-acpp_declare_vendor_app_subdir(HIP hip INCLUDE)
-acpp_declare_vendor_app_subdir(HIP hip BITCODE)
-acpp_declare_vendor_app_subdir(HIP hip SYSDEPS)
+acpp_declare_vendor_app_dir(HIP hip RT)
+acpp_declare_vendor_app_dir(HIP hip INCLUDE)
+acpp_declare_vendor_app_dir(HIP hip BITCODE)
+acpp_declare_vendor_app_dir(HIP hip SYSDEPS)
 
 # ---------------------------------------------------------------------------
 # Driver-only

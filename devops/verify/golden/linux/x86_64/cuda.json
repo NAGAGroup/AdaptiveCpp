@@ -19,7 +19,7 @@
   },
   "cuda-libdevice-subdir" : 
   {
-    "envvar" : "ACPP_CUDA_LIBDEVICE_DIR",
+
     "value" : "@ACPP_CUDA_LIBDEVICE_SUBDIR@"
   },
   "cuda-link-line" : 

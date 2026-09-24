@@ -2,17 +2,17 @@
   "internal": [
     {
       "src": "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL",
-      "dest": "{{ acpp-bindir }}/hipSYCL",
+      "dest": "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL",
       "files": ["SHARED_LIB:rt-backend-vk"]
     },
     {
       "src": "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
-      "dest": "{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "dest": "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
       "files": ["SHARED_LIB:llvm-to-clspv"]
     },
     {
       "src": "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
-      "dest": "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest": "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files": ["libkernel-sscp-clspv-full.bc"]
     }
   ],

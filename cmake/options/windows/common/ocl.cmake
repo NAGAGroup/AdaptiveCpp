@@ -17,6 +17,6 @@ acpp_declare_vendor_root(OCL ocl ACPP_DISCOVERED_OCL_PREFIX "${ACPP_DISCOVERED_O
 # application's own configuration must carry, unlike Linux's single-sided
 # provenance.
 acpp_declare_vendor_subdir_fact(OCL BIN ACPP_DISCOVERED_OCL_BINDIR "${ACPP_DISCOVERED_OCL_BINDIR}")
-acpp_declare_vendor_app_subdir(OCL ocl BIN)
+acpp_declare_vendor_app_dir(OCL ocl BIN)
 
 # Nothing links the loader when driving; no multipass flow.

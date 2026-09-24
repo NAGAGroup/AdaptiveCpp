@@ -3,30 +3,30 @@
   [
     {
       "runtime-configurable" : true,
-      "value" : "@ACPP_APP_CUDA_LIBDEVICE_SUBDIR@",
+      "value" : "@ACPP_APP_CUDA_LIBDEVICE_DIR@",
       "var" : "ACPP_CUDA_LIBDEVICE_DIR"
     }
   ],
   "external-nonpermissive" : 
   [
     {
-      "dest" : "{{ cuda-subdir }}/{{ cuda-rt-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-rt-subdir }}",
       "files" : [ "SHARED_LIB:cudart" ],
       "src" : "{{ cuda-install-root }}/{{ cuda-rt-subdir }}"
     },
     {
-      "dest" : "{{ cuda-subdir }}/nvvm/libdevice",
+      "dest" : "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-libdevice-subdir }}",
       "files" : [ "libdevice.10.bc" ],
       "src" : "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}"
     },
     {
-      "dest" : "{{ cuda-subdir }}/{{ cuda-include-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-include-subdir }}",
       "files" : [ "*" ],
       "src" : "{{ cuda-install-root }}/{{ cuda-include-subdir }}",
       "toolchain-only" : true
     },
     {
-      "dest" : "{{ cuda-subdir }}/{{ cuda-bin-subdir }}",
+      "dest" : "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-bin-subdir }}",
       "files" : [ "ptxas", "fatbinary" ],
       "src" : "{{ cuda-install-root }}/{{ cuda-bin-subdir }}",
       "toolchain-only" : true
@@ -35,17 +35,17 @@
   "internal" : 
   [
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL",
       "files" : [ "SHARED_LIB:rt-backend-cuda" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend",
       "files" : [ "SHARED_LIB:llvm-to-ptx" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/llvm-to-backend"
     },
     {
-      "dest" : "{{ acpp-libdir }}/hipSYCL/bitcode",
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files" : [ "libkernel-sscp-ptx-full.bc" ],
       "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
     }

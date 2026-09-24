@@ -29,10 +29,10 @@ acpp_declare_vendor_subdir_fact(CUDA LIBDEVICE ACPP_DISCOVERED_CUDA_LIBDEVICE_DI
 
 # The application's own view of each (D7): the manifest's app-config
 # section embeds these via @VAR@; Piece 3's concern to wire in.
-acpp_declare_vendor_app_subdir(CUDA cuda RT)
-acpp_declare_vendor_app_subdir(CUDA cuda INCLUDE)
-acpp_declare_vendor_app_subdir(CUDA cuda BIN)
-acpp_declare_vendor_app_subdir(CUDA cuda LIBDEVICE)
+acpp_declare_vendor_app_dir(CUDA cuda RT)
+acpp_declare_vendor_app_dir(CUDA cuda INCLUDE)
+acpp_declare_vendor_app_dir(CUDA cuda BIN)
+acpp_declare_vendor_app_dir(CUDA cuda LIBDEVICE)
 
 # ---------------------------------------------------------------------------
 # Driver-only

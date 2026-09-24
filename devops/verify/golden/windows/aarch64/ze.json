@@ -1,7 +1,7 @@
 {
   "ze-bin-subdir" : 
   {
-    "envvar" : "ACPP_ZE_DLL_DIR",
+
     "value" : "@ACPP_ZE_BIN_SUBDIR@"
   },
   "ze-install-root" : 

@@ -12,7 +12,7 @@ acpp_declare_vendor_subdir(ZE ze)
 acpp_declare_vendor_root(ZE ze ACPP_DISCOVERED_ZE_PREFIX "${ACPP_DISCOVERED_ZE_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(ZE RT ACPP_DISCOVERED_ZE_LIBDIR "${ACPP_DISCOVERED_ZE_LIBDIR}")
-acpp_declare_vendor_app_subdir(ZE ze RT)
+acpp_declare_vendor_app_dir(ZE ze RT)
 
 # The runtime reaches the loader through DT_NEEDED and RUNPATH; nothing is
 # read at run time. Level Zero has no multipass flow; the driver passes

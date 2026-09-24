@@ -17,6 +17,6 @@ acpp_declare_vendor_root(ZE ze ACPP_DISCOVERED_ZE_PREFIX "${ACPP_DISCOVERED_ZE_P
 # application's own configuration must carry, unlike Linux's single-sided
 # provenance.
 acpp_declare_vendor_subdir_fact(ZE BIN ACPP_DISCOVERED_ZE_BINDIR "${ACPP_DISCOVERED_ZE_BINDIR}")
-acpp_declare_vendor_app_subdir(ZE ze BIN)
+acpp_declare_vendor_app_dir(ZE ze BIN)
 
 # Nothing links the loader when driving; no multipass flow.

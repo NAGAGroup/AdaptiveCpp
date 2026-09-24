@@ -44,8 +44,8 @@ string(JSON _app_config_len LENGTH "${_app_config}")
 if(_app_config_len EQUAL 0)
   message(FATAL_ERROR "cuda.json manifest: app-config is empty, expected the libdevice row")
 endif()
-if(NOT "${_app_config}" MATCHES "@ACPP_APP_CUDA_LIBDEVICE_SUBDIR@")
-  message(FATAL_ERROR "cuda.json manifest: app-config does not bake @ACPP_APP_CUDA_LIBDEVICE_SUBDIR@")
+if(NOT "${_app_config}" MATCHES "@ACPP_APP_CUDA_LIBDEVICE_DIR@")
+  message(FATAL_ERROR "cuda.json manifest: app-config does not bake @ACPP_APP_CUDA_LIBDEVICE_DIR@")
 endif()
 
 foreach(_group internal external-nonpermissive)
@@ -85,15 +85,15 @@ function(extract_result blob key out_var)
 endfunction()
 
 run_strategy("default" _default_out)
-extract_result("${_default_out}" "ACPP_APP_CUDA_LIBDEVICE_SUBDIR" _default_libdevice)
+extract_result("${_default_out}" "ACPP_APP_CUDA_LIBDEVICE_DIR" _default_libdevice)
 expect_eq(_default_libdevice "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}")
 
 run_strategy("managed" _managed_out)
-extract_result("${_managed_out}" "ACPP_APP_CUDA_LIBDEVICE_SUBDIR" _managed_libdevice)
+extract_result("${_managed_out}" "ACPP_APP_CUDA_LIBDEVICE_DIR" _managed_libdevice)
 expect_eq(_managed_libdevice "\$ACPP_RUNTIME_ROOT/{{ cuda-subdir }}/{{ cuda-libdevice-subdir }}")
 
 run_strategy("full" _full_out)
-extract_result("${_full_out}" "ACPP_APP_CUDA_LIBDEVICE_SUBDIR" _full_libdevice)
+extract_result("${_full_out}" "ACPP_APP_CUDA_LIBDEVICE_DIR" _full_libdevice)
 expect_eq(_full_libdevice "\$ACPP_RUNTIME_ROOT/{{ cuda-subdir }}/{{ cuda-libdevice-subdir }}")
 
 if(NOT "${_managed_libdevice}" STREQUAL "${_full_libdevice}")
@@ -120,7 +120,7 @@ set(_conda_out "${_conda_out}${_conda_out2}")
 
 extract_result("${_conda_out}" "ACPP_CUDA_SUBDIR" _conda_subdir)
 expect_eq(_conda_subdir "")
-extract_result("${_conda_out}" "ACPP_APP_CUDA_LIBDEVICE_SUBDIR" _conda_libdevice)
+extract_result("${_conda_out}" "ACPP_APP_CUDA_LIBDEVICE_DIR" _conda_libdevice)
 # Unchanged from the managed case above: cmake never substitutes {{ }}
 # tokens, so an empty ACPP_CUDA_SUBDIR is invisible at this layer.
 expect_eq(_conda_libdevice "\$ACPP_RUNTIME_ROOT/{{ cuda-subdir }}/{{ cuda-libdevice-subdir }}")

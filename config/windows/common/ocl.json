@@ -6,7 +6,6 @@
     "value": "@ACPP_OCL_INSTALL_ROOT@"
   },
   "ocl-bin-subdir": {
-    "value": "@ACPP_OCL_BIN_SUBDIR@",
-    "envvar": "ACPP_OCL_DLL_DIR"
+    "value": "@ACPP_OCL_BIN_SUBDIR@"
   }
 }

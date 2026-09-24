@@ -39,7 +39,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/clspv.cmake)
 expect_eq(ACPP_CLSPV_SUBDIR "lib/hipSYCL/ext/clspv")
 expect_eq(ACPP_CLSPV_INSTALL_ROOT "")
 expect_eq(ACPP_CLSPV_BIN_SUBDIR "")
-expect_eq(ACPP_APP_CLSPV_BIN_SUBDIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
+expect_eq(ACPP_APP_CLSPV_BIN_DIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
 # Not found -> the two cmake-level template strings are identical to the
 # found case: neither branches on discovery, because clspv-install-root and
 # clspv-bin-subdir already carry that when the driver resolves them.

@@ -13,7 +13,7 @@ acpp_declare_vendor_subdir(OCL ocl)
 acpp_declare_vendor_root(OCL ocl ACPP_DISCOVERED_OCL_PREFIX "${ACPP_DISCOVERED_OCL_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(OCL RT ACPP_DISCOVERED_OCL_LIBDIR "${ACPP_DISCOVERED_OCL_LIBDIR}")
-acpp_declare_vendor_app_subdir(OCL ocl RT)
+acpp_declare_vendor_app_dir(OCL ocl RT)
 
 # The runtime reaches the loader through DT_NEEDED and RUNPATH; nothing is
 # read at run time. OpenCL has no multipass flow; the driver passes nothing.

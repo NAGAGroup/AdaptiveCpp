@@ -42,6 +42,6 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/ocl.cmake)
 expect_eq(ACPP_OCL_SUBDIR "lib/hipSYCL/ext/ocl")
 expect_eq(ACPP_OCL_INSTALL_ROOT "/usr")
 expect_eq(ACPP_OCL_RT_SUBDIR "lib/x86_64-linux-gnu")
-expect_eq(ACPP_APP_OCL_RT_SUBDIR "{{ ocl-install-root }}/{{ ocl-rt-subdir }}")
+expect_eq(ACPP_APP_OCL_RT_DIR "{{ ocl-install-root }}/{{ ocl-rt-subdir }}")
 
 message(STATUS "ocl.cmake: parses clean, every default as declared")
