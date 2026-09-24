@@ -143,6 +143,16 @@ cmd = "cmake --build build/tests --target rt_tests -j"
 depends-on = ["configure-tests"]
 description = "Build the runtime test suite"
 
+[feature.git.dependencies]
+git = "*"
+nushell = "*"
+
+[feature.git.tasks]
+setup-git = "git config core.hooksPath .project/hooks"
+
+[environments]
+git = { features = ["git"], no-default-feature = true }
+
 [environments.dev]
 features = ["dev"]
 no-default-feature = true
