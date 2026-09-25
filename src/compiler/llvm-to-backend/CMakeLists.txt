@@ -279,6 +279,12 @@ if(WITH_SSCP_COMPILER)
       target_include_directories(llvm-to-amdgpu PRIVATE ${ROCM_PATH}/include)
       target_link_libraries(llvm-to-amdgpu PRIVATE ${HIPRTC_LIBRARY})
       target_compile_definitions(llvm-to-amdgpu PRIVATE -DACPP_HIPRTC_LINK)
+
+      # Reaches a SHIPPED hiprtc (HIP:RT - libhiprtc lives alongside the
+      # rest of the ROCm runtime libraries) relative to this target's own
+      # install directory, which create_llvm_based_library sets to
+      # lib/hipSYCL/llvm-to-backend (install_subdir, above).
+      acpp_add_vendor_rpaths(llvm-to-amdgpu FROM "${CMAKE_INSTALL_LIBDIR}/hipSYCL/llvm-to-backend" ENTRIES HIP:RT)
     endif()
 
   endif()

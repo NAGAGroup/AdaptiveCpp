@@ -820,6 +820,18 @@ if(WITH_METAL_BACKEND)
   list(APPEND ACPP_UNITS metal)
 endif()
 
+# acpp_add_vendor_rpaths (cmake/acpp-vendor-rpath.cmake) must be defined
+# before add_subdirectory(src): src/runtime/CMakeLists.txt and
+# src/compiler/llvm-to-backend/CMakeLists.txt call it on their own backend
+# targets as those targets are created, not afterward. Every
+# ACPP_<STEM>_SHIPPED/ACPP_<STEM>_SUBDIR it reads is already set, from the
+# options includes immediately above. This also pulls in
+# cmake/acpp-vendor-install.cmake (for its small path-join helper) - a
+# second include() of that file below, after add_subdirectory(src) for the
+# per-unit install rules themselves, is a no-op under its own
+# include_guard(GLOBAL).
+include(${ACPP_SOURCE_ROOT}/cmake/acpp-vendor-rpath.cmake)
+
 ##########################################################
 ## Do not define any variables that might be used by build
 ## targets below this line.

@@ -68,3 +68,18 @@ if(_idx_generate EQUAL -1)
 endif()
 
 message(STATUS "parse: root CMakeLists.txt still wires discovery, options and the installed configs")
+
+# ---------------------------------------------------------------------------
+# Same rule, for the backends' rpaths to shipped vendors (Commit 3 step
+# 3e): src/runtime/CMakeLists.txt must still call acpp_add_vendor_rpaths -
+# a plain string search, independent of whether any particular backend
+# happens to be enabled in this parse check's own (non-)configure.
+# ---------------------------------------------------------------------------
+file(READ "${ACPP_REPO_ROOT}/src/runtime/CMakeLists.txt" _runtime_text)
+
+string(FIND "${_runtime_text}" "acpp_add_vendor_rpaths(" _idx_rpaths)
+if(_idx_rpaths EQUAL -1)
+  message(FATAL_ERROR "src/runtime/CMakeLists.txt no longer calls acpp_add_vendor_rpaths")
+endif()
+
+message(STATUS "parse: src/runtime/CMakeLists.txt still wires the backends' vendor rpaths")

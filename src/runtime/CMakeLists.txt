@@ -157,6 +157,12 @@ if(WITH_CUDA_BACKEND)
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
+
+  # Reaches a SHIPPED CUDA's runtime libraries relative to this backend's
+  # own install directory (lib/hipSYCL); a no-op if CUDA is not shipped
+  # (the driver's own RUNPATH-free machine copy is used instead) or on
+  # Windows (the app config's DLL dir takes over there).
+  acpp_add_vendor_rpaths(rt-backend-cuda FROM "${CMAKE_INSTALL_LIBDIR}/hipSYCL" ENTRIES CUDA:RT)
 endif()
 
 if(WITH_ROCM_BACKEND)
@@ -207,6 +213,12 @@ if(WITH_ROCM_BACKEND)
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
+
+  # RT (the ROCm runtime libraries) and SYSDEPS (libhsa-runtime64/
+  # libamdhip64's own rocm_sysdeps dependency tree, see
+  # cmake/options/linux/common/hip.cmake) both need to be reachable from
+  # this backend's own install directory when HIP is SHIPPED.
+  acpp_add_vendor_rpaths(rt-backend-hip FROM "${CMAKE_INSTALL_LIBDIR}/hipSYCL" ENTRIES HIP:RT HIP:SYSDEPS)
 endif()
 
 if(WITH_LEVEL_ZERO_BACKEND)
@@ -243,6 +255,10 @@ if(WITH_LEVEL_ZERO_BACKEND)
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
+
+  # Reaches a SHIPPED Level Zero loader relative to this backend's own
+  # install directory.
+  acpp_add_vendor_rpaths(rt-backend-ze FROM "${CMAKE_INSTALL_LIBDIR}/hipSYCL" ENTRIES ZE:RT)
 endif()
 
 if(WITH_VULKAN_BACKEND)
@@ -282,6 +298,11 @@ if(WITH_VULKAN_BACKEND)
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
+
+  # Reaches a SHIPPED Vulkan loader (and, on macOS, MoltenVK - same RT
+  # fact, see cmake/install/macos/common/vk.cmake) relative to this
+  # backend's own install directory.
+  acpp_add_vendor_rpaths(rt-backend-vk FROM "${CMAKE_INSTALL_LIBDIR}/hipSYCL" ENTRIES VK:RT)
 
 endif() # WITH_VULKAN_BACKEND
 
@@ -339,6 +360,10 @@ if(WITH_OPENCL_BACKEND)
         RUNTIME DESTINATION bin/hipSYCL
         LIBRARY DESTINATION lib/hipSYCL
         ARCHIVE DESTINATION lib/hipSYCL)
+
+  # Reaches a SHIPPED OpenCL ICD loader relative to this backend's own
+  # install directory.
+  acpp_add_vendor_rpaths(rt-backend-ocl FROM "${CMAKE_INSTALL_LIBDIR}/hipSYCL" ENTRIES OCL:RT)
 endif()
 
 if(WITH_CPU_BACKEND)
@@ -444,6 +469,11 @@ if(WITH_CPU_BACKEND)
       RUNTIME DESTINATION bin/hipSYCL
       LIBRARY DESTINATION lib/hipSYCL
       ARCHIVE DESTINATION lib/hipSYCL)
+
+  # LIBOMP and LIBNUMA are both single-library vendor units with no
+  # internal lib/include/bin split (no FACT), reached relative to this
+  # backend's own install directory when SHIPPED.
+  acpp_add_vendor_rpaths(rt-backend-omp FROM "${CMAKE_INSTALL_LIBDIR}/hipSYCL" ENTRIES LIBOMP LIBNUMA)
 endif()
 
 if (WITH_METAL_BACKEND)
