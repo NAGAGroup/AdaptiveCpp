@@ -1032,6 +1032,22 @@ if(EXISTS "${_acpp_omp_install_file}")
   include(${_acpp_omp_install_file})
 endif()
 
+# Core's own external vendor units (sleef, amath, libnuma, svml/intlc) are
+# not behind any WITH_*_BACKEND flag - see cmake/install/linux/common/
+# core.cmake's own header - so, like omp above, they need a call of their
+# own rather than a place in the ACPP_UNITS loop. Both the common tier and
+# the one arch that has its own (svml/intlc, linux/x86_64 only) are
+# EXISTS-guarded the same way.
+set(_acpp_core_common_install_file "${ACPP_SOURCE_ROOT}/cmake/install/${ACPP_OPTIONS_PLATFORM}/common/core.cmake")
+if(EXISTS "${_acpp_core_common_install_file}")
+  include(${_acpp_core_common_install_file})
+endif()
+
+set(_acpp_core_arch_install_file "${ACPP_SOURCE_ROOT}/cmake/install/${ACPP_OPTIONS_PLATFORM}/${ACPP_OPTIONS_ARCH}/core.cmake")
+if(EXISTS "${_acpp_core_arch_install_file}")
+  include(${_acpp_core_arch_install_file})
+endif()
+
 
 
 
