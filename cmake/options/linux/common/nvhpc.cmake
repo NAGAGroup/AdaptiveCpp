@@ -17,7 +17,7 @@ include_guard(GLOBAL)
 # (<sdk-root>/REDIST), not the SDK root itself: the redistributable runtime
 # is the vendor unit here, not the compiler.
 
-acpp_declare_vendor_subdir(NVHPC nvhpc)
+acpp_declare_vendor(NVHPC nvhpc nonpermissive)
 acpp_declare_vendor_root(NVHPC nvhpc ACPP_DISCOVERED_NVHPC_PREFIX "${ACPP_DISCOVERED_NVHPC_PREFIX}")
 
 # ---------------------------------------------------------------------------
@@ -33,10 +33,14 @@ acpp_declare_vendor_app_dir(NVHPC nvhpc RT)
 
 # The nvc++ compiler itself is never inside a toolkit and never inside our
 # tree; the driver resolves a bare name through PATH. No -D override exists
-# for it (D1): under `default` it is the discovered absolute binary, found
-# once at configure; otherwise the driver just invokes "nvc++" and lets
-# PATH answer, on whichever machine drives the build.
-if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default" AND NOT "${ACPP_DISCOVERED_NVHPC_NVCXX}" STREQUAL "")
+# for it: under managed, the ordinary single-machine case (the "default" in
+# the old four-strategy model, and every discovered fact's straight-through
+# strategy since nothing is ever shipped there), it is the discovered
+# absolute binary, found once at configure; under full and
+# full-permissive-only, which exist to be relocated onto another machine,
+# baking in this machine's nvc++ path would be wrong, so the driver just
+# invokes "nvc++" and lets PATH answer wherever it ends up driving from.
+if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "managed" AND NOT "${ACPP_DISCOVERED_NVHPC_NVCXX}" STREQUAL "")
   set(ACPP_NVCXX "${ACPP_DISCOVERED_NVHPC_NVCXX}")
 else()
   set(ACPP_NVCXX "nvc++")

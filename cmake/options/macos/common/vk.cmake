@@ -9,7 +9,7 @@
 
 include_guard(GLOBAL)
 
-acpp_declare_vendor_subdir(VK vk)
+acpp_declare_vendor(VK vk permissive)
 acpp_declare_vendor_root(VK vk ACPP_DISCOVERED_VK_PREFIX "${ACPP_DISCOVERED_VK_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(VK RT ACPP_DISCOVERED_VK_LIBDIR "${ACPP_DISCOVERED_VK_LIBDIR}")

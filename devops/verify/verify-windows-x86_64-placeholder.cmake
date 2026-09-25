@@ -91,8 +91,9 @@ expect_eq(ACPP_CUDA_RT_SUBDIR "")
 expect_eq(ACPP_CUDA_INCLUDE_SUBDIR "")
 expect_eq(ACPP_CUDA_BIN_SUBDIR "")
 expect_eq(ACPP_CUDA_LIBDEVICE_SUBDIR "")
-expect_eq(ACPP_APP_CUDA_RT_DIR "{{ cuda-install-root }}/{{ cuda-rt-subdir }}")
-expect_eq(ACPP_APP_CUDA_BIN_DIR "{{ cuda-install-root }}/{{ cuda-bin-subdir }}")
+# Not shipped, and nothing discovered either: empty, not an error.
+expect_eq(ACPP_APP_CUDA_RT_DIR "")
+expect_eq(ACPP_APP_CUDA_BIN_DIR "")
 message(STATUS "windows/x86_64/cuda.cmake (placeholder): defaults as declared")
 
 # ---- OCL placeholder ----
@@ -100,7 +101,7 @@ message(STATUS "windows/x86_64/cuda.cmake (placeholder): defaults as declared")
 expect_eq(ACPP_OCL_SUBDIR "bin/hipSYCL/ext/ocl")
 expect_eq(ACPP_OCL_INSTALL_ROOT "")
 expect_eq(ACPP_OCL_BIN_SUBDIR "")
-expect_eq(ACPP_APP_OCL_BIN_DIR "{{ ocl-install-root }}/{{ ocl-bin-subdir }}")
+expect_eq(ACPP_APP_OCL_BIN_DIR "")
 message(STATUS "windows/x86_64/ocl.cmake (placeholder): defaults as declared")
 
 # ---- ZE placeholder ----
@@ -108,7 +109,7 @@ message(STATUS "windows/x86_64/ocl.cmake (placeholder): defaults as declared")
 expect_eq(ACPP_ZE_SUBDIR "bin/hipSYCL/ext/ze")
 expect_eq(ACPP_ZE_INSTALL_ROOT "")
 expect_eq(ACPP_ZE_BIN_SUBDIR "")
-expect_eq(ACPP_APP_ZE_BIN_DIR "{{ ze-install-root }}/{{ ze-bin-subdir }}")
+expect_eq(ACPP_APP_ZE_BIN_DIR "")
 message(STATUS "windows/x86_64/ze.cmake (placeholder): defaults as declared")
 
 # ---- VK placeholder ----

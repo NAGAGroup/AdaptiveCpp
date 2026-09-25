@@ -9,7 +9,7 @@
 
 include_guard(GLOBAL)
 
-acpp_declare_vendor_subdir(ZE ze)
+acpp_declare_vendor(ZE ze permissive)
 acpp_declare_vendor_root(ZE ze ACPP_DISCOVERED_ZE_PREFIX "${ACPP_DISCOVERED_ZE_PREFIX}")
 
 # BIN is the DLL directory Windows feeds AddDllDirectory through - Windows

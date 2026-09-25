@@ -39,11 +39,13 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/clspv.cmake)
 expect_eq(ACPP_CLSPV_SUBDIR "lib/hipSYCL/ext/clspv")
 expect_eq(ACPP_CLSPV_INSTALL_ROOT "")
 expect_eq(ACPP_CLSPV_BIN_SUBDIR "")
-expect_eq(ACPP_APP_CLSPV_BIN_DIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
-# Not found -> the two cmake-level template strings are identical to the
-# found case: neither branches on discovery, because clspv-install-root and
-# clspv-bin-subdir already carry that when the driver resolves them.
+# Not shipped, and nothing discovered either: empty, not an error.
+expect_eq(ACPP_APP_CLSPV_BIN_DIR "")
+# Not found -> the toolchain-side template string is identical to the found
+# case: it never branches on discovery, because clspv-install-root and
+# clspv-bin-subdir already carry that when the driver resolves them. The
+# app side is empty along with the discovered root: nothing to join.
 expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
-expect_eq(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "")
 
 message(STATUS "clspv.cmake (placeholder): parses clean, every default as declared")

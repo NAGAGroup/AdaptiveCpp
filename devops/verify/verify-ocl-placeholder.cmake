@@ -43,6 +43,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/ocl.cmake)
 expect_eq(ACPP_OCL_SUBDIR "lib/hipSYCL/ext/ocl")
 expect_eq(ACPP_OCL_INSTALL_ROOT "")
 expect_eq(ACPP_OCL_RT_SUBDIR "")
-expect_eq(ACPP_APP_OCL_RT_DIR "{{ ocl-install-root }}/{{ ocl-rt-subdir }}")
+# Not shipped, and nothing discovered either: empty, not an error.
+expect_eq(ACPP_APP_OCL_RT_DIR "")
 
 message(STATUS "ocl.cmake (placeholder): parses clean, every default as declared")

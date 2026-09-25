@@ -52,8 +52,8 @@ expect_eq(ACPP_APP_LLD "")
 # llvm-spirv is ours in both modes and does not depend on the plugin
 # search at all, so it stays the deploy-layout placeholder even when no
 # plugin was found.
-expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
-expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RUNTIME_ROOT/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/lib/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RT_LIB_DIR/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "")
 expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "")
 

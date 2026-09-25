@@ -55,11 +55,12 @@ expect_eq(ACPP_HIP_BITCODE_SUBDIR "lib/llvm/amdgcn/bitcode")
 # $ORIGIN/rocm_sysdeps/lib RUNPATH, relative to RT specifically.
 expect_eq(ACPP_HIP_SYSDEPS_SUBDIR "lib/rocm_sysdeps/lib")
 
-# The application's own view of each (D7).
-expect_eq(ACPP_APP_HIP_RT_DIR "{{ hip-install-root }}/{{ hip-rt-subdir }}")
-expect_eq(ACPP_APP_HIP_INCLUDE_DIR "{{ hip-install-root }}/{{ hip-include-subdir }}")
-expect_eq(ACPP_APP_HIP_BITCODE_DIR "{{ hip-install-root }}/{{ hip-bitcode-subdir }}")
-expect_eq(ACPP_APP_HIP_SYSDEPS_DIR "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}")
+# The application's own view of each: not shipped under managed, a
+# concrete cmake string - the discovered root joined with the subdir fact.
+expect_eq(ACPP_APP_HIP_RT_DIR "/opt/rocm-10.0.0/lib")
+expect_eq(ACPP_APP_HIP_INCLUDE_DIR "/opt/rocm-10.0.0/include")
+expect_eq(ACPP_APP_HIP_BITCODE_DIR "/opt/rocm-10.0.0/lib/llvm/amdgcn/bitcode")
+expect_eq(ACPP_APP_HIP_SYSDEPS_DIR "/opt/rocm-10.0.0/lib/rocm_sysdeps/lib")
 
 # Driver-only.
 expect_eq(ACPP_HIP_LINK_LINE "-Wl,-rpath={{ hip-install-root }}/{{ hip-rt-subdir }} -L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")

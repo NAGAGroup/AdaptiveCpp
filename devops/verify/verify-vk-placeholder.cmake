@@ -39,6 +39,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/vk.cmake)
 expect_eq(ACPP_VK_SUBDIR "lib/hipSYCL/ext/vk")
 expect_eq(ACPP_VK_INSTALL_ROOT "")
 expect_eq(ACPP_VK_RT_SUBDIR "")
-expect_eq(ACPP_APP_VK_RT_DIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
+# Not shipped, and nothing discovered either: empty, not an error.
+expect_eq(ACPP_APP_VK_RT_DIR "")
 
 message(STATUS "vk.cmake (placeholder): parses clean, every default as declared")

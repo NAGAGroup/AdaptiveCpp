@@ -1,6 +1,11 @@
-# Defaults check for the macos/arm64 options under a non-default strategy,
-# run with cmake -P:
+# Defaults check for the macos/arm64 options under the SHIPPED strategy
+# (full), run with cmake -P:
 #   cmake -P devops/verify/verify-macos-arm64-placeholder.cmake
+#
+# Companion to verify-macos-arm64.cmake, which runs under the implicit
+# managed default and so never exercises a vendor's SHIPPED shape. Named
+# for the strategy it used to set ("non-default", i.e. what pre-simplification
+# `managed` already behaved like); full is what actually ships now.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
 
@@ -22,7 +27,9 @@ set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
-set(ACPP_DEPLOYMENT_STRATEGY "managed")
+set(ACPP_DEPLOYMENT_STRATEGY "full")
+# Everything this harness declares (LLD via ownership, VK, CLSPV) is
+# permissive, so full needs no ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN.
 
 # Stand-in for a real configure's GNUInstallDirs.
 set(CMAKE_INSTALL_LIBDIR "lib")
@@ -38,9 +45,11 @@ set(ACPP_DISCOVERED_CLSPV_BINDIR "")
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 
 # Ours in toolchain mode (rule 1): always the deploy-layout placeholder,
-# regardless of ACPP_DEPLOYMENT_STRATEGY.
+# regardless of ACPP_DEPLOYMENT_STRATEGY. The application side is a
+# concrete path from "lib" (the runtime library's own install directory)
+# to bin/ld64.lld, a sibling, not a subdirectory - hence "../bin/...".
 expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/ld64.lld")
-expect_eq(ACPP_APP_LLD "\$ACPP_RUNTIME_ROOT/bin/ld64.lld")
+expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/../bin/ld64.lld")
 
 # OMP is core now, already included above.
 expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
@@ -48,15 +57,18 @@ expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/vk.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/clspv.cmake)
 
-# Not `default`: the vendor unit's install root is the acpp-root/subdir
-# placeholder regardless of what was found.
+# Shipped under full: the vendor unit's install root is the
+# acpp-root/subdir placeholder regardless of what was found.
 expect_eq(ACPP_VK_INSTALL_ROOT "{{ acpp-root }}/{{ vk-subdir }}")
 expect_eq(ACPP_VK_RT_SUBDIR "")
 expect_eq(ACPP_CLSPV_INSTALL_ROOT "{{ acpp-root }}/{{ clspv-subdir }}")
-# Not found -> the two cmake-level template strings for the executable are
-# identical to the found case: neither branches on discovery or strategy at
-# configure time.
+# Not found -> the toolchain-side template string is identical to the
+# found case: it never branches on discovery, because clspv-install-root
+# and clspv-bin-subdir already carry that when the driver resolves them.
+# The app side is shipped: a concrete path from "lib" to the clspv subdir
+# (its default, not overridden here) plus the executable's own name - an
+# empty bin subdir (not found) drops out of the join.
 expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
-expect_eq(ACPP_APP_CLSPV "\$ACPP_RUNTIME_ROOT/{{ clspv-subdir }}/{{ clspv-bin-subdir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "\$ACPP_RT_LIB_DIR/hipSYCL/ext/clspv/clspv")
 
 message(STATUS "macos/arm64 (placeholder): all checks passed")

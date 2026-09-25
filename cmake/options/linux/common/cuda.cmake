@@ -11,7 +11,7 @@ include_guard(GLOBAL)
 # The install subdir knob and the root it derives
 # ---------------------------------------------------------------------------
 
-acpp_declare_vendor_subdir(CUDA cuda)
+acpp_declare_vendor(CUDA cuda nonpermissive)
 acpp_declare_vendor_root(CUDA cuda ACPP_DISCOVERED_CUDA_PREFIX "${ACPP_DISCOVERED_CUDA_PREFIX}")
 
 # ---------------------------------------------------------------------------

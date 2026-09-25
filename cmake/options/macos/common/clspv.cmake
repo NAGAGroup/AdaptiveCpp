@@ -10,7 +10,7 @@
 
 include_guard(GLOBAL)
 
-acpp_declare_vendor_subdir(CLSPV clspv)
+acpp_declare_vendor(CLSPV clspv permissive)
 acpp_declare_vendor_root(CLSPV clspv ACPP_DISCOVERED_CLSPV_PREFIX "${ACPP_DISCOVERED_CLSPV_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(CLSPV BIN ACPP_DISCOVERED_CLSPV_BINDIR "${ACPP_DISCOVERED_CLSPV_BINDIR}")
@@ -18,8 +18,21 @@ acpp_declare_vendor_app_dir(CLSPV clspv BIN)
 
 # The executable itself, same reasoning as linux's clspv.cmake.
 set(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
-if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
-  set(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+if(ACPP_CLSPV_SHIPPED)
+  acpp_relative_from_rt_libdir(_acpp_clspv_rel "${ACPP_CLSPV_SUBDIR}")
+  acpp_join_relative(_acpp_clspv_rel "${_acpp_clspv_rel}" "${ACPP_CLSPV_BIN_SUBDIR}")
+  if("${_acpp_clspv_rel}" STREQUAL "")
+    set(ACPP_APP_CLSPV "\$ACPP_RT_LIB_DIR/clspv")
+  else()
+    set(ACPP_APP_CLSPV "\$ACPP_RT_LIB_DIR/${_acpp_clspv_rel}/clspv")
+  endif()
+  unset(_acpp_clspv_rel)
 else()
-  set(ACPP_APP_CLSPV "\$ACPP_RUNTIME_ROOT/{{ clspv-subdir }}/{{ clspv-bin-subdir }}/clspv")
+  acpp_join_absolute(_acpp_clspv_dir "${ACPP_CLSPV_DISCOVERED_ROOT}" "${ACPP_CLSPV_BIN_SUBDIR}")
+  if("${_acpp_clspv_dir}" STREQUAL "")
+    set(ACPP_APP_CLSPV "")
+  else()
+    set(ACPP_APP_CLSPV "${_acpp_clspv_dir}/clspv")
+  endif()
+  unset(_acpp_clspv_dir)
 endif()

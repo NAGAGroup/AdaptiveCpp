@@ -42,6 +42,12 @@ set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
+# ACPP_LIBOMP_SOURCE_DIR would otherwise default off CMAKE_INSTALL_PREFIX,
+# which this harness never sets (script mode never runs project()); stand
+# in directly with what that default means in a real configure - the
+# libomp of the LLVM this build produces, same value as
+# ACPP_DISCOVERED_LIBOMP_DIR above.
+set(ACPP_LIBOMP_SOURCE_DIR "/opt/acpp/lib")
 
 # Stand-in for a real configure's GNUInstallDirs.
 set(CMAKE_INSTALL_LIBDIR "lib")
@@ -51,9 +57,11 @@ include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 
 expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$HOME/Library/Application Support/AdaptiveCpp/app-cfgs")
 # LLD is ours in toolchain mode (rule 1): always the deploy-layout
-# placeholder, `default` strategy notwithstanding.
+# placeholder, the strategy notwithstanding. The application side is a
+# concrete path from the runtime library's own install directory ("lib")
+# to bin/ld64.lld, a sibling, not a subdirectory - hence "../bin/...".
 expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/ld64.lld")
-expect_eq(ACPP_APP_LLD "\$ACPP_RUNTIME_ROOT/bin/ld64.lld")
+expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/../bin/ld64.lld")
 expect_eq(ACPP_VECTOR_MATH_LIB "none")
 expect_eq(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-path }} -lomp")
 expect_eq(ACPP_CPU_CXX "{{ acpp-root }}/bin/clang++")
@@ -62,9 +70,17 @@ expect_unset(ACPP_LIBNUMA_PATH)
 expect_unset(ACPP_TOOLCHAIN_SLEEF_DIR)
 expect_unset(ACPP_TOOLCHAIN_AMATH_DIR)
 expect_unset(ACPP_TOOLCHAIN_SVML_DIR)
-# libomp is ours in toolchain mode: no vendor-unit declaration at all here.
-expect_unset(ACPP_LIBOMP_SUBDIR)
-expect_unset(ACPP_LIBOMP_INSTALL_ROOT)
+# libomp is a vendor unit in every build mode now (principle 3): not
+# shipped under managed, but still ours in toolchain mode, so its install
+# root is the deploy-layout placeholder rather than
+# ACPP_LIBOMP_SOURCE_DIR's absolute value - see common/core.cmake's OMP
+# section. No application-config declaration on macOS: libomp is linked,
+# not consumed (same as Linux; macOS also has no libnuma at all).
+expect_eq(ACPP_LIBOMP_SUBDIR "lib/hipSYCL/ext/libomp")
+expect_eq(ACPP_LIBOMP_SHIPPED "OFF")
+expect_eq(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
+expect_eq(ACPP_LIBOMP_DISCOVERED_ROOT "/opt/acpp/lib")
+expect_unset(ACPP_APP_LIBOMP_INSTALL_ROOT)
 message(STATUS "macos/arm64/core.cmake: defaults as declared")
 
 # ---- OMP (now core) ----
@@ -87,7 +103,9 @@ include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/vk.cmake)
 expect_eq(ACPP_VK_SUBDIR "lib/hipSYCL/ext/vk")
 expect_eq(ACPP_VK_INSTALL_ROOT "/opt/vulkansdk/macOS")
 expect_eq(ACPP_VK_RT_SUBDIR "lib")
-expect_eq(ACPP_APP_VK_RT_DIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
+# Not shipped under managed: a concrete cmake string, the discovered root
+# joined with the subdir fact.
+expect_eq(ACPP_APP_VK_RT_DIR "/opt/vulkansdk/macOS/lib")
 message(STATUS "macos/arm64/vk.cmake: found defaults as declared")
 
 # ---- CLSPV found ----
@@ -102,9 +120,10 @@ include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/clspv.cmake)
 expect_eq(ACPP_CLSPV_SUBDIR "lib/hipSYCL/ext/clspv")
 expect_eq(ACPP_CLSPV_INSTALL_ROOT "/opt/vulkansdk/macOS")
 expect_eq(ACPP_CLSPV_BIN_SUBDIR "bin")
-expect_eq(ACPP_APP_CLSPV_BIN_DIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
+# Not shipped under managed: a concrete cmake string.
+expect_eq(ACPP_APP_CLSPV_BIN_DIR "/opt/vulkansdk/macOS/bin")
 expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
-expect_eq(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "/opt/vulkansdk/macOS/bin/clspv")
 message(STATUS "macos/arm64/clspv.cmake: found defaults as declared")
 
 message(STATUS "macos/arm64: all checks passed")

@@ -38,12 +38,15 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/clspv.cmake)
 expect_eq(ACPP_CLSPV_SUBDIR "lib/hipSYCL/ext/clspv")
 expect_eq(ACPP_CLSPV_INSTALL_ROOT "/opt/vulkan")
 expect_eq(ACPP_CLSPV_BIN_SUBDIR "bin")
-expect_eq(ACPP_APP_CLSPV_BIN_DIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
-# The executable itself composes {{ clspv-install-root }}/{{ clspv-bin-subdir
-# }} directly in both cmake-level strings - neither needs a strategy branch
-# at configure time, because those two entries already carry it when the
-# driver resolves them.
+# Not shipped under managed: a concrete cmake string, the discovered root
+# joined with the subdir fact.
+expect_eq(ACPP_APP_CLSPV_BIN_DIR "/opt/vulkan/bin")
+# The toolchain side composes {{ clspv-install-root }}/{{ clspv-bin-subdir
+# }} directly - it needs no shipped branch at configure time, because
+# those two entries already carry it when the driver resolves them. The
+# app side does need one, and not shipped means the same absolute location
+# the driver found, joined with the executable's own name.
 expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
-expect_eq(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+expect_eq(ACPP_APP_CLSPV "/opt/vulkan/bin/clspv")
 
 message(STATUS "clspv.cmake: parses clean, every default as declared")

@@ -54,10 +54,13 @@ set(CMAKE_INSTALL_BINDIR "bin")
 
 include(${ACPP_REPO_ROOT}/cmake/options/linux/aarch64/core.cmake)
 
+# Not shipped under managed: both sides are the discovered absolute root,
+# now a concrete cmake string rather than a {{ }} template, since nothing
+# resolves one where configure_file writes the application config.
 expect_eq(ACPP_SLEEF_INSTALL_ROOT "/usr/lib/aarch64-linux-gnu")
-expect_eq(ACPP_APP_SLEEF_INSTALL_ROOT "{{ sleef-install-root }}")
+expect_eq(ACPP_APP_SLEEF_INSTALL_ROOT "/usr/lib/aarch64-linux-gnu")
 expect_eq(ACPP_AMATH_INSTALL_ROOT "/opt/arm/armpl/lib")
-expect_eq(ACPP_APP_AMATH_INSTALL_ROOT "{{ amath-install-root }}")
+expect_eq(ACPP_APP_AMATH_INSTALL_ROOT "/opt/arm/armpl/lib")
 # SVML is x86-only and lives in the x86_64 arch file; aarch64 never declares
 # it at all.
 expect_unset(ACPP_SVML_SUBDIR)

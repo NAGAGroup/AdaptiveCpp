@@ -55,12 +55,13 @@ expect_eq(ACPP_CUDA_INCLUDE_SUBDIR "")
 expect_eq(ACPP_CUDA_BIN_SUBDIR "")
 expect_eq(ACPP_CUDA_LIBDEVICE_SUBDIR "")
 
-# The app-config template composes the same way regardless of what was
-# found - the driver resolves {{ cuda-install-root }} itself at drive time.
-expect_eq(ACPP_APP_CUDA_RT_DIR "{{ cuda-install-root }}/{{ cuda-rt-subdir }}")
-expect_eq(ACPP_APP_CUDA_INCLUDE_DIR "{{ cuda-install-root }}/{{ cuda-include-subdir }}")
-expect_eq(ACPP_APP_CUDA_BIN_DIR "{{ cuda-install-root }}/{{ cuda-bin-subdir }}")
-expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}")
+# Not shipped under managed, and nothing was discovered either: the
+# discovered root is empty, so the join is empty too - honestly, not an
+# error.
+expect_eq(ACPP_APP_CUDA_RT_DIR "")
+expect_eq(ACPP_APP_CUDA_INCLUDE_DIR "")
+expect_eq(ACPP_APP_CUDA_BIN_DIR "")
+expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "")
 
 # Driver-only: link line and flags are independent of discovery.
 expect_eq(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }} -L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")

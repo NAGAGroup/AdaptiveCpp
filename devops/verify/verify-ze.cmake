@@ -43,6 +43,8 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/ze.cmake)
 expect_eq(ACPP_ZE_SUBDIR "lib/hipSYCL/ext/ze")
 expect_eq(ACPP_ZE_INSTALL_ROOT "/usr")
 expect_eq(ACPP_ZE_RT_SUBDIR "lib/x86_64-linux-gnu")
-expect_eq(ACPP_APP_ZE_RT_DIR "{{ ze-install-root }}/{{ ze-rt-subdir }}")
+# Not shipped under managed: a concrete cmake string, the discovered root
+# joined with the subdir fact.
+expect_eq(ACPP_APP_ZE_RT_DIR "/usr/lib/x86_64-linux-gnu")
 
 message(STATUS "ze.cmake: parses clean, every default as declared")

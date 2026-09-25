@@ -10,22 +10,34 @@
 
 include_guard(GLOBAL)
 
-acpp_declare_vendor_subdir(CLSPV clspv)
+acpp_declare_vendor(CLSPV clspv permissive)
 acpp_declare_vendor_root(CLSPV clspv ACPP_DISCOVERED_CLSPV_PREFIX "${ACPP_DISCOVERED_CLSPV_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(CLSPV BIN ACPP_DISCOVERED_CLSPV_BINDIR "${ACPP_DISCOVERED_CLSPV_BINDIR}")
 acpp_declare_vendor_app_dir(CLSPV clspv BIN)
 
-# The executable itself: both strings compose {{ clspv-install-root }} with
-# the bin subdir and the file name directly; the toolchain side needs no
-# strategy branch, because clspv-install-root's own value already carries
-# it (see acpp_declare_vendor_root). The app side does, because under
-# `default` nothing is deployed and the app reads the same absolute
-# location the driver used, but otherwise it reads the literal
-# $ACPP_RUNTIME_ROOT the C++ runtime resolves at its own run time.
+# The executable itself: the toolchain side composes {{ clspv-install-root }}
+# with the bin subdir and the file name directly, needing no shipped branch
+# of its own, because clspv-install-root's own value already carries it
+# (see acpp_declare_vendor_root). The app side does need one, and - like
+# every other application-configuration value - must already be a concrete
+# string, not a template: configure_file writes it literally.
 set(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
-if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "default")
-  set(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+if(ACPP_CLSPV_SHIPPED)
+  acpp_relative_from_rt_libdir(_acpp_clspv_rel "${ACPP_CLSPV_SUBDIR}")
+  acpp_join_relative(_acpp_clspv_rel "${_acpp_clspv_rel}" "${ACPP_CLSPV_BIN_SUBDIR}")
+  if("${_acpp_clspv_rel}" STREQUAL "")
+    set(ACPP_APP_CLSPV "\$ACPP_RT_LIB_DIR/clspv")
+  else()
+    set(ACPP_APP_CLSPV "\$ACPP_RT_LIB_DIR/${_acpp_clspv_rel}/clspv")
+  endif()
+  unset(_acpp_clspv_rel)
 else()
-  set(ACPP_APP_CLSPV "\$ACPP_RUNTIME_ROOT/{{ clspv-subdir }}/{{ clspv-bin-subdir }}/clspv")
+  acpp_join_absolute(_acpp_clspv_dir "${ACPP_CLSPV_DISCOVERED_ROOT}" "${ACPP_CLSPV_BIN_SUBDIR}")
+  if("${_acpp_clspv_dir}" STREQUAL "")
+    set(ACPP_APP_CLSPV "")
+  else()
+    set(ACPP_APP_CLSPV "${_acpp_clspv_dir}/clspv")
+  endif()
+  unset(_acpp_clspv_dir)
 endif()

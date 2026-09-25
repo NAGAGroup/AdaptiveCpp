@@ -13,11 +13,12 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # everything else we build. In plugin mode LLVM is the machine's (rule 2)
 # and is never bundled at all.
 #
-# Where libomp lands. In toolchain mode it is ours, in {{ acpp-libdir }}
-# beside the LLVM we build. In plugin mode it is a vendor plugin (rule 4: it
-# provides compute), so it takes the same two-knob shape as any other vendor
-# unit below - a packager using libgomp instead points ACPP_LIBOMP_SUBDIR
-# wherever they want it, or leaves the vendor entirely to the environment.
+# Where libomp lands. libomp is declared unconditionally, in both build
+# modes, by the common file (principle 3: an ordinary vendor unit, not a
+# build-mode branch) - see its "OMP" section. What is left here is only the
+# owned-provenance shape toolchain mode's ACPP_LIBOMP_PATH still uses (see
+# "Provenance" below); a packager using GOMP instead points
+# ACPP_LIBOMP_SOURCE_DIR at it directly.
 
 # Where the deploy step writes application configurations under `default`,
 # where nothing is copied and the application's tree holds none of our
@@ -35,29 +36,30 @@ endif()
 # Provenance - where the deploy step copies from
 # ---------------------------------------------------------------------------
 #
-# LLVM and libomp split by ownership (see "Ownership" in the common file):
-# toolchain mode builds them, so they are ours, always at the deploy layout,
-# in every strategy including `default`. Plugin mode's libomp is a vendor
-# plugin instead, governed by strategy like any other; plugin mode has no
-# LLVM provenance at all, because nothing of the machine's LLVM is ever
-# copied.
-
+# LLVM is ours by build-mode ownership (see "Ownership" in the common
+# file): toolchain mode builds it, so it is always at the deploy layout, in
+# every strategy; plugin mode has no LLVM provenance at all, because
+# nothing of the machine's LLVM is ever copied. ACPP_LIBOMP_PATH stays here
+# in toolchain mode too, for now: config/common/core.json's libomp-path key
+# and this platform's link lines still read it, and moving them onto the
+# libomp vendor unit's own {{ }} entries is the config-templates commit's
+# job, not this one's.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ acpp-libdir }}")
   acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ acpp-libdir }}")
 else()
   set(ACPP_LLVM_PATH "")
-  acpp_declare_vendor_subdir(LIBOMP libomp)
-  acpp_declare_vendor_root(LIBOMP libomp ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}")
-  acpp_declare_vendor_app_root(LIBOMP libomp)
 endif()
 
 # libnuma, sleef and amath are ordinary shared libraries with no internal
-# structure to preserve, each its own vendor unit (rule 3/4) with the same
-# two-knob shape - libnuma is never something we build.
-acpp_declare_vendor_subdir(LIBNUMA libnuma)
+# structure to preserve, each its own vendor unit with the same two-knob
+# shape - libnuma is never something we build, all three permissive.
+# libnuma is linked (DT_NEEDED through rt-backend-omp), not consumed, so no
+# application ever reads an install-root value for it - unlike sleef and
+# amath, which the host JIT looks up by directory at run time, libnuma has
+# no application-config declaration at all.
+acpp_declare_vendor(LIBNUMA libnuma permissive)
 acpp_declare_vendor_root(LIBNUMA libnuma ACPP_DISCOVERED_LIBNUMA_DIR "${ACPP_DISCOVERED_LIBNUMA_DIR}")
-acpp_declare_vendor_app_root(LIBNUMA libnuma)
 
 # ---------------------------------------------------------------------------
 # The device compiler and the LLVM executables
@@ -85,8 +87,10 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   acpp_declare_owned_resource(OPT "bin/opt")
   acpp_declare_owned_resource(LLD "bin/ld.lld")
   # clang's resource include directory. The JIT's HIP compilation needs it,
-  # so it has two sides like the compiler itself.
-  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "{{ acpp-libdir }}/clang/{{ llvm-version-major }}/include")
+  # so it has two sides like the compiler itself. Concrete now, not a {{ }}
+  # template: acpp_declare_owned_resource's application side is written by
+  # configure_file, which resolves nothing.
+  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include")
 else()
   acpp_declare_machine_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
   acpp_declare_machine_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc")
@@ -100,19 +104,19 @@ endif()
 # (doc/install-ocl.md), independent of cmake's own LLVM install dirs. Ours
 # in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
 # not - always the deploy-layout placeholder, in every strategy.
-acpp_declare_owned_resource(LLVMSPIRV "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 
-# The vector math libraries, each its own vendor unit (rule 3/4) with the
-# same two-knob shape as libnuma above - directory-valued because the
-# library's short name is written into the JIT's link invocation. libmvec
-# needs no entry: it is part of glibc, so the only correct copy is the one
-# the loader resolves in the running process. SVML is x86-only and lives in
-# the arch file.
-acpp_declare_vendor_subdir(SLEEF sleef)
+# The vector math libraries, each its own vendor unit with the same
+# two-knob shape as libnuma above, permissive - directory-valued because
+# the library's short name is written into the JIT's link invocation.
+# libmvec needs no entry: it is part of glibc, so the only correct copy is
+# the one the loader resolves in the running process. SVML is x86-only and
+# lives in the arch file.
+acpp_declare_vendor(SLEEF sleef permissive)
 acpp_declare_vendor_root(SLEEF sleef ACPP_DISCOVERED_SLEEF_DIR "${ACPP_DISCOVERED_SLEEF_DIR}")
 acpp_declare_vendor_app_root(SLEEF sleef)
 
-acpp_declare_vendor_subdir(AMATH amath)
+acpp_declare_vendor(AMATH amath permissive)
 acpp_declare_vendor_root(AMATH amath ACPP_DISCOVERED_AMATH_DIR "${ACPP_DISCOVERED_AMATH_DIR}")
 acpp_declare_vendor_app_root(AMATH amath)
 

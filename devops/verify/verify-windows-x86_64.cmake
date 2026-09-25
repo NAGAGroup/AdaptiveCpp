@@ -52,6 +52,14 @@ set(ACPP_DISCOVERED_SLEEF_DIR "")
 set(ACPP_DISCOVERED_AMATH_DIR "")
 set(ACPP_DISCOVERED_SVML_DIR "")
 set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
+# ACPP_LIBOMP_SOURCE_DIR would otherwise default off CMAKE_INSTALL_PREFIX,
+# which this harness never sets; stand in directly with the same value
+# ACPP_DISCOVERED_LIBOMP_DIR carries above. acpp_declare_vendor's WIN32
+# branch would also pick the bindir-rooted subdir default; WIN32 is false
+# on this Linux-hosted harness, so pre-set that too, the same override path
+# a packager uses (see the CUDA/OCL/ZE/VK/CLSPV stand-ins below).
+set(ACPP_LIBOMP_SOURCE_DIR "C:/acpp/bin")
+set(ACPP_LIBOMP_SUBDIR "bin/hipSYCL/ext/libomp")
 
 # Stand-in for a real configure's GNUInstallDirs.
 set(CMAKE_INSTALL_LIBDIR "lib")
@@ -60,16 +68,33 @@ set(CMAKE_INSTALL_BINDIR "bin")
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/core.cmake)
 
 expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$LOCALAPPDATA/AdaptiveCpp/app-cfgs")
-# LLVM and libomp are ours in toolchain mode (rule 1): always the
-# deploy-layout placeholder, `default` strategy notwithstanding. What we
-# build follows cmake's own install directory under {{ acpp-root }}
-# directly - no separate deploy-path knob.
+# LLVM is ours in toolchain mode (rule 1): always the deploy-layout
+# placeholder, the strategy notwithstanding. What we build follows cmake's
+# own install directory under {{ acpp-root }} directly - no separate
+# deploy-path knob. ACPP_LIBOMP_PATH stays this shape for now (see
+# linux/common/core.cmake's comment); libomp's actual new shape as a
+# vendor unit is below.
 expect_eq(ACPP_LLVM_PATH "{{ acpp-root }}/{{ acpp-bindir }}")
 expect_eq(ACPP_LIBOMP_PATH "{{ acpp-root }}/{{ acpp-bindir }}")
-expect_unset(ACPP_LIBOMP_SUBDIR)
-expect_unset(ACPP_LIBOMP_INSTALL_ROOT)
-expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/{{ acpp-bindir }}/lld-link.exe")
-expect_eq(ACPP_APP_LLD "\$ACPP_RUNTIME_ROOT/{{ acpp-bindir }}/lld-link.exe")
+# libomp is a vendor unit in every build mode now (principle 3): not
+# shipped under managed, but still ours in toolchain mode, so its install
+# root is the deploy-layout placeholder rather than
+# ACPP_LIBOMP_SOURCE_DIR's absolute value - see common/core.cmake's OMP
+# section. Windows keeps the application-config declaration (unlike
+# Linux/macOS): no RUNPATH, so AddDllDirectory still needs a directory,
+# and not shipped means the discovered one.
+expect_eq(ACPP_LIBOMP_SUBDIR "bin/hipSYCL/ext/libomp")
+expect_eq(ACPP_LIBOMP_SHIPPED "OFF")
+expect_eq(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
+expect_eq(ACPP_LIBOMP_DISCOVERED_ROOT "C:/acpp/bin")
+expect_eq(ACPP_APP_LIBOMP_INSTALL_ROOT "C:/acpp/bin")
+# The application side of an owned resource is a concrete path from the
+# runtime library's own install directory (CMAKE_INSTALL_BINDIR on
+# Windows, "bin") to wherever the resource lands - the same directory
+# here, so no "../" is needed, unlike Linux/macOS where lld sits in a
+# sibling of the runtime's libdir.
+expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/lld-link.exe")
+expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/lld-link.exe")
 expect_eq(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++.exe")
 expect_unset(ACPP_PLUGIN_PATH)
 expect_eq(ACPP_VECTOR_MATH_LIB "none")
@@ -104,11 +129,13 @@ expect_eq(ACPP_CUDA_RT_SUBDIR "lib/x64")
 expect_eq(ACPP_CUDA_INCLUDE_SUBDIR "include")
 expect_eq(ACPP_CUDA_BIN_SUBDIR "bin")
 expect_eq(ACPP_CUDA_LIBDEVICE_SUBDIR "nvvm/libdevice")
-expect_eq(ACPP_APP_CUDA_RT_DIR "{{ cuda-install-root }}/{{ cuda-rt-subdir }}")
-expect_eq(ACPP_APP_CUDA_INCLUDE_DIR "{{ cuda-install-root }}/{{ cuda-include-subdir }}")
+# Not shipped under managed: a concrete cmake string, the discovered root
+# joined with the subdir fact.
+expect_eq(ACPP_APP_CUDA_RT_DIR "C:/CUDA/v12.6/lib/x64")
+expect_eq(ACPP_APP_CUDA_INCLUDE_DIR "C:/CUDA/v12.6/include")
 # BIN doubles as the DLL directory Windows feeds AddDllDirectory through.
-expect_eq(ACPP_APP_CUDA_BIN_DIR "{{ cuda-install-root }}/{{ cuda-bin-subdir }}")
-expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}")
+expect_eq(ACPP_APP_CUDA_BIN_DIR "C:/CUDA/v12.6/bin")
+expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "C:/CUDA/v12.6/nvvm/libdevice")
 expect_eq(ACPP_CUDA_LINK_LINE "-L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
 message(STATUS "windows/x86_64/cuda.cmake: found defaults as declared")
 
@@ -126,7 +153,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ocl.cmake)
 expect_eq(ACPP_OCL_SUBDIR "bin/hipSYCL/ext/ocl")
 expect_eq(ACPP_OCL_INSTALL_ROOT "C:/vendor")
 expect_eq(ACPP_OCL_BIN_SUBDIR "bin")
-expect_eq(ACPP_APP_OCL_BIN_DIR "{{ ocl-install-root }}/{{ ocl-bin-subdir }}")
+expect_eq(ACPP_APP_OCL_BIN_DIR "C:/vendor/bin")
 message(STATUS "windows/x86_64/ocl.cmake: found defaults as declared")
 
 # ---- ZE found ----
@@ -144,7 +171,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ze.cmake)
 expect_eq(ACPP_ZE_SUBDIR "bin/hipSYCL/ext/ze")
 expect_eq(ACPP_ZE_INSTALL_ROOT "C:/vendor")
 expect_eq(ACPP_ZE_BIN_SUBDIR "bin")
-expect_eq(ACPP_APP_ZE_BIN_DIR "{{ ze-install-root }}/{{ ze-bin-subdir }}")
+expect_eq(ACPP_APP_ZE_BIN_DIR "C:/vendor/bin")
 message(STATUS "windows/x86_64/ze.cmake: found defaults as declared")
 
 # ---- OMP (now core) ----
@@ -168,7 +195,7 @@ include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/vk.cmake)
 expect_eq(ACPP_VK_SUBDIR "bin/hipSYCL/ext/vk")
 expect_eq(ACPP_VK_INSTALL_ROOT "C:/VulkanSDK/1.4.0")
 expect_eq(ACPP_VK_RT_SUBDIR "Lib")
-expect_eq(ACPP_APP_VK_RT_DIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
+expect_eq(ACPP_APP_VK_RT_DIR "C:/VulkanSDK/1.4.0/Lib")
 message(STATUS "windows/x86_64/vk.cmake: found defaults as declared")
 
 # ---- CLSPV found ----
@@ -184,9 +211,9 @@ include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/clspv.cmake)
 expect_eq(ACPP_CLSPV_SUBDIR "bin/hipSYCL/ext/clspv")
 expect_eq(ACPP_CLSPV_INSTALL_ROOT "C:/VulkanSDK/1.4.0")
 expect_eq(ACPP_CLSPV_BIN_SUBDIR "Bin")
-expect_eq(ACPP_APP_CLSPV_BIN_DIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
+expect_eq(ACPP_APP_CLSPV_BIN_DIR "C:/VulkanSDK/1.4.0/Bin")
 expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv.exe")
-expect_eq(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv.exe")
+expect_eq(ACPP_APP_CLSPV "C:/VulkanSDK/1.4.0/Bin/clspv.exe")
 message(STATUS "windows/x86_64/clspv.cmake: found defaults as declared")
 
 # The architecture files are one-line includes and the configuration is

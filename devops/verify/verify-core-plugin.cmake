@@ -61,14 +61,19 @@ expect_eq(ACPP_LLVM_PATH "")
 expect_unset(ACPP_TOOLCHAIN_LLVM_PATH)
 expect_unset(ACPP_APP_LLVM_PATH)
 
-# libomp is a vendor unit here (rule 4): two knobs (an install subdir plus
-# discovery's own hint), governed by ACPP_DEPLOYMENT_STRATEGY like any
-# other; found and `default` strategy, so the install root takes the
-# discovered absolute path. There is no ACPP_LIBOMP_PATH at all in this
-# mode - that name belongs to the owned (toolchain-mode) shape only.
+# libomp is a vendor unit (principle 3), governed by shipped-ness like any
+# other; not shipped under this harness's implicit managed strategy, so
+# the install root takes the discovered absolute path - here,
+# ACPP_LIBOMP_SOURCE_DIR's own default in plugin mode, which is exactly
+# ACPP_DISCOVERED_LIBOMP_DIR (no CMAKE_INSTALL_PREFIX involved, unlike
+# toolchain mode - see verify-core.cmake). There is no ACPP_LIBOMP_PATH at
+# all in this mode - that name belongs to the owned (toolchain-mode) shape
+# only. No application-config declaration on Linux either: libomp is
+# linked, not consumed.
 expect_eq(ACPP_LIBOMP_SUBDIR "lib/hipSYCL/ext/libomp")
+expect_eq(ACPP_LIBOMP_SHIPPED "OFF")
 expect_eq(ACPP_LIBOMP_INSTALL_ROOT "/usr/lib/llvm-21/lib")
-expect_eq(ACPP_APP_LIBOMP_INSTALL_ROOT "{{ libomp-install-root }}")
+expect_unset(ACPP_APP_LIBOMP_INSTALL_ROOT)
 expect_unset(ACPP_LIBOMP_PATH)
 expect_unset(ACPP_TOOLCHAIN_LIBOMP_PATH)
 expect_unset(ACPP_APP_LIBOMP_PATH)
@@ -88,8 +93,8 @@ expect_eq(ACPP_APP_LLD "/usr/lib/llvm-21/bin/ld.lld")
 # llvm-spirv is ours in both modes (not LLVM's): the machine's LLVM never
 # supplies it, plugin or not, so it stays the deploy-layout placeholder
 # here too, unaffected by what discovery found for the plugin.
-expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
-expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RUNTIME_ROOT/{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/lib/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RT_LIB_DIR/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
 expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
 

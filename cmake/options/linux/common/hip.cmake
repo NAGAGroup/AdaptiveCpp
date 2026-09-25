@@ -11,7 +11,7 @@ include_guard(GLOBAL)
 # The install subdir knob and the root it derives
 # ---------------------------------------------------------------------------
 
-acpp_declare_vendor_subdir(HIP hip)
+acpp_declare_vendor(HIP hip permissive)
 acpp_declare_vendor_root(HIP hip ACPP_DISCOVERED_HIP_PREFIX "${ACPP_DISCOVERED_HIP_PREFIX}")
 
 # ---------------------------------------------------------------------------

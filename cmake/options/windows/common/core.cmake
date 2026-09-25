@@ -13,9 +13,13 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # (installing.md); the plugin branches below are kept only for shape,
 # because plugin mode never bundles LLVM (rule 2).
 #
-# Where libomp.dll lands. In toolchain mode it is ours, in {{ acpp-bindir }}
-# beside the LLVM we build. In plugin mode it is a vendor plugin (rule 4),
-# taking the same two-knob shape as any other vendor unit below.
+# Where libomp.dll lands. libomp is declared unconditionally, in both build
+# modes, by the common file (principle 3: an ordinary vendor unit, not a
+# build-mode branch) - see its "OMP" section. What is left here is only the
+# owned-provenance shape toolchain mode's ACPP_LIBOMP_PATH still uses (see
+# "Provenance" below), and the application-config declaration this platform
+# keeps regardless: Windows has no RUNPATH, so a deployed app's own
+# AddDllDirectory call still needs to be told where libomp.dll landed.
 
 # Where the deploy step writes application configurations under `default`.
 if(NOT DEFINED ACPP_DEFAULT_STRATEGY_APP_CFG_DIR)
@@ -26,18 +30,23 @@ endif()
 # Provenance - where the deploy step copies from
 # ---------------------------------------------------------------------------
 #
-# LLVM and libomp split by ownership; see linux/common/core.cmake's comment,
-# unchanged here.
+# LLVM is ours by build-mode ownership; see linux/common/core.cmake's
+# comment, unchanged here. ACPP_LIBOMP_PATH stays here in toolchain mode
+# too, for now - see linux/common/core.cmake's comment on why.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ acpp-bindir }}")
   acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ acpp-bindir }}")
 else()
   set(ACPP_LLVM_PATH "")
-  acpp_declare_vendor_subdir(LIBOMP libomp)
-  acpp_declare_vendor_root(LIBOMP libomp ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}")
-  acpp_declare_vendor_app_root(LIBOMP libomp)
 endif()
+
+# libomp's own vendor unit is declared unconditionally by the common file,
+# but its application-config root is kept only here: Windows has no
+# RUNPATH, so unlike Linux/macOS (where libomp is purely DT_NEEDED-linked
+# and never read back by path) a deployed app's AddDllDirectory call still
+# needs ACPP_APP_LIBOMP_INSTALL_ROOT to find libomp.dll at run time.
+acpp_declare_vendor_app_root(LIBOMP libomp)
 
 # No libnuma on Windows.
 
@@ -49,12 +58,14 @@ endif()
 # linux/common/core.cmake's comment, unchanged here.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_declare_owned_resource(DEVICE_CMPLR "{{ acpp-bindir }}/clang++.exe")
-  acpp_declare_owned_resource(LLC "{{ acpp-bindir }}/llc.exe")
-  acpp_declare_owned_resource(OPT "{{ acpp-bindir }}/opt.exe")
+  # Concrete now, not a {{ }} template: acpp_declare_owned_resource's
+  # application side is written by configure_file, which resolves nothing.
+  acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++.exe")
+  acpp_declare_owned_resource(LLC "${CMAKE_INSTALL_BINDIR}/llc.exe")
+  acpp_declare_owned_resource(OPT "${CMAKE_INSTALL_BINDIR}/opt.exe")
   # The host JIT links COFF with lld-link.
-  acpp_declare_owned_resource(LLD "{{ acpp-bindir }}/lld-link.exe")
-  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "{{ acpp-libdir }}/clang/{{ llvm-version-major }}/include")
+  acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/lld-link.exe")
+  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include")
 else()
   acpp_declare_machine_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
   acpp_declare_machine_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc.exe")
@@ -68,7 +79,7 @@ endif()
 # (doc/install-ocl.md), independent of cmake's own LLVM install dirs. Ours
 # in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
 # not - always the deploy-layout placeholder, in every strategy.
-acpp_declare_owned_resource(LLVMSPIRV "{{ acpp-bindir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv.exe")
+acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv.exe")
 
 # No vector math libraries on Windows: upstream supports no vector math
 # library for the JIT on this platform.

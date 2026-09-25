@@ -59,13 +59,14 @@ expect_eq(ACPP_CUDA_INCLUDE_SUBDIR "include")
 expect_eq(ACPP_CUDA_BIN_SUBDIR "bin")
 expect_eq(ACPP_CUDA_LIBDEVICE_SUBDIR "nvvm/libdevice")
 
-# The application's own view of each (D7): under `default` the same
-# discovered vendor install the driver found, composed via the driver's own
-# {{ }} entries.
-expect_eq(ACPP_APP_CUDA_RT_DIR "{{ cuda-install-root }}/{{ cuda-rt-subdir }}")
-expect_eq(ACPP_APP_CUDA_INCLUDE_DIR "{{ cuda-install-root }}/{{ cuda-include-subdir }}")
-expect_eq(ACPP_APP_CUDA_BIN_DIR "{{ cuda-install-root }}/{{ cuda-bin-subdir }}")
-expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}")
+# The application's own view of each: not shipped under managed, so both
+# sides are the discovered vendor install the driver found, joined with
+# the subdir fact directly - a concrete cmake string, since configure_file
+# writes this literally and resolves no {{ }} placeholder.
+expect_eq(ACPP_APP_CUDA_RT_DIR "/usr/local/cuda-12.9/lib64")
+expect_eq(ACPP_APP_CUDA_INCLUDE_DIR "/usr/local/cuda-12.9/include")
+expect_eq(ACPP_APP_CUDA_BIN_DIR "/usr/local/cuda-12.9/bin")
+expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "/usr/local/cuda-12.9/nvvm/libdevice")
 
 # Driver-only: link line and flags.
 expect_eq(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }} -L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")

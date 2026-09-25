@@ -12,9 +12,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # ({{ acpp-libdir }}) directly. In plugin mode LLVM is the machine's
 # (rule 2): it is never bundled at all.
 #
-# Where libomp lands. In toolchain mode it is ours, beside the LLVM we
-# build. In plugin mode it is a vendor plugin (rule 4), taking the same
-# two-knob shape as any other vendor unit below.
+# Where libomp lands. libomp is declared unconditionally, in both build
+# modes, by the common file (principle 3: an ordinary vendor unit, not a
+# build-mode branch) - see its "OMP" section. What is left here is only the
+# owned-provenance shape toolchain mode's ACPP_LIBOMP_PATH still uses (see
+# "Provenance" below).
 
 # Where the deploy step writes application configurations under `default`,
 # where nothing is copied and the application's tree holds none of our
@@ -34,17 +36,15 @@ endif()
 # Provenance - where the deploy step copies from
 # ---------------------------------------------------------------------------
 #
-# LLVM and libomp split by ownership; see linux/common/core.cmake's comment,
-# unchanged here.
+# LLVM is ours by build-mode ownership; see linux/common/core.cmake's
+# comment, unchanged here. ACPP_LIBOMP_PATH stays here in toolchain mode
+# too, for now - see linux/common/core.cmake's comment on why.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ acpp-libdir }}")
   acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ acpp-libdir }}")
 else()
   set(ACPP_LLVM_PATH "")
-  acpp_declare_vendor_subdir(LIBOMP libomp)
-  acpp_declare_vendor_root(LIBOMP libomp ACPP_DISCOVERED_LIBOMP_DIR "${ACPP_DISCOVERED_LIBOMP_DIR}")
-  acpp_declare_vendor_app_root(LIBOMP libomp)
 endif()
 
 # No libnuma on macOS.
@@ -71,8 +71,10 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # The host JIT links Mach-O with ld64.lld.
   acpp_declare_owned_resource(LLD "bin/ld64.lld")
   # clang's resource include directory. The JIT's HIP compilation needs it,
-  # so it has two sides like the compiler itself.
-  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "{{ acpp-libdir }}/clang/{{ llvm-version-major }}/include")
+  # so it has two sides like the compiler itself. Concrete now, not a {{ }}
+  # template: acpp_declare_owned_resource's application side is written by
+  # configure_file, which resolves nothing.
+  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include")
 else()
   acpp_declare_machine_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
   acpp_declare_machine_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc")
@@ -86,7 +88,7 @@ endif()
 # (doc/install-ocl.md), independent of cmake's own LLVM install dirs. Ours
 # in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
 # not - always the deploy-layout placeholder, in every strategy.
-acpp_declare_owned_resource(LLVMSPIRV "{{ acpp-libdir }}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 
 # No vector math libraries on macOS: upstream supports none for the JIT on
 # this platform.

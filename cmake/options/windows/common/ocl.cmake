@@ -9,7 +9,7 @@
 
 include_guard(GLOBAL)
 
-acpp_declare_vendor_subdir(OCL ocl)
+acpp_declare_vendor(OCL ocl permissive)
 acpp_declare_vendor_root(OCL ocl ACPP_DISCOVERED_OCL_PREFIX "${ACPP_DISCOVERED_OCL_PREFIX}")
 
 # BIN is the DLL directory Windows feeds AddDllDirectory through - Windows

@@ -8,7 +8,7 @@
 
 include_guard(GLOBAL)
 
-acpp_declare_vendor_subdir(ZE ze)
+acpp_declare_vendor(ZE ze permissive)
 acpp_declare_vendor_root(ZE ze ACPP_DISCOVERED_ZE_PREFIX "${ACPP_DISCOVERED_ZE_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(ZE RT ACPP_DISCOVERED_ZE_LIBDIR "${ACPP_DISCOVERED_ZE_LIBDIR}")
