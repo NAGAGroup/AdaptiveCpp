@@ -671,13 +671,195 @@ else()
   endif()
 endif()
 
+##########################################################
+## Discovery, options and the installed-config units.
+##
+## Runs after every WITH_*_BACKEND has been decided (immediately above)
+## and after include(GNUInstallDirs) (near the top of this file), but
+## before add_subdirectory(src): src/CMakeLists.txt reads the
+## ACPP_<VENDOR>_SHIPPED gate the corresponding options file's
+## acpp_declare_vendor() call sets, below.
+##
+## cmake/discovery.cmake and cmake/discovery/<vendor>.cmake run their own
+## find_* calls (CUDAToolkit, hip CONFIG, OpenCL >=2.1, a raw Vulkan
+## loader/SPIRV-Tools search, ze_loader, clspv, nvc++) independently of
+## the finds above (legacy CUDA/HIP modules, an unconstrained OpenCL
+## search, find_package(Vulkan) with imported targets). Checked against
+## every cmake/discovery/*.cmake: none collide - every export lands under
+## ACPP_DISCOVERED_* or a differently-named upstream variable
+## (CUDAToolkit_* vs CUDA_*, lowercase hip_* vs uppercase HIP_*,
+## ACPP_VK_* vs Vulkan_*), so re-finding the same hardware twice is
+## redundant, not conflicting, with one exception: find_library(
+## ACPP_ZE_LOADER_LIBRARY NAMES ze_loader REQUIRED) above and the same
+## call (without REQUIRED) in discovery/ze.cmake name the SAME cache
+## variable on purpose - the second call is a cache hit, not a second
+## search. doc/source-obligations.md already records that the block
+## above is meant to be deleted once a later step wires
+## WITH_LEVEL_ZERO_BACKEND's own default from discovery instead of a
+## user -D.
+##
+## Separately, cmake/discovery.cmake's own LLVM half (not a vendor file)
+## requires LLVM whenever ACPP_COMPILER_FEATURE_PROFILE is not "none",
+## which is slightly wider than this file's own BUILD_CLANG_PLUGIN gate
+## (a "minimal" profile with every WITH_*_BACKEND off never sets
+## BUILD_CLANG_PLUGIN, so never finds LLVM today) - consistent with the
+## new model, where the device compiler is unconditionally either ours
+## or the machine's, never absent, but a real behaviour widening for that
+## one narrow combination. Left as is: there is no LLVM in this sandbox
+## to test either behaviour against, and reconciling BUILD_CLANG_PLUGIN's
+## ad-hoc gate with the options model's own ownership rules is later
+## wiring, not this step's.
+##########################################################
 
+include(${ACPP_SOURCE_ROOT}/cmake/discovery.cmake)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(ACPP_OPTIONS_PLATFORM "linux")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  set(ACPP_OPTIONS_PLATFORM "macos")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+  set(ACPP_OPTIONS_PLATFORM "windows")
+else()
+  message(FATAL_ERROR
+    "AdaptiveCpp's options model has no directory for "
+    "CMAKE_SYSTEM_NAME='${CMAKE_SYSTEM_NAME}'; supported platforms are "
+    "Linux, Darwin and Windows.")
+endif()
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+  set(ACPP_OPTIONS_ARCH "x86_64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|ARM64|arm64)$")
+  set(ACPP_OPTIONS_ARCH "aarch64")
+else()
+  message(FATAL_ERROR
+    "AdaptiveCpp's options model has no directory for "
+    "CMAKE_SYSTEM_PROCESSOR='${CMAKE_SYSTEM_PROCESSOR}' on "
+    "${ACPP_OPTIONS_PLATFORM}; supported architectures are x86_64 and "
+    "aarch64 (arm64 on macOS).")
+endif()
+
+# macOS's options directory is named arm64 (Apple's own spelling), not
+# aarch64 - the only platform where the two names differ.
+if(ACPP_OPTIONS_PLATFORM STREQUAL "macos")
+  set(ACPP_OPTIONS_ARCH "arm64")
+endif()
+
+set(ACPP_OPTIONS_DIR "${ACPP_SOURCE_ROOT}/cmake/options/${ACPP_OPTIONS_PLATFORM}/${ACPP_OPTIONS_ARCH}")
+if(NOT EXISTS "${ACPP_OPTIONS_DIR}/core.cmake")
+  message(FATAL_ERROR
+    "No options directory for ${ACPP_OPTIONS_PLATFORM}/${ACPP_OPTIONS_ARCH} "
+    "(looked for ${ACPP_OPTIONS_DIR}/core.cmake).")
+endif()
+
+include(${ACPP_OPTIONS_DIR}/core.cmake)
+
+# The units the installed configs (etc/AdaptiveCpp/acpp-*) merge, one per
+# enabled vendor - core and omp are acpp_generate_installed_configs' own
+# unconditional additions (cmake/acpp-installed-configs.cmake), so they
+# are not listed here. Each vendor's own discovery file runs immediately
+# before its options file, which is what reads ACPP_DISCOVERED_<VENDOR>_*
+# to declare the vendor unit (acpp_declare_vendor/acpp_declare_vendor_root
+# in cmake/options/common/core.cmake).
+set(ACPP_UNITS "")
+
+if(WITH_CUDA_BACKEND)
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/cuda.cmake)
+  include(${ACPP_OPTIONS_DIR}/cuda.cmake)
+  list(APPEND ACPP_UNITS cuda)
+
+  # nvhpc is CUDA's nvc++-based alternative flow, Linux-only; its own
+  # options file only exists there. Gated on discovery actually finding
+  # nvc++ (ACPP_DISCOVERED_NVHPC_FOUND), not merely on WITH_CUDA_BACKEND -
+  # unlike cuda itself, there is no "unit exists but not shipped" shape
+  # for a compiler binary that flatly is not on this machine.
+  if(EXISTS "${ACPP_OPTIONS_DIR}/nvhpc.cmake")
+    include(${ACPP_SOURCE_ROOT}/cmake/discovery/nvhpc.cmake)
+    if(ACPP_DISCOVERED_NVHPC_FOUND)
+      include(${ACPP_OPTIONS_DIR}/nvhpc.cmake)
+      list(APPEND ACPP_UNITS nvhpc)
+    endif()
+  endif()
+endif()
+
+if(WITH_ROCM_BACKEND AND EXISTS "${ACPP_OPTIONS_DIR}/hip.cmake")
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/hip.cmake)
+  include(${ACPP_OPTIONS_DIR}/hip.cmake)
+  list(APPEND ACPP_UNITS hip)
+endif()
+
+if(WITH_OPENCL_BACKEND AND EXISTS "${ACPP_OPTIONS_DIR}/ocl.cmake")
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/ocl.cmake)
+  include(${ACPP_OPTIONS_DIR}/ocl.cmake)
+  list(APPEND ACPP_UNITS ocl)
+endif()
+
+if(WITH_LEVEL_ZERO_BACKEND AND EXISTS "${ACPP_OPTIONS_DIR}/ze.cmake")
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/ze.cmake)
+  include(${ACPP_OPTIONS_DIR}/ze.cmake)
+  list(APPEND ACPP_UNITS ze)
+endif()
+
+if(WITH_VULKAN_BACKEND)
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/vk.cmake)
+  include(${ACPP_OPTIONS_DIR}/vk.cmake)
+  list(APPEND ACPP_UNITS vk)
+
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/clspv.cmake)
+  include(${ACPP_OPTIONS_DIR}/clspv.cmake)
+  list(APPEND ACPP_UNITS clspv)
+endif()
+
+# Metal is macOS's own backend: no options file (no vendor knobs - the
+# runtime compiles MSL through the system Metal framework at run time, so
+# there is nothing to ship), only a deploy manifest fragment
+# (config/macos/common/deploy/metal.json) for the libraries WE build.
+# WITH_METAL_BACKEND is read (src/CMakeLists.txt, src/runtime/CMakeLists.
+# txt) but, like WITH_LEVEL_ZERO_BACKEND, not yet given a discovery-based
+# default here - a later step's job, not this one's.
+if(WITH_METAL_BACKEND)
+  list(APPEND ACPP_UNITS metal)
+endif()
 
 ##########################################################
 ## Do not define any variables that might be used by build
 ## targets below this line.
 ##########################################################
 add_subdirectory(src)
+
+##########################################################
+## Generate the installed toolchain config, deploy manifest and app
+## config. After add_subdirectory(src) so every variable it declares
+## exists; nothing acpp_generate_installed_configs reads comes from
+## further down this file (the legacy OMP_LINK_LINE/CUDA_CXX_FLAGS/
+## DEFAULT_TARGETS-style variables computed below are a different,
+## non-ACPP_-prefixed namespace the options model does not read).
+##
+## Known gap, not fixed here: cmake/options/common/core.cmake defaults
+## ACPP_TARGETS from ${DEFAULT_TARGETS} the moment the options file is
+## included (above, before add_subdirectory(src)), but DEFAULT_TARGETS
+## itself is not computed until further down this file (~910, after
+## add_subdirectory(src)) - so ACPP_TARGETS, and hence the generated
+## config's "targets" entry, defaults to empty rather than the
+## DEFAULT_TARGETS logic's actual answer ("generic" or "omp"), until a
+## later wiring step moves one side or the other. A -DACPP_TARGETS=
+## override still reaches the config either way, unaffected by this.
+##########################################################
+include(${ACPP_SOURCE_ROOT}/cmake/acpp-installed-configs.cmake)
+
+acpp_generate_installed_configs(
+  PLATFORM "${ACPP_OPTIONS_PLATFORM}"
+  ARCH "${ACPP_OPTIONS_ARCH}"
+  UNITS ${ACPP_UNITS}
+  OUT_DIR "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp")
+
+install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-toolchain.json"
+  DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-app.cfg"
+  DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+if(NOT ACPP_DEPLOYMENT_STRATEGY STREQUAL "managed")
+  install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-deploy.json"
+    DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
 
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$ACPP_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$ACPP_CUDA_LIB_PATH -L$ACPP_CUDA_LIB_PATH -lcudart")
