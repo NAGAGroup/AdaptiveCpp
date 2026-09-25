@@ -59,9 +59,55 @@ function(acpp_concat_json_arrays result_var base addition)
 endfunction()
 
 # ---------------------------------------------------------------------------
-# Deploy manifest merge: concatenate each group's array.
+# JSON array de-duplication: drop an element that is structurally EQUAL to
+# one already kept, preserving first-occurrence order. O(n^2) in the
+# array's length, which is fine at manifest-row scale.
+# ---------------------------------------------------------------------------
+function(acpp_dedupe_json_array result_var arr)
+  set(_out "[]")
+  string(JSON _len LENGTH "${arr}")
+  if(_len GREATER 0)
+    math(EXPR _last "${_len} - 1")
+    foreach(_i RANGE 0 ${_last})
+      string(JSON _elem GET "${arr}" ${_i})
+      set(_dup FALSE)
+      string(JSON _out_len LENGTH "${_out}")
+      if(_out_len GREATER 0)
+        math(EXPR _out_last "${_out_len} - 1")
+        foreach(_j RANGE 0 ${_out_last})
+          string(JSON _existing GET "${_out}" ${_j})
+          string(JSON _eq EQUAL "${_existing}" "${_elem}")
+          if(_eq)
+            set(_dup TRUE)
+            break()
+          endif()
+        endforeach()
+      endif()
+      if(NOT _dup)
+        string(JSON _out_len2 LENGTH "${_out}")
+        string(JSON _out SET "${_out}" ${_out_len2} "${_elem}")
+      endif()
+    endforeach()
+  endif()
+  set(${result_var} "${_out}" PARENT_SCOPE)
+endfunction()
+
+# ---------------------------------------------------------------------------
+# Deploy manifest merge: concatenate each group's array. `dedupe` (an
+# optional 5th argument, OFF unless given) additionally collapses a row
+# that arrived identical (same src, dest, files and every other key) from
+# more than one contributor - e.g. the SPIR-V bitcode row ocl and ze both
+# carry. acpp_merge_unit never passes it (tiers of one unit are never
+# expected to duplicate each other's rows - a duplicate there is much more
+# likely a mistake worth seeing); acpp_merge_units passes it ON for the
+# cross-UNIT case, where two vendors legitimately shipping the same row is
+# normal, not a mistake.
 # ---------------------------------------------------------------------------
 function(acpp_merge_deploy result_var base overlay overlay_label)
+  set(_dedupe OFF)
+  if(ARGC GREATER 4)
+    list(GET ARGN 0 _dedupe)
+  endif()
   set(_result "${base}")
   foreach(_group internal llvm external-permissive external-nonpermissive app-config)
     string(JSON _base_arr ERROR_VARIABLE _berr GET "${_result}" "${_group}")
@@ -69,11 +115,14 @@ function(acpp_merge_deploy result_var base overlay overlay_label)
     if(NOT _oerr)
       if(_berr)
         # Group not yet in result, add it
-        string(JSON _result SET "${_result}" "${_group}" "${_over_arr}")
+        set(_new_arr "${_over_arr}")
       else()
-        acpp_concat_json_arrays(_merged "${_base_arr}" "${_over_arr}")
-        string(JSON _result SET "${_result}" "${_group}" "${_merged}")
+        acpp_concat_json_arrays(_new_arr "${_base_arr}" "${_over_arr}")
       endif()
+      if(_dedupe)
+        acpp_dedupe_json_array(_new_arr "${_new_arr}")
+      endif()
+      string(JSON _result SET "${_result}" "${_group}" "${_new_arr}")
     endif()
   endforeach()
   set(${result_var} "${_result}" PARENT_SCOPE)
@@ -170,17 +219,48 @@ function(acpp_merge_unit kind platform arch unit out_var)
 endfunction()
 
 # ---------------------------------------------------------------------------
-# Merge every unit of one kind into the final single file for one
-# platform/arch: config objects merged key-wise (a duplicate key is an
-# error across units too, not just within one unit's own tiers), deploy
-# groups concatenated per group across every unit, app lines concatenated
-# (a duplicate key is an error across units too, same rule as within one
-# unit's own tiers).
+# Merge an explicit list of units of one kind into the final single file
+# for one platform/arch: config objects merged key-wise (a duplicate key is
+# an error across units too, not just within one unit's own tiers), deploy
+# groups concatenated per group across every unit with identical rows
+# collapsed (e.g. the SPIR-V bitcode row ocl and ze both carry - see
+# acpp_merge_deploy's dedupe argument), app lines concatenated (a duplicate
+# key is an error across units too, same rule as within one unit's own
+# tiers).
 #
-# The set of units is whatever <unit>.json / deploy/<unit>.json /
-# app/<unit>.cfg files exist across the three tiers - the union, since a
-# unit can be introduced at any tier (a vendor with no common file at all,
-# an arch-only addition like SVML).
+# Used both by acpp_merge_all (below, whose unit list is every unit found
+# on disk) and by acpp_generate_installed_configs (cmake/acpp-installed-
+# configs.cmake), whose unit list is whatever the build actually enables.
+# ---------------------------------------------------------------------------
+function(acpp_merge_units kind platform arch units out_var)
+  if("${kind}" STREQUAL "app")
+    set(_merged "")
+  else()
+    set(_merged "{}")
+  endif()
+  set(_seen_keys "")
+
+  foreach(_unit ${units})
+    acpp_merge_unit("${kind}" "${platform}" "${arch}" "${_unit}" _unit_text)
+    if("${kind}" STREQUAL "config")
+      acpp_merge_json_objects(_merged "${_merged}" "${_unit_text}" "${_unit}")
+    elseif("${kind}" STREQUAL "deploy")
+      acpp_merge_deploy(_merged "${_merged}" "${_unit_text}" "${_unit}" ON)
+    else()
+      acpp_merge_app_text(_merged _seen_keys "${_merged}" "${_unit_text}" "${_unit}")
+    endif()
+  endforeach()
+
+  set(${out_var} "${_merged}" PARENT_SCOPE)
+endfunction()
+
+# ---------------------------------------------------------------------------
+# Merge every unit of one kind into the final single file for one
+# platform/arch, where "every unit" is discovered rather than given: the
+# union of whatever <unit>.json / deploy/<unit>.json / app/<unit>.cfg files
+# exist across the three tiers, since a unit can be introduced at any tier
+# (a vendor with no common file at all, an arch-only addition like SVML).
+# The actual merge is acpp_merge_units, above; this only computes the list.
 # ---------------------------------------------------------------------------
 function(acpp_merge_all kind platform arch out_var)
   if("${kind}" STREQUAL "config")
@@ -209,23 +289,6 @@ function(acpp_merge_all kind platform arch out_var)
   endforeach()
   list(REMOVE_DUPLICATES _units)
 
-  if("${kind}" STREQUAL "app")
-    set(_merged "")
-  else()
-    set(_merged "{}")
-  endif()
-  set(_seen_keys "")
-
-  foreach(_unit ${_units})
-    acpp_merge_unit("${kind}" "${platform}" "${arch}" "${_unit}" _unit_text)
-    if("${kind}" STREQUAL "config")
-      acpp_merge_json_objects(_merged "${_merged}" "${_unit_text}" "${_unit}")
-    elseif("${kind}" STREQUAL "deploy")
-      acpp_merge_deploy(_merged "${_merged}" "${_unit_text}" "${_unit}")
-    else()
-      acpp_merge_app_text(_merged _seen_keys "${_merged}" "${_unit_text}" "${_unit}")
-    endif()
-  endforeach()
-
+  acpp_merge_units("${kind}" "${platform}" "${arch}" "${_units}" _merged)
   set(${out_var} "${_merged}" PARENT_SCOPE)
 endfunction()
