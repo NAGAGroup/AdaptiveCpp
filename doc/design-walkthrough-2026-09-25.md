@@ -17,11 +17,21 @@ in a simplification that replaces most of the strategy model.
 2. **A toolchain we do not build** (plugin mode only: LLVM, clang,
    llc/opt/lld, cpu-cxx and their runtime libraries) is the system's. We
    never install or deploy it.
-3. **OMP is the asterisk.** In toolchain mode libomp is ours (principle 1).
-   Its location is wherever LLVM installs it, and LLVM's libomp is the
-   default, because the toolchain-mode product must work out of the box
-   with only what we ship. In plugin mode it is an ordinary vendor library.
-   A downstream swap to GOMP is the user's business.
+3. **OMP is an ordinary vendor, in both build modes.** The OpenMP runtime
+   that our OMP backend links and that apps use is a vendor library with
+   its own subdir (`lib/hipSYCL/ext/omp` by default), governed by the
+   strategy exactly like CUDA. The build mode only changes the *default
+   source*: in toolchain mode, the libomp from the LLVM we build (it is
+   guaranteed to exist); in plugin mode, whatever `find_package(OpenMP)`
+   found for the compiler building ACPP. A packager may override the
+   choice (e.g. GOMP); libomp and GOMP are ABI-compatible. Under full the
+   chosen library is **copied** (with its symlink chain) into the OMP
+   subdir, our OMP backend's `$ORIGIN` rpath points there, and deploy ships
+   it. In toolchain mode LLVM's own libomp still sits in the LLVM tree,
+   unused by the OMP backend under full; the duplicate is harmless (same
+   soname, loaded once). The LLVM toolchain is simply a toolchain:
+   something we build in toolchain mode, something outside the project in
+   plugin mode.
 4. **We are toolchain maintainers, not packagers.** Set sensible defaults
    that work end to end. Do not design for every downstream choice.
    Downstream can change anything; that is on them.
@@ -124,12 +134,68 @@ right rpaths automatically from `add_sycl_to_target`. The mechanism under
 the two-strategy model is *open* (one idea discussed: bake the rpath into
 the installed CMake package as an overridable cache variable).
 
+## Resolved opens (2026-09-25)
+
+**CMake rpaths for apps.** `add_sycl_to_target` today sets no rpath at all:
+it sets the launch rules and links the imported `AdaptiveCpp::acpp-rt`,
+which the package locates relative to itself. CMake's defaults therefore
+already give managed what it needs: the build tree gets an absolute rpath
+to the toolchain's runtime (apps run in place), and the install tree gets
+none (the configurer's business). **Under full only**, the installed CMake
+package bakes an overridable cache variable (working name
+`ACPP_APP_INSTALL_RPATH`) that `add_sycl_to_target` appends to the target's
+`INSTALL_RPATH`. Its default is `$ORIGIN/../<libdir>`, plus the CUDA
+runtime subdir when CUDA is enabled (multipass) and the OMP subdir (the
+omp.library-only and omp.accelerated flows link OpenMP into the app). This
+assumes the deployed executable sits in `<deploy-root>/bin`, since the
+deploy tree mirrors the install tree. A project installing elsewhere
+overrides the variable.
+
+**Deploying a managed toolchain.** There is no installed manifest under
+managed, so `acpp --acpp-deploy` fails with one clear message: "deployment
+requires a toolchain built with the full or full-permissive-only strategy".
+No partial behaviour.
+
+**CUDA headers under full.** The whole discovered include directory is
+installed. Multipass passes clang `--cuda-path=<cuda-install-root>`, and
+clang expects a toolkit-shaped directory there (include/, bin/ptxas and
+fatbinary, nvvm/libdevice). The header set it needs varies by CUDA version,
+so a curated subset would be fragile.
+
+## The variations
+
+**The per-vendor rule.** For each vendor: **shipped** → relative values
+plus a live `$ORIGIN` rpath entry; **not shipped** → discovered values plus
+the loader. "Shipped" means: under full, every enabled vendor; under
+full-permissive-only, permissive vendors only; under managed, none. That is
+the whole strategy matrix.
+
+**Plugin mode + full.** Same as toolchain mode, except the machine LLVM
+(libLLVM, llc, opt, clang…) is never installed or deployed; it is found by
+the loader, or through CMake's rpath to the LLVM ACPP was built against.
+OMP follows principle 3 (default source: what `find_package(OpenMP)`
+found).
+
+**Managed + CUDA (the conda case).** Nothing special from us. The packager
+sets `CUDAToolkit_ROOT=$PREFIX` so discovery doesn't pick up a system CUDA.
+cudart is linked, so conda's `$PREFIX/lib` symlinks and conda-build's rpath
+fixups find it. libdevice is consumed, so the app config holds the
+discovered `$PREFIX/nvvm/libdevice`. conda-build rewrites the build prefix
+in text files as well as binaries, so the absolute value survives
+relocation; the packager may instead write it relative to
+`ACPP_RT_LIB_DIR`.
+
+**full-permissive-only.** Identical to full, except nonpermissive vendors
+(CUDA) are neither installed nor deployed. Their support is still built in.
+By the per-vendor rule, CUDA's `$ORIGIN` entry then points at nothing (the
+loader finds the system cudart) and its libdevice value is the discovered
+absolute path. No gate.
+
 ## Open
 
-- The `add_sycl_to_target` rpath mechanism under full (see above).
-- The deploy-helper-under-managed error (to confirm).
-- Whether the whole CUDA include directory is installed under full.
 - Rewriting `configuration-model.md` and `source-obligations.md` to this
-  model, and deciding what of the current tree (the four-strategy options
-  code, the install-root/subdir machinery, the app-config manifest
-  sections, the goldens) survives.
+  model, and deciding what of the current tree survives (the
+  four-strategy options code, the install-root/subdir machinery, the
+  app-config manifest sections, the goldens).
+- The vendor sweep (HIP, the OpenCL and Level Zero loaders, nvhpc,
+  sleef/amath/numa/svml, Windows, macOS) against this model.
