@@ -5,13 +5,14 @@
 # of the per-vendor rule at once: not shipped under managed, shipped (and
 # gated) under full. This harness proves it end to end:
 #
-#   (a) the deploy manifest's copy rows carry no @VAR@ token at all - they
-#       are pure driver-template text, identical across every strategy by
-#       construction, since cmake's configure_file never touches them;
-#   (b) the app-config row for ACPP_CUDA_LIBDEVICE_DIR is the one thing
-#       that flips - the discovered absolute path under managed (not
-#       shipped), a concrete $ACPP_RT_LIB_DIR-relative path under full
-#       (shipped, gate on);
+#   (a) no deploy manifest carries an app-config row any more: those
+#       values now come from the application-config template (arriving
+#       next), not from the manifest - a manifest is copy rows only;
+#   (b) the app-config value for ACPP_CUDA_LIBDEVICE_DIR is the one thing
+#       that flips with strategy - the discovered absolute path under
+#       managed (not shipped), a concrete $ACPP_RT_LIB_DIR-relative path
+#       under full (shipped, gate on) - computed by the options file the
+#       same way regardless of where it ends up written;
 #   (c) full with the gate off is a configure error (the EULA gate
 #       acpp_declare_vendor's category check exists for);
 #   (d) a conda-shaped case (ACPP_CUDA_SUBDIR set to "") under full proves
@@ -37,19 +38,32 @@ function(expect_eq name expected)
 endfunction()
 
 # ---------------------------------------------------------------------------
-# (a) The manifest's copy rows carry no @VAR@ token; only app-config does.
+# (a) No deploy manifest carries an app-config row, a runtime-configurable
+#     flag, or a toolchain-only flag - a manifest is copy rows only now.
+#     A manifest's copy rows themselves still carry no @VAR@ token (they
+#     are pure {{ }} driver-template text, identical across every
+#     strategy by construction, since cmake's configure_file never
+#     touches them) - checked here for cuda.json specifically, the one
+#     this harness otherwise exercises end to end.
 # ---------------------------------------------------------------------------
 
-file(READ "${ACPP_REPO_ROOT}/config/linux/common/deploy/cuda.json" _manifest_text)
-string(JSON _app_config GET "${_manifest_text}" "app-config")
-string(JSON _app_config_len LENGTH "${_app_config}")
-if(_app_config_len EQUAL 0)
-  message(FATAL_ERROR "cuda.json manifest: app-config is empty, expected the libdevice row")
-endif()
-if(NOT "${_app_config}" MATCHES "@ACPP_APP_CUDA_LIBDEVICE_DIR@")
-  message(FATAL_ERROR "cuda.json manifest: app-config does not bake @ACPP_APP_CUDA_LIBDEVICE_DIR@")
-endif()
+file(GLOB_RECURSE _all_deploy_manifests
+  "${ACPP_REPO_ROOT}/config/*/deploy/*.json")
+foreach(_m ${_all_deploy_manifests})
+  file(READ "${_m}" _m_text)
+  if("${_m_text}" MATCHES "\"app-config\"")
+    message(FATAL_ERROR "${_m}: still carries an app-config member")
+  endif()
+  if("${_m_text}" MATCHES "\"runtime-configurable\"")
+    message(FATAL_ERROR "${_m}: still carries a runtime-configurable flag")
+  endif()
+  if("${_m_text}" MATCHES "\"toolchain-only\"")
+    message(FATAL_ERROR "${_m}: still carries a toolchain-only flag")
+  endif()
+endforeach()
+message(STATUS "config/*/deploy/*.json: no app-config, runtime-configurable or toolchain-only anywhere")
 
+file(READ "${ACPP_REPO_ROOT}/config/linux/common/deploy/cuda.json" _manifest_text)
 foreach(_group internal external-nonpermissive)
   string(JSON _rows GET "${_manifest_text}" "${_group}")
   if("${_rows}" MATCHES "@ACPP_")
@@ -59,7 +73,7 @@ foreach(_group internal external-nonpermissive)
       "identical across every strategy")
   endif()
 endforeach()
-message(STATUS "cuda.json manifest: copy rows carry no @VAR@ token, only app-config does")
+message(STATUS "cuda.json manifest: copy rows carry no @VAR@ token")
 
 # ---------------------------------------------------------------------------
 # (b) The app-config row's value flips with strategy; the copy rows (being

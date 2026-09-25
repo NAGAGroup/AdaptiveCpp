@@ -1,12 +1,4 @@
 {
-  "app-config" : 
-  [
-    {
-      "runtime-configurable" : true,
-      "value" : "@ACPP_APP_ZE_BIN_DIR@",
-      "var" : "ACPP_ZE_DLL_DIR"
-    }
-  ],
   "external-permissive" : 
   [
     {
