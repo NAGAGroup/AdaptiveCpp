@@ -26,29 +26,6 @@
       "src": "{{ cuda-install-root }}/{{ cuda-libdevice-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-libdevice-subdir }}",
       "files": ["libdevice.10.bc"]
-    },
-    {
-      "src": "{{ cuda-install-root }}/{{ cuda-include-subdir }}",
-      "dest": "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-include-subdir }}",
-      "files": ["*"],
-      "toolchain-only": true
-    },
-    {
-      "src": "{{ cuda-install-root }}/{{ cuda-rt-subdir }}",
-      "dest": "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-rt-subdir }}",
-      "files": ["cudart.lib"],
-      "toolchain-only": true
-    },
-    {
-      "src": "{{ cuda-install-root }}/{{ cuda-bin-subdir }}",
-      "dest": "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-bin-subdir }}",
-      "files": ["ptxas.exe", "fatbinary.exe"],
-      "toolchain-only": true
     }
-  ],
-
-  "app-config": [
-    {"var": "ACPP_CUDA_LIBDEVICE_DIR", "value": "@ACPP_APP_CUDA_LIBDEVICE_DIR@", "runtime-configurable": true},
-    {"var": "ACPP_CUDA_DLL_DIR", "value": "@ACPP_APP_CUDA_BIN_DIR@", "runtime-configurable": true}
   ]
 }

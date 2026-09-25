@@ -1,12 +1,4 @@
 {
-  "app-config" : 
-  [
-    {
-      "runtime-configurable" : true,
-      "value" : "@ACPP_APP_OCL_BIN_DIR@",
-      "var" : "ACPP_OCL_DLL_DIR"
-    }
-  ],
   "external-permissive" : 
   [
     {

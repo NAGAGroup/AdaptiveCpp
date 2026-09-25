@@ -17,9 +17,5 @@
       "dest": "{{ acpp-runtime-root }}/{{ ze-subdir }}/{{ ze-bin-subdir }}",
       "files": ["SHARED_LIB:ze_loader"]
     }
-  ],
-
-  "app-config": [
-    {"var": "ACPP_ZE_DLL_DIR", "value": "@ACPP_APP_ZE_BIN_DIR@", "runtime-configurable": true}
   ]
 }

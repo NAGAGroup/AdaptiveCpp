@@ -11,9 +11,5 @@
         "SHARED_LIB:intlc"
       ]
     }
-  ],
-
-  "app-config": [
-    {"var": "ACPP_SVML_DIR", "value": "@ACPP_APP_SVML_INSTALL_ROOT@", "runtime-configurable": true}
   ]
 }

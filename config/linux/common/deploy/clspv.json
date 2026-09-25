@@ -7,9 +7,5 @@
       "files": ["clspv"]
     }
   ],
-  "external-nonpermissive": [],
-
-  "app-config": [
-    {"var": "ACPP_CLSPV", "value": "@ACPP_APP_CLSPV@", "runtime-configurable": true}
-  ]
+  "external-nonpermissive": []
 }

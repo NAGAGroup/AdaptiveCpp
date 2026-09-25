@@ -1,12 +1,4 @@
 {
-  "app-config" : 
-  [
-    {
-      "runtime-configurable" : true,
-      "value" : "@ACPP_APP_CLSPV@",
-      "var" : "ACPP_CLSPV"
-    }
-  ],
   "external-nonpermissive" : [],
   "external-permissive" : 
   [

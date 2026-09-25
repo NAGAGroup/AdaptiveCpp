@@ -17,9 +17,5 @@
       "dest": "{{ acpp-runtime-root }}/{{ ocl-subdir }}/{{ ocl-bin-subdir }}",
       "files": ["SHARED_LIB:OpenCL"]
     }
-  ],
-
-  "app-config": [
-    {"var": "ACPP_OCL_DLL_DIR", "value": "@ACPP_APP_OCL_BIN_DIR@", "runtime-configurable": true}
   ]
 }

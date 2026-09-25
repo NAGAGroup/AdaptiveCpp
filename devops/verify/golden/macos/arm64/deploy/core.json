@@ -1,72 +1,6 @@
 {
-  "app-config" : 
-  [
-    {
-      "runtime-configurable" : true,
-      "value" : "@ACPP_APP_DEVICE_CMPLR@",
-      "var" : "ACPP_CLANG"
-    },
-    {
-      "runtime-configurable" : false,
-      "value" : "@ACPP_APP_CLANG_INCLUDE_PATH@",
-      "var" : "ACPP_CLANG_INCLUDE_PATH"
-    },
-    {
-      "runtime-configurable" : false,
-      "value" : "@ACPP_APP_LLC@",
-      "var" : "ACPP_LLC"
-    },
-    {
-      "runtime-configurable" : false,
-      "value" : "@ACPP_APP_OPT@",
-      "var" : "ACPP_OPT"
-    },
-    {
-      "runtime-configurable" : false,
-      "value" : "@ACPP_APP_LLD@",
-      "var" : "ACPP_LLD"
-    },
-    {
-      "runtime-configurable" : false,
-      "value" : "@ACPP_APP_LLVMSPIRV@",
-      "var" : "ACPP_LLVMSPIRV"
-    },
-    {
-      "runtime-configurable" : true,
-      "value" : "{{ jit-host-llc-cpu-flag }}",
-      "var" : "ACPP_JIT_HOST_LLC_CPU_FLAG"
-    },
-    {
-      "runtime-configurable" : true,
-      "value" : "{{ jit-host-opt-cpu-flag }}",
-      "var" : "ACPP_JIT_HOST_OPT_CPU_FLAG"
-    },
-    {
-      "runtime-configurable" : true,
-      "value" : "{{ jit-host-llc-flags }}",
-      "var" : "ACPP_JIT_HOST_LLC_FLAGS"
-    },
-    {
-      "runtime-configurable" : true,
-      "value" : "{{ jit-host-opt-flags }}",
-      "var" : "ACPP_JIT_HOST_OPT_FLAGS"
-    },
-    {
-      "runtime-configurable" : true,
-      "value" : "{{ vector-math-lib }}",
-      "var" : "ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY"
-    }
-  ],
   "external-nonpermissive" : [],
-  "external-permissive" : 
-  [
-    {
-      "build-mode" : "plugin",
-      "dest" : "{{ acpp-runtime-root }}/{{ libomp-subdir }}",
-      "files" : [ "SHARED_LIB:omp" ],
-      "src" : "{{ libomp-install-root }}"
-    }
-  ],
+  "external-permissive" : [],
   "internal" : 
   [
     {
@@ -112,13 +46,7 @@
       "build-mode" : "toolchain",
       "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}",
       "files" : [ "SHARED_LIB:LLVM" ],
-      "src" : "{{ llvm-path }}"
-    },
-    {
-      "build-mode" : "toolchain",
-      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}",
-      "files" : [ "SHARED_LIB:omp" ],
-      "src" : "{{ libomp-path }}"
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}"
     }
   ]
 }

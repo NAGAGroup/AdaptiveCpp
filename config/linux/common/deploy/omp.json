@@ -1,0 +1,9 @@
+{
+  "external-permissive": [
+    {
+      "src": "{{ libomp-install-root }}",
+      "dest": "{{ acpp-runtime-root }}/{{ libomp-subdir }}",
+      "files": ["SHARED_LIB:{{ libomp-name }}"]
+    }
+  ]
+}
