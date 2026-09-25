@@ -114,10 +114,11 @@ message(STATUS "windows/x86_64/ze.cmake (placeholder): defaults as declared")
 
 # ---- VK placeholder ----
 
+# Not shipped, and nothing discovered either: empty, not an error.
 expect_eq(ACPP_VK_SUBDIR "bin/hipSYCL/ext/vk")
 expect_eq(ACPP_VK_INSTALL_ROOT "")
 expect_eq(ACPP_VK_RT_SUBDIR "")
-expect_eq(ACPP_APP_VK_RT_DIR "{{ vk-install-root }}/{{ vk-rt-subdir }}")
+expect_eq(ACPP_APP_VK_RT_DIR "")
 message(STATUS "windows/x86_64/vk.cmake (placeholder): defaults as declared")
 
 # ---- CLSPV placeholder ----
@@ -125,9 +126,12 @@ message(STATUS "windows/x86_64/vk.cmake (placeholder): defaults as declared")
 expect_eq(ACPP_CLSPV_SUBDIR "bin/hipSYCL/ext/clspv")
 expect_eq(ACPP_CLSPV_INSTALL_ROOT "")
 expect_eq(ACPP_CLSPV_BIN_SUBDIR "")
-expect_eq(ACPP_APP_CLSPV_BIN_DIR "{{ clspv-install-root }}/{{ clspv-bin-subdir }}")
+expect_eq(ACPP_APP_CLSPV_BIN_DIR "")
+# The toolchain side is still the template - it never branches on
+# discovery or shipped-ness at configure time. The app side is not
+# shipped, and nothing was discovered either: empty.
 expect_eq(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv.exe")
-expect_eq(ACPP_APP_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv.exe")
+expect_eq(ACPP_APP_CLSPV "")
 message(STATUS "windows/x86_64/clspv.cmake (placeholder): defaults as declared")
 
 message(STATUS "windows/x86_64 (placeholder): all checks passed")

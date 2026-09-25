@@ -67,7 +67,9 @@ include(${ACPP_REPO_ROOT}/cmake/options/windows/aarch64/cuda.cmake)
 
 expect_eq(ACPP_CUDA_RT_SUBDIR "lib/arm64")
 expect_eq(ACPP_CUDA_BIN_SUBDIR "bin")
-expect_eq(ACPP_APP_CUDA_BIN_DIR "{{ cuda-install-root }}/{{ cuda-bin-subdir }}")
+# Not shipped under managed: a concrete cmake string, the discovered root
+# joined with the subdir fact.
+expect_eq(ACPP_APP_CUDA_BIN_DIR "C:/CUDA/v13.4/bin")
 message(STATUS "windows/aarch64: CUDA arm64 layout needs no file change")
 
 # The architecture files are one-line includes and the configuration is

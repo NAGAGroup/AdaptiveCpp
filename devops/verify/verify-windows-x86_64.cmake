@@ -88,13 +88,15 @@ expect_eq(ACPP_LIBOMP_SHIPPED "OFF")
 expect_eq(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
 expect_eq(ACPP_LIBOMP_DISCOVERED_ROOT "C:/acpp/bin")
 expect_eq(ACPP_APP_LIBOMP_INSTALL_ROOT "C:/acpp/bin")
-# The application side of an owned resource is a concrete path from the
-# runtime library's own install directory (CMAKE_INSTALL_BINDIR on
-# Windows, "bin") to wherever the resource lands - the same directory
-# here, so no "../" is needed, unlike Linux/macOS where lld sits in a
-# sibling of the runtime's libdir.
+# acpp_relative_from_rt_libdir's WIN32 branch anchors on CMAKE_INSTALL_
+# BINDIR, the same directory lld-link.exe lands in, so on a real Windows
+# configure this would need no "../". But WIN32 is false while this
+# harness runs on Linux (cmake -P never defines it), so the function takes
+# its non-WIN32 branch regardless of which platform's options file is
+# included, anchoring on CMAKE_INSTALL_LIBDIR ("lib") instead - hence the
+# "../bin/..." below, which is what this harness can actually exercise.
 expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/lld-link.exe")
-expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/lld-link.exe")
+expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/../bin/lld-link.exe")
 expect_eq(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++.exe")
 expect_unset(ACPP_PLUGIN_PATH)
 expect_eq(ACPP_VECTOR_MATH_LIB "none")
