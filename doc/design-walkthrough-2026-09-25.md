@@ -239,9 +239,69 @@ opt-in* (permissive or weak-copyleft, dynamically linked, e.g. libnuma
 under LGPL). "Nonpermissive" means *requires an EULA opt-in* (CUDA,
 nvhpc). The group names stay; this is their definition.
 
-## Open
+## Implementation plan
 
-- Rewriting `configuration-model.md` and `source-obligations.md` to this
-  model, and deciding what of the current tree survives (the
-  four-strategy options code, the install-root/subdir machinery, the
-  app-config manifest sections, the goldens).
+Status: proposed, awaiting Jack's glance. Local verification is `cmake -P`
+harnesses plus at most a configure; real builds go through acpp-toolchain
+CI afterwards.
+
+**What survives.** The discovery layer (`cmake/discovery*.cmake`), the
+per-vendor subdir knobs and subdir facts, the options files' structure, the
+manifests' copy rows, the upstream deploy engine's symlink-chain logic, the
+harness framework, and the source conversions already done (libdevice,
+sleef/amath/svml via settings). Every strategy branch in
+`cmake/options/common/core.cmake` is one test, `STREQUAL "default"`; it
+becomes "is this vendor shipped?", and `$ACPP_RUNTIME_ROOT` becomes
+`$ACPP_RT_LIB_DIR`-relative. The macros themselves survive.
+
+**Commits, in order.**
+
+1. **cmake/options core.** Strategy ∈ {managed (default),
+   full-permissive-only, full}. Add `acpp_vendor_shipped(<category>)`.
+   Replace the `default` branch with "not shipped" in
+   `acpp_declare_vendor_root`, `acpp_declare_provenance`,
+   `acpp_declare_resource`, `acpp_declare_vendor_app_dir` and
+   `acpp_declare_vendor_app_root`. App-side values become
+   `$ACPP_RT_LIB_DIR/<path relative to the libdir>`. Owned resources:
+   `ACPP_RT_LIB_DIR`-relative. Machine resources: unchanged. The OMP vendor
+   gets its default source by build mode (principle 3) and an overridable
+   library choice.
+2. **config templates.** Delete every manifest `app-config` section, every
+   `runtime-configurable` flag and every `toolchain-only` row (they become
+   install rules). Replace `llvm-path`/`libomp-path` with
+   `{{ acpp-root }}` paths. Add an OMP vendor manifest (ext/omp) replacing
+   both old libomp rows. Move `ACPP_CLANG*` to HIP. Keep llvm-spirv as an
+   explicit "ours" row. Add a new app-config template (key=value,
+   settings.cpp's format), per vendor fragment, merged. The toolchain
+   config drops `default-strategy-app-cfg-dir`, `llvm-path` and
+   `libomp-path`.
+3. **Root wiring.** Include discovery + options. One merge implementation
+   in `cmake/`, used by both the build and the harnesses (moved out of
+   `devops/verify/verify-common.cmake`). configure_file the templates.
+   Install-time check: no `@VAR@` left, and every `{{ key }}` in a manifest
+   resolves against the config. Install the config and app config always,
+   the manifest only under full. Per-vendor install rules under full
+   (symlink chain preserved, whole CUDA include dir). Backends get
+   `$ORIGIN` rpaths to shipped vendors' rt subdirs. Remove the old root
+   find blocks and `$ACPP_PATH` uses.
+4. **src/.** settings.cpp finds the app config at `etc/AdaptiveCpp`
+   relative to libacpp-rt (dladdr), expands `$ACPP_RT_LIB_DIR`, and no
+   longer truncates values at whitespace (the `>>` parse in
+   settings.hpp). Windows: `AddDllDirectory` from `ACPP_<VENDOR>_DLL_DIR`.
+   Finish the remaining path-macro obligations. The `HIPSYCL_` environment
+   fallback stays as upstream has it.
+5. **bin/acpp.** Read the merged config. Add a `{{ }}` resolver (one root:
+   `acpp-root`). New deploy engine: grouped manifests, filtered by strategy
+   and category; copy the app config (absent → copy, identical → skip,
+   different → fail); under managed, a clear error. CUDA lib path =
+   install-root/rt-subdir (drop the lib64 fallback).
+6. **CMake package.** Under full, `ACPP_APP_INSTALL_RPATH` (overridable)
+   appended to `INSTALL_RPATH` by `add_sycl_to_target`: the libdir, plus
+   the CUDA rt, nvhpc rt and OMP subdirs when enabled.
+7. **devops/verify.** Update the harnesses to the new strategies. Replace
+   verify-strategy-cuda with a per-vendor shipped/not-shipped check across
+   the three strategies. Regenerate goldens. Add the sync harness (install
+   rules vs manifest rows).
+8. **docs.** Rewrite `configuration-model.md` from this walkthrough (this
+   file stays as the discussion record). Update `source-obligations.md`.
+   Remove anything contradicting.
