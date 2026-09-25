@@ -52,7 +52,7 @@ expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/ld64.lld")
 expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/../bin/ld64.lld")
 
 # OMP is core now, already included above.
-expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
+expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-install-root }} -l{{ libomp-name }}")
 
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/vk.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/clspv.cmake)

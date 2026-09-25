@@ -1,7 +1,6 @@
 {
   "cuda-bin-subdir" : 
   {
-
     "value" : "@ACPP_CUDA_BIN_SUBDIR@"
   },
   "cuda-cxx-flags" : 
@@ -20,7 +19,6 @@
   },
   "cuda-libdevice-subdir" : 
   {
-
     "value" : "@ACPP_CUDA_LIBDEVICE_SUBDIR@"
   },
   "cuda-link-line" : 

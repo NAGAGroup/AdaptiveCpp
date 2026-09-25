@@ -1,7 +1,6 @@
 {
   "ocl-bin-subdir" : 
   {
-
     "value" : "@ACPP_OCL_BIN_SUBDIR@"
   },
   "ocl-install-root" : 

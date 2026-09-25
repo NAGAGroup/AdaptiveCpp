@@ -56,8 +56,8 @@ function(expect_eq name expected)
 endfunction()
 
 # LLVM is the machine's in plugin mode (rule 2): never bundled, so there is
-# no LLVM provenance at all - always empty.
-expect_eq(ACPP_LLVM_PATH "")
+# no LLVM provenance at all - that owned-provenance entry does not exist
+# any more, in any mode.
 expect_unset(ACPP_TOOLCHAIN_LLVM_PATH)
 expect_unset(ACPP_APP_LLVM_PATH)
 
@@ -66,21 +66,21 @@ expect_unset(ACPP_APP_LLVM_PATH)
 # the install root takes the discovered absolute path - here,
 # ACPP_LIBOMP_SOURCE_DIR's own default in plugin mode, which is exactly
 # ACPP_DISCOVERED_LIBOMP_DIR (no CMAKE_INSTALL_PREFIX involved, unlike
-# toolchain mode - see verify-core.cmake). There is no ACPP_LIBOMP_PATH at
-# all in this mode - that name belongs to the owned (toolchain-mode) shape
-# only. No application-config declaration on Linux either: libomp is
-# linked, not consumed.
+# toolchain mode - see verify-core.cmake). There is no owned-provenance
+# entry for it at all any more, in any mode - it never existed for plugin
+# mode, and toolchain mode's owned-provenance shape is gone too, now that
+# libomp's own vendor-unit entries (below) cover both. No application-config
+# declaration on Linux either: libomp is linked, not consumed.
 expect_eq(ACPP_LIBOMP_SUBDIR "lib/hipSYCL/ext/libomp")
 expect_eq(ACPP_LIBOMP_SHIPPED "OFF")
 expect_eq(ACPP_LIBOMP_INSTALL_ROOT "/usr/lib/llvm-21/lib")
 expect_unset(ACPP_APP_LIBOMP_INSTALL_ROOT)
-expect_unset(ACPP_LIBOMP_PATH)
 expect_unset(ACPP_TOOLCHAIN_LIBOMP_PATH)
 expect_unset(ACPP_APP_LIBOMP_PATH)
 
 # The device compiler, the LLVM tools and clang's resource directory belong
 # to the machine (rule 2): both sides are the discovered absolute path,
-# `default` strategy notwithstanding - there is no placeholder shape for
+# every strategy notwithstanding - there is no placeholder shape for
 # these in plugin mode at all.
 expect_eq(ACPP_TOOLCHAIN_DEVICE_CMPLR "/usr/lib/llvm-21/bin/clang++")
 expect_eq(ACPP_APP_DEVICE_CMPLR "/usr/lib/llvm-21/bin/clang++")

@@ -206,9 +206,9 @@ endmacro()
 # `category` is `permissive` or `nonpermissive` (see "Controls" for what
 # that means and the gate it triggers). Replaces the old
 # acpp_declare_vendor_subdir, which took no category because it never
-# needed to decide shipped-ness itself - every strategy but `default` was
-# already treated as "relative", the anti-pattern the design walkthrough
-# retired.
+# needed to decide shipped-ness itself - every strategy already treated
+# every subdir as relative except the one absolute-path case the design
+# walkthrough retired.
 macro(acpp_declare_vendor stem lower category)
   if(NOT DEFINED ACPP_${stem}_SUBDIR)
     if(WIN32)
@@ -477,8 +477,8 @@ acpp_declare_vendor_root(LIBOMP libomp ACPP_LIBOMP_SOURCE_DIR "${ACPP_LIBOMP_SOU
 # built by this same build, not discovered on some machine - so baking
 # ACPP_LIBOMP_SOURCE_DIR's absolute ${CMAKE_INSTALL_PREFIX} into the
 # toolchain config here would be wrong, for the same reason rule 1 keeps
-# ACPP_LLVM_PATH/ACPP_LIBOMP_PATH above as placeholders rather than
-# resolved paths: the config has to keep meaning the same thing after the
+# every owned resource's toolchain side a deploy-layout placeholder rather
+# than a resolved path: the config has to keep meaning the same thing after the
 # toolchain is copied or reinstalled elsewhere. The deploy-layout
 # placeholder says the same thing those do - wherever this LLVM's own
 # libdir ends up - without freezing today's prefix into it. The absolute

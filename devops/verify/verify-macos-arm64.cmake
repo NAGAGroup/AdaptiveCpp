@@ -55,7 +55,6 @@ set(CMAKE_INSTALL_BINDIR "bin")
 
 include(${ACPP_REPO_ROOT}/cmake/options/macos/arm64/core.cmake)
 
-expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$HOME/Library/Application Support/AdaptiveCpp/app-cfgs")
 # LLD is ours in toolchain mode (rule 1): always the deploy-layout
 # placeholder, the strategy notwithstanding. The application side is a
 # concrete path from the runtime library's own install directory ("lib")
@@ -63,7 +62,7 @@ expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$HOME/Library/Application Support/A
 expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/ld64.lld")
 expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/../bin/ld64.lld")
 expect_eq(ACPP_VECTOR_MATH_LIB "none")
-expect_eq(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-path }} -lomp")
+expect_eq(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-install-root }} -l{{ libomp-name }}")
 expect_eq(ACPP_CPU_CXX "{{ acpp-root }}/bin/clang++")
 expect_unset(ACPP_PLUGIN_PATH)
 expect_unset(ACPP_LIBNUMA_PATH)
@@ -85,7 +84,7 @@ message(STATUS "macos/arm64/core.cmake: defaults as declared")
 
 # ---- OMP (now core) ----
 
-expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-path }} -lomp")
+expect_eq(ACPP_OMP_LINK_LINE "-fopenmp -L{{ libomp-install-root }} -l{{ libomp-name }}")
 expect_eq(ACPP_OMP_CXX_FLAGS "-fopenmp -D_ENABLE_EXTENDED_ALIGNED_STORAGE")
 message(STATUS "macos/arm64 core.cmake: omp values as declared")
 

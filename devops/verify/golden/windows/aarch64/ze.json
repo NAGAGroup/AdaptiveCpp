@@ -1,7 +1,6 @@
 {
   "ze-bin-subdir" : 
   {
-
     "value" : "@ACPP_ZE_BIN_SUBDIR@"
   },
   "ze-install-root" : 

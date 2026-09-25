@@ -13,11 +13,6 @@
     "envvar" : "ACPP_CPU_CXX",
     "value" : "@ACPP_CPU_CXX@"
   },
-  "default-strategy-app-cfg-dir" : 
-  {
-    "envvar" : "ACPP_DEFAULT_STRATEGY_APP_CFG_DIR",
-    "value" : "@ACPP_DEFAULT_STRATEGY_APP_CFG_DIR@"
-  },
   "deployment-strategy" : 
   {
     "envvar" : "ACPP_DEPLOYMENT_STRATEGY",
@@ -62,10 +57,9 @@
   {
     "value" : "@ACPP_LIBOMP_INSTALL_ROOT@"
   },
-  "libomp-path" : 
+  "libomp-name" : 
   {
-    "envvar" : "ACPP_LIBOMP_PATH",
-    "value" : "@ACPP_LIBOMP_PATH@"
+    "value" : "@ACPP_LIBOMP_NAME@"
   },
   "libomp-subdir" : 
   {
@@ -84,11 +78,6 @@
   "llvm-libdir" : 
   {
     "value" : "@ACPP_DISCOVERED_LLVM_LIBDIR@"
-  },
-  "llvm-path" : 
-  {
-    "envvar" : "ACPP_LLVM_PATH",
-    "value" : "@ACPP_LLVM_PATH@"
   },
   "llvm-spirv" : 
   {

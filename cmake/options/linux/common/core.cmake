@@ -15,41 +15,9 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 #
 # Where libomp lands. libomp is declared unconditionally, in both build
 # modes, by the common file (principle 3: an ordinary vendor unit, not a
-# build-mode branch) - see its "OMP" section. What is left here is only the
-# owned-provenance shape toolchain mode's ACPP_LIBOMP_PATH still uses (see
-# "Provenance" below); a packager using GOMP instead points
-# ACPP_LIBOMP_SOURCE_DIR at it directly.
-
-# Where the deploy step writes application configurations under `default`,
-# where nothing is copied and the application's tree holds none of our
-# libraries. The default covers a user compiling for themselves; a
-# distribution maintainer building in `default` mode points it at the system
-# configuration directory.
-#
-# Deliberately NOT subject to acpp_require_relative: this is the one path
-# meant to be absolute and to point outside the tree.
-if(NOT DEFINED ACPP_DEFAULT_STRATEGY_APP_CFG_DIR)
-  set(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs")
-endif()
-
-# ---------------------------------------------------------------------------
-# Provenance - where the deploy step copies from
-# ---------------------------------------------------------------------------
-#
-# LLVM is ours by build-mode ownership (see "Ownership" in the common
-# file): toolchain mode builds it, so it is always at the deploy layout, in
-# every strategy; plugin mode has no LLVM provenance at all, because
-# nothing of the machine's LLVM is ever copied. ACPP_LIBOMP_PATH stays here
-# in toolchain mode too, for now: config/common/core.json's libomp-path key
-# and this platform's link lines still read it, and moving them onto the
-# libomp vendor unit's own {{ }} entries is the config-templates commit's
-# job, not this one's.
-if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ acpp-libdir }}")
-  acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ acpp-libdir }}")
-else()
-  set(ACPP_LLVM_PATH "")
-endif()
+# build-mode branch) - see its "OMP" section, which owns every {{ }} entry
+# libomp's own link lines and application config now read; a packager
+# using GOMP instead points ACPP_LIBOMP_SOURCE_DIR at it directly.
 
 # libnuma, sleef and amath are ordinary shared libraries with no internal
 # structure to preserve, each its own vendor unit with the same two-knob
@@ -139,8 +107,8 @@ endif()
 
 # The compiler plugin, in plugin builds only. We always build our own
 # plugin file, so it is ours (rule 1): always the deploy-layout placeholder,
-# in every strategy including `default`, with no override - a strategy
-# choice is about vendor assets we do not build, and this is not one. When
+# in every strategy, with no override - a strategy choice is about vendor
+# assets we do not build, and this is not one. When
 # AdaptiveCpp is linked into the LLVM tools there is no plugin file and the
 # driver emits no plugin flags.
 if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)

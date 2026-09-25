@@ -14,38 +14,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 #
 # Where libomp lands. libomp is declared unconditionally, in both build
 # modes, by the common file (principle 3: an ordinary vendor unit, not a
-# build-mode branch) - see its "OMP" section. What is left here is only the
-# owned-provenance shape toolchain mode's ACPP_LIBOMP_PATH still uses (see
-# "Provenance" below).
-
-# Where the deploy step writes application configurations under `default`,
-# where nothing is copied and the application's tree holds none of our
-# libraries. The default covers a user compiling for themselves; a
-# distribution maintainer building in `default` mode points it at the system
-# configuration directory.
-#
-# Deliberately NOT subject to acpp_require_relative: this is the one path
-# meant to be absolute and to point outside the tree.
-#
-# macOS: ~/Library/Application Support is the per-user configuration root.
-if(NOT DEFINED ACPP_DEFAULT_STRATEGY_APP_CFG_DIR)
-  set(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$HOME/Library/Application Support/AdaptiveCpp/app-cfgs")
-endif()
-
-# ---------------------------------------------------------------------------
-# Provenance - where the deploy step copies from
-# ---------------------------------------------------------------------------
-#
-# LLVM is ours by build-mode ownership; see linux/common/core.cmake's
-# comment, unchanged here. ACPP_LIBOMP_PATH stays here in toolchain mode
-# too, for now - see linux/common/core.cmake's comment on why.
-
-if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ acpp-libdir }}")
-  acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ acpp-libdir }}")
-else()
-  set(ACPP_LLVM_PATH "")
-endif()
+# build-mode branch) - see its "OMP" section; see linux/common/core.cmake's
+# comment, unchanged here.
 
 # No libnuma on macOS.
 
@@ -139,10 +109,12 @@ else()
 endif()
 
 # On macOS clang does not find libomp on its own, so the sequential link
-# line names the directory. {{ libomp-path }} resolves per the ownership
-# split above, so this one formula already covers both build modes.
+# line names the directory. {{ libomp-install-root }} is libomp's own
+# vendor-unit value (declared unconditionally by the common file - see its
+# "OMP" section), so this one formula already covers both build modes and
+# every strategy, shipped or not.
 if(NOT DEFINED ACPP_SEQUENTIAL_LINK_LINE)
-  set(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-path }} -lomp")
+  set(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-install-root }} -l{{ libomp-name }}")
 endif()
 
 # The CPU backend is always built (upstream's WITH_CPU_BACKEND is
@@ -151,7 +123,7 @@ endif()
 # so the omp link line names the directory too, unlike the other
 # platforms; the multipass exemption still applies to rpath.
 if(NOT DEFINED ACPP_OMP_LINK_LINE)
-  set(ACPP_OMP_LINK_LINE "${_acpp_omp_flag} -L{{ libomp-path }} -lomp")
+  set(ACPP_OMP_LINK_LINE "${_acpp_omp_flag} -L{{ libomp-install-root }} -l{{ libomp-name }}")
 endif()
 
 # -D_ENABLE_EXTENDED_ALIGNED_STORAGE is needed for correctly aligned local

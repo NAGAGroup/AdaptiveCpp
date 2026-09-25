@@ -67,15 +67,11 @@ set(CMAKE_INSTALL_BINDIR "bin")
 
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/core.cmake)
 
-expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$LOCALAPPDATA/AdaptiveCpp/app-cfgs")
 # LLVM is ours in toolchain mode (rule 1): always the deploy-layout
 # placeholder, the strategy notwithstanding. What we build follows cmake's
 # own install directory under {{ acpp-root }} directly - no separate
-# deploy-path knob. ACPP_LIBOMP_PATH stays this shape for now (see
-# linux/common/core.cmake's comment); libomp's actual new shape as a
-# vendor unit is below.
-expect_eq(ACPP_LLVM_PATH "{{ acpp-root }}/{{ acpp-bindir }}")
-expect_eq(ACPP_LIBOMP_PATH "{{ acpp-root }}/{{ acpp-bindir }}")
+# deploy-path knob, and no owned-provenance entries for either any more;
+# libomp's actual shape as a vendor unit is below.
 # libomp is a vendor unit in every build mode now (principle 3): not
 # shipped under managed, but still ours in toolchain mode, so its install
 # root is the deploy-layout placeholder rather than

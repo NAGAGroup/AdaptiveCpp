@@ -4,8 +4,8 @@
 #
 # The discovery stand-ins define every input the options file reads, mixed so
 # that all three branches of a vendor declaration run: found (absolute path),
-# empty, and NOTFOUND. Provenance entries (llvm-path, libomp-path) are
-# single-sided: one variable each, no ACPP_TOOLCHAIN_ / ACPP_APP_ pair.
+# empty, and NOTFOUND. LLVM has no provenance entry at all any more - what
+# toolchain mode builds follows cmake's own install directories directly.
 # libnuma, sleef and amath are vendor units (two knobs: an install subdir
 # plus discovery's own hints) with their own install-root/app-install-root
 # pair - libnuma's is unset, since it is linked, not consumed, and no config
@@ -85,17 +85,14 @@ endfunction()
 # where nothing is shipped.
 expect_eq(ACPP_DEPLOYMENT_STRATEGY "managed")
 expect_eq(ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN "OFF")
-expect_eq(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$XDG_CONFIG_HOME/AdaptiveCpp/app-cfgs")
 
-# Provenance: single-sided, one variable each. LLVM and libomp are ours
-# (rule 1): always the deploy-layout placeholder, the strategy
-# notwithstanding - a strategy is a commitment about assets we do not build,
-# and these are not that. What we build follows cmake's own install
-# directories under {{ acpp-root }} directly - no separate deploy-path knob.
-# ACPP_LIBOMP_PATH stays this shape for now (see linux/common/core.cmake's
-# comment): the vendor-unit values below are libomp's actual new shape.
-expect_eq(ACPP_LLVM_PATH "{{ acpp-root }}/{{ acpp-libdir }}")
-expect_eq(ACPP_LIBOMP_PATH "{{ acpp-root }}/{{ acpp-libdir }}")
+# LLVM and libomp are ours (rule 1): always the deploy-layout placeholder,
+# the strategy notwithstanding - a strategy is a commitment about assets we
+# do not build, and these are not that. What we build follows cmake's own
+# install directories under {{ acpp-root }} directly - no separate
+# deploy-path knob, and no owned-provenance entries for either any more:
+# the vendor-unit values below are libomp's actual shape, and LLVM has no
+# provenance entry left to have at all.
 expect_unset(ACPP_TOOLCHAIN_LLVM_PATH)
 expect_unset(ACPP_APP_LLVM_PATH)
 expect_unset(ACPP_TOOLCHAIN_LIBOMP_PATH)

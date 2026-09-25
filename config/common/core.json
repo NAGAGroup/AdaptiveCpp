@@ -5,10 +5,6 @@
   "llvm-libdir": {
     "value": "@ACPP_DISCOVERED_LLVM_LIBDIR@"
   },
-  "default-strategy-app-cfg-dir": {
-    "value": "@ACPP_DEFAULT_STRATEGY_APP_CFG_DIR@",
-    "envvar": "ACPP_DEFAULT_STRATEGY_APP_CFG_DIR"
-  },
   "deployment-strategy": {
     "value": "@ACPP_DEPLOYMENT_STRATEGY@",
     "envvar": "ACPP_DEPLOYMENT_STRATEGY"
@@ -30,14 +26,6 @@
   },
   "plugin-linked-into-llvm": {
     "value": "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@"
-  },
-  "llvm-path": {
-    "value": "@ACPP_LLVM_PATH@",
-    "envvar": "ACPP_LLVM_PATH"
-  },
-  "libomp-path": {
-    "value": "@ACPP_LIBOMP_PATH@",
-    "envvar": "ACPP_LIBOMP_PATH"
   },
   "device-clang-cmplr": {
     "value": "@ACPP_TOOLCHAIN_DEVICE_CMPLR@",

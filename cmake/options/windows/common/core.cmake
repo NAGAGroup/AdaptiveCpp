@@ -15,31 +15,10 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 #
 # Where libomp.dll lands. libomp is declared unconditionally, in both build
 # modes, by the common file (principle 3: an ordinary vendor unit, not a
-# build-mode branch) - see its "OMP" section. What is left here is only the
-# owned-provenance shape toolchain mode's ACPP_LIBOMP_PATH still uses (see
-# "Provenance" below), and the application-config declaration this platform
-# keeps regardless: Windows has no RUNPATH, so a deployed app's own
-# AddDllDirectory call still needs to be told where libomp.dll landed.
-
-# Where the deploy step writes application configurations under `default`.
-if(NOT DEFINED ACPP_DEFAULT_STRATEGY_APP_CFG_DIR)
-  set(ACPP_DEFAULT_STRATEGY_APP_CFG_DIR "$LOCALAPPDATA/AdaptiveCpp/app-cfgs")
-endif()
-
-# ---------------------------------------------------------------------------
-# Provenance - where the deploy step copies from
-# ---------------------------------------------------------------------------
-#
-# LLVM is ours by build-mode ownership; see linux/common/core.cmake's
-# comment, unchanged here. ACPP_LIBOMP_PATH stays here in toolchain mode
-# too, for now - see linux/common/core.cmake's comment on why.
-
-if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  acpp_declare_owned_provenance(ACPP_LLVM_PATH "{{ acpp-bindir }}")
-  acpp_declare_owned_provenance(ACPP_LIBOMP_PATH "{{ acpp-bindir }}")
-else()
-  set(ACPP_LLVM_PATH "")
-endif()
+# build-mode branch) - see its "OMP" section - and the application-config
+# declaration this platform keeps regardless: Windows has no RUNPATH, so a
+# deployed app's own AddDllDirectory call still needs to be told where
+# libomp.dll landed.
 
 # libomp's own vendor unit is declared unconditionally by the common file,
 # but its application-config root is kept only here: Windows has no

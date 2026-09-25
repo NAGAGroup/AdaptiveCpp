@@ -1,7 +1,6 @@
 {
   "hip-bitcode-subdir" : 
   {
-
     "value" : "@ACPP_HIP_BITCODE_SUBDIR@"
   },
   "hip-cxx-flags" : 

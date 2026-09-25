@@ -4,5 +4,8 @@
   },
   "libomp-install-root": {
     "value": "@ACPP_LIBOMP_INSTALL_ROOT@"
+  },
+  "libomp-name": {
+    "value": "@ACPP_LIBOMP_NAME@"
   }
 }
