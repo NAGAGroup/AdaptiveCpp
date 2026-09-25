@@ -826,41 +826,6 @@ endif()
 ##########################################################
 add_subdirectory(src)
 
-##########################################################
-## Generate the installed toolchain config, deploy manifest and app
-## config. After add_subdirectory(src) so every variable it declares
-## exists; nothing acpp_generate_installed_configs reads comes from
-## further down this file (the legacy OMP_LINK_LINE/CUDA_CXX_FLAGS/
-## DEFAULT_TARGETS-style variables computed below are a different,
-## non-ACPP_-prefixed namespace the options model does not read).
-##
-## Known gap, not fixed here: cmake/options/common/core.cmake defaults
-## ACPP_TARGETS from ${DEFAULT_TARGETS} the moment the options file is
-## included (above, before add_subdirectory(src)), but DEFAULT_TARGETS
-## itself is not computed until further down this file (~910, after
-## add_subdirectory(src)) - so ACPP_TARGETS, and hence the generated
-## config's "targets" entry, defaults to empty rather than the
-## DEFAULT_TARGETS logic's actual answer ("generic" or "omp"), until a
-## later wiring step moves one side or the other. A -DACPP_TARGETS=
-## override still reaches the config either way, unaffected by this.
-##########################################################
-include(${ACPP_SOURCE_ROOT}/cmake/acpp-installed-configs.cmake)
-
-acpp_generate_installed_configs(
-  PLATFORM "${ACPP_OPTIONS_PLATFORM}"
-  ARCH "${ACPP_OPTIONS_ARCH}"
-  UNITS ${ACPP_UNITS}
-  OUT_DIR "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp")
-
-install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-toolchain.json"
-  DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-app.cfg"
-  DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-if(NOT ACPP_DEPLOYMENT_STRATEGY STREQUAL "managed")
-  install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-deploy.json"
-    DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
-
 set(DEFAULT_WIN32_CUDA_LINK_LINE "-L$ACPP_CUDA_LIB_PATH -lcudart")
 set(DEFAULT_CUDA_LINK_LINE "-Wl,-rpath=$ACPP_CUDA_LIB_PATH -L$ACPP_CUDA_LIB_PATH -lcudart")
 
@@ -996,6 +961,76 @@ if(NOT DEFAULT_TARGETS)
 endif()
 
 message(STATUS "Default compilation target(s): ${DEFAULT_TARGETS}")
+
+##########################################################
+## Generate the installed toolchain config, deploy manifest and app
+## config, then the per-vendor install rules. After add_subdirectory(src)
+## so every variable it declares exists, and after DEFAULT_TARGETS is
+## finally computed (immediately above) so the fix below has something to
+## read - nothing else acpp_generate_installed_configs reads comes from
+## further down this file (the legacy OMP_LINK_LINE/CUDA_CXX_FLAGS-style
+## variables computed nearby are a different, non-ACPP_-prefixed namespace
+## the options model does not read).
+##
+## cmake/options/common/core.cmake defaults ACPP_TARGETS from
+## ${DEFAULT_TARGETS} with a guarded plain set() the moment the options
+## file is included (well above, before add_subdirectory(src)), when
+## DEFAULT_TARGETS was still empty - the options model runs before this
+## file's own legacy DEFAULT_TARGETS logic does. Since that set() was
+## plain, not CACHE, it can simply be corrected now that DEFAULT_TARGETS
+## has its real answer, the same way every other guarded default in this
+## file works: only if a builder has not already overridden ACPP_TARGETS
+## themselves (which the options model's own guard already protects).
+##########################################################
+if("${ACPP_TARGETS}" STREQUAL "" AND NOT "${DEFAULT_TARGETS}" STREQUAL "")
+  set(ACPP_TARGETS "${DEFAULT_TARGETS}")
+endif()
+
+include(${ACPP_SOURCE_ROOT}/cmake/acpp-installed-configs.cmake)
+
+acpp_generate_installed_configs(
+  PLATFORM "${ACPP_OPTIONS_PLATFORM}"
+  ARCH "${ACPP_OPTIONS_ARCH}"
+  UNITS ${ACPP_UNITS}
+  OUT_DIR "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp")
+
+install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-toolchain.json"
+  DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-app.cfg"
+  DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+if(NOT ACPP_DEPLOYMENT_STRATEGY STREQUAL "managed")
+  install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-deploy.json"
+    DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
+endif()
+
+# Per-vendor cmake install rules: home (a)+(b) of the three-part manifest
+# (doc/configuration-model.md, "The manifest") - what physically ships
+# alongside the toolchain under the full strategies, both the
+# toolchain-only pieces (headers, ptxas-class tools, import libraries) and
+# everything the manifest above also deploys with an application. Every
+# call inside cmake/install/<platform>/common/<unit>.cmake is a no-op
+# unless that unit is ACPP_<STEM>_SHIPPED (cmake/acpp-vendor-install.cmake).
+# omp is not in ACPP_UNITS (core and omp are acpp_generate_installed_configs'
+# own unconditional additions, not units this file tracks - see the
+# ACPP_UNITS comment above, near cmake/discovery.cmake's own include), so
+# it needs a call of its own, unconditional on the loop below, matching
+# that same reasoning. "when it exists" (per the design walkthrough): not
+# every unit has an install file yet, and not every platform ships every
+# unit (no cuda.cmake under cmake/install/macos, for instance) - EXISTS
+# guards both.
+include(${ACPP_SOURCE_ROOT}/cmake/acpp-vendor-install.cmake)
+
+foreach(_acpp_unit IN LISTS ACPP_UNITS)
+  set(_acpp_install_file "${ACPP_SOURCE_ROOT}/cmake/install/${ACPP_OPTIONS_PLATFORM}/common/${_acpp_unit}.cmake")
+  if(EXISTS "${_acpp_install_file}")
+    include(${_acpp_install_file})
+  endif()
+endforeach()
+
+set(_acpp_omp_install_file "${ACPP_SOURCE_ROOT}/cmake/install/${ACPP_OPTIONS_PLATFORM}/common/omp.cmake")
+if(EXISTS "${_acpp_omp_install_file}")
+  include(${_acpp_omp_install_file})
+endif()
 
 
 
