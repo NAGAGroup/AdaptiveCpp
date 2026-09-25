@@ -191,11 +191,57 @@ By the per-vendor rule, CUDA's `$ORIGIN` entry then points at nothing (the
 loader finds the system cudart) and its libdevice value is the discovered
 absolute path. No gate.
 
+## The vendor sweep
+
+Every unit fits the per-vendor rule. Linked means our code's DT_NEEDED
+(verified in `src/runtime/CMakeLists.txt` and
+`src/compiler/llvm-to-backend/CMakeLists.txt`); consumed means opened by
+path, read from the app config.
+
+- **CUDA.** Linked: rt-backend-cuda → cudart. Consumed: libdevice. Shipped
+  under full (nonpermissive, gated).
+- **nvhpc.** Our code links nothing; cuda-nvcxx apps link the HPC SDK
+  REDIST runtime themselves. Shipped under full (nonpermissive, the whole
+  REDIST dir). The full app rpath also gets the nvhpc rt subdir.
+- **HIP / ROCm.** Linked: rt-backend-hip → amdhip64 etc.; llvm-to-amdgpu →
+  hiprtc (optional). Consumed: the ROCm device bitcode
+  (`ACPP_HIP_DEVICE_LIBS_DIR`), and, unless hiprtc is linked, clang++ and
+  its resource headers for the HIP JIT. Shipped under full (permissive:
+  runtime libs, sysdeps, bitcode); HIP headers are install-rule only.
+  clang++ and its headers are ours in toolchain mode (an "ours" row in
+  HIP's manifest, `ACPP_CLANG*` app-config values relative to
+  `ACPP_RT_LIB_DIR`); in plugin mode they are the machine clang (absolute
+  app-config value, never shipped). `ACPP_CLANG*` belong to HIP, not core.
+- **OpenCL / Level Zero.** Linked: rt-backend-ocl → the ICD loader,
+  rt-backend-ze → ze_loader. Shipped under full: the loader only
+  (permissive). ICDs/drivers are never shipped or configured; their
+  registration is the user's environment.
+- **Vulkan.** Linked: rt-backend-vk → the Vulkan loader. Shipped under full
+  on Linux/macOS (the loader, plus MoltenVK on macOS). On Windows nothing
+  is shipped (`vulkan-1.dll` is the system's).
+- **OMP.** See principle 3. libnuma (linked by rt-backend-omp) is shipped
+  under full (permissive).
+- **sleef / amath / svml.** Consumed: the host JIT reads their directories
+  from settings. `ACPP_RT_LIB_DIR`-relative if shipped, discovered
+  otherwise. svml's category (it comes from Intel's compiler runtime) is
+  to be checked against Intel's license during implementation.
+- **Metal.** System frameworks; never shipped.
+
+**Platforms.** macOS: `@loader_path` in place of `$ORIGIN`. Windows: no
+RUNPATH; the live-entry equivalent is the runtime's existing
+`AddDllDirectory`, fed from the app config (`ACPP_<VENDOR>_DLL_DIR`):
+`ACPP_RT_LIB_DIR`-relative if shipped, absent otherwise (PATH, i.e. the
+loader). Import libraries are install-rule only. hip and nvhpc on Windows
+stay deferred.
+
+**Categories.** "Permissive" means *redistributable without an EULA
+opt-in* (permissive or weak-copyleft, dynamically linked, e.g. libnuma
+under LGPL). "Nonpermissive" means *requires an EULA opt-in* (CUDA,
+nvhpc). The group names stay; this is their definition.
+
 ## Open
 
 - Rewriting `configuration-model.md` and `source-obligations.md` to this
   model, and deciding what of the current tree survives (the
   four-strategy options code, the install-root/subdir machinery, the
   app-config manifest sections, the goldens).
-- The vendor sweep (HIP, the OpenCL and Level Zero loaders, nvhpc,
-  sleef/amath/numa/svml, Windows, macOS) against this model.
