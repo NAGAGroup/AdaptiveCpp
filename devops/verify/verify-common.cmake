@@ -4,14 +4,15 @@ cmake_minimum_required(VERSION 3.19)
 #
 # For every golden file, collects the fragments at the three tiers
 # (config/common/, config/<platform>/common/, config/<platform>/<arch>/),
-# merges them per the model's merge section, and asserts JSON equality
-# with the golden. Also
-# asserts the cmake tier rule.
+# merges them via the shared engine in cmake/acpp-config-merge.cmake (the
+# same one the build itself uses), and asserts JSON equality with the
+# golden. Also asserts the cmake tier rule.
 #
 # Run with cmake -P:
 #   cmake -P devops/verify/verify-common.cmake
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+include(${ACPP_REPO_ROOT}/cmake/acpp-config-merge.cmake)
 
 set(_platforms_archs
   linux    x86_64
@@ -19,67 +20,6 @@ set(_platforms_archs
   windows  x86_64
   windows  aarch64
   macos    arm64)
-
-# ---------------------------------------------------------------------------
-# Helper: merge two JSON objects. FATAL_ERROR on duplicate key.
-# ---------------------------------------------------------------------------
-function(_merge_json_objects result_var base overlay overlay_label)
-  set(_result "${base}")
-  string(JSON _len LENGTH "${overlay}")
-  if(_len GREATER 0)
-    math(EXPR _last "${_len} - 1")
-    foreach(_i RANGE 0 ${_last})
-      string(JSON _key MEMBER "${overlay}" ${_i})
-      string(JSON _val GET "${overlay}" "${_key}")
-      # Check if key already exists in result
-      string(JSON _probe ERROR_VARIABLE _err GET "${_result}" "${_key}")
-      if(NOT _err)
-        message(FATAL_ERROR
-          "Duplicate key '${_key}' in ${overlay_label}: already present in an earlier tier")
-      endif()
-      string(JSON _result SET "${_result}" "${_key}" "${_val}")
-    endforeach()
-  endif()
-  set(${result_var} "${_result}" PARENT_SCOPE)
-endfunction()
-
-# ---------------------------------------------------------------------------
-# Helper: merge two JSON arrays by concatenation.
-# ---------------------------------------------------------------------------
-function(_concat_json_arrays result_var base addition)
-  set(_result "${base}")
-  string(JSON _add_len LENGTH "${addition}")
-  if(_add_len GREATER 0)
-    math(EXPR _add_last "${_add_len} - 1")
-    foreach(_i RANGE 0 ${_add_last})
-      string(JSON _elem GET "${addition}" ${_i})
-      string(JSON _base_len LENGTH "${_result}")
-      string(JSON _result SET "${_result}" ${_base_len} "${_elem}")
-    endforeach()
-  endif()
-  set(${result_var} "${_result}" PARENT_SCOPE)
-endfunction()
-
-# ---------------------------------------------------------------------------
-# Helper: merge deploy manifests (concatenate each group's array).
-# ---------------------------------------------------------------------------
-function(_merge_deploy result_var base overlay overlay_label)
-  set(_result "${base}")
-  foreach(_group internal llvm external-permissive external-nonpermissive app-config)
-    string(JSON _base_arr ERROR_VARIABLE _berr GET "${_result}" "${_group}")
-    string(JSON _over_arr ERROR_VARIABLE _oerr GET "${overlay}" "${_group}")
-    if(NOT _oerr)
-      if(_berr)
-        # Group not yet in result, add it
-        string(JSON _result SET "${_result}" "${_group}" "${_over_arr}")
-      else()
-        _concat_json_arrays(_merged "${_base_arr}" "${_over_arr}")
-        string(JSON _result SET "${_result}" "${_group}" "${_merged}")
-      endif()
-    endif()
-  endforeach()
-  set(${result_var} "${_result}" PARENT_SCOPE)
-endfunction()
 
 # ---------------------------------------------------------------------------
 # Track every fragment file that contributes to a golden.
@@ -103,47 +43,37 @@ foreach(_i RANGE 0 ${_pa_last} 2)
   foreach(_R ${_goldens})
     file(READ "${ACPP_REPO_ROOT}/devops/verify/golden/${_platform}/${_arch}/${_R}" _golden_text)
 
-    # Determine if this is a deploy manifest (path starts with deploy/)
+    # Determine if this is a deploy manifest (path starts with deploy/) and,
+    # from that, the kind/unit pair acpp_merge_unit takes.
     string(FIND "${_R}" "deploy/" _is_deploy)
+    if(_is_deploy EQUAL 0)
+      set(_kind "deploy")
+      string(REGEX REPLACE "^deploy/(.*)\\.json$" "\\1" _unit "${_R}")
+    else()
+      set(_kind "config")
+      string(REGEX REPLACE "\\.json$" "" _unit "${_R}")
+    endif()
 
-    # Collect fragments in tier order
-    set(_fragments "")
-    set(_fragment_labels "")
-    foreach(_tier
-        "config/common/${_R}|common"
-        "config/${_platform}/common/${_R}|${_platform}/common"
-        "config/${_platform}/${_arch}/${_R}|${_platform}/${_arch}")
-      string(REGEX REPLACE "\\|.*" "" _path "${_tier}")
-      string(REGEX REPLACE ".*\\|" "" _label "${_tier}")
+    # Count/track which tier fragments exist, for the zero-fragment and
+    # stray-fragment checks below - the merge itself is acpp_merge_unit's
+    # job now (cmake/acpp-config-merge.cmake), which walks the identical
+    # three tier paths on its own.
+    set(_nfrags 0)
+    foreach(_path
+        "config/common/${_R}"
+        "config/${_platform}/common/${_R}"
+        "config/${_platform}/${_arch}/${_R}")
       if(EXISTS "${ACPP_REPO_ROOT}/${_path}")
-        list(APPEND _fragments "${ACPP_REPO_ROOT}/${_path}")
-        list(APPEND _fragment_labels "${_label}")
+        math(EXPR _nfrags "${_nfrags} + 1")
         list(APPEND _contributed_fragments "${_path}")
       endif()
     endforeach()
-
-    list(LENGTH _fragments _nfrags)
     if(_nfrags EQUAL 0)
       message(FATAL_ERROR
         "${_platform}/${_arch}/${_R}: no fragments found for this golden")
     endif()
 
-    # Merge
-    if(_is_deploy EQUAL 0)
-      # Deploy manifest: concatenate arrays
-      set(_merged "{}")
-      foreach(_frag _flabel IN ZIP_LISTS _fragments _fragment_labels)
-        file(READ "${_frag}" _frag_text)
-        _merge_deploy(_merged "${_merged}" "${_frag_text}" "${_flabel}/${_R}")
-      endforeach()
-    else()
-      # Configuration file: union of members
-      set(_merged "{}")
-      foreach(_frag _flabel IN ZIP_LISTS _fragments _fragment_labels)
-        file(READ "${_frag}" _frag_text)
-        _merge_json_objects(_merged "${_merged}" "${_frag_text}" "${_flabel}/${_R}")
-      endforeach()
-    endif()
+    acpp_merge_unit("${_kind}" "${_platform}" "${_arch}" "${_unit}" _merged)
 
     # Compare semantically; a malformed fragment or golden fails loudly.
     string(JSON _equal EQUAL "${_golden_text}" "${_merged}")

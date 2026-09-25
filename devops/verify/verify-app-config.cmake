@@ -17,7 +17,9 @@
 #   (a) no fragment contains "{{";
 #   (b) every non-comment line matches ^ACPP_[A-Z0-9_]+=@[A-Z0-9_]+@$;
 #   (c) after concatenating every unit's fragments across the three tiers,
-#       no key appears twice.
+#       no key appears twice - proven by calling acpp_merge_all("app", ...)
+#       from the shared cmake/acpp-config-merge.cmake, which FATAL_ERRORs
+#       on exactly that; this harness no longer tracks keys itself.
 #
 # NOT done here: resolving every @VAR@ a fragment uses against the
 # options files with the standard stand-ins the other harnesses use, and
@@ -28,6 +30,7 @@
 # empty value apart from an unset one.
 
 get_filename_component(ACPP_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+include(${ACPP_REPO_ROOT}/cmake/acpp-config-merge.cmake)
 
 set(_platforms_archs
   linux    x86_64
@@ -59,7 +62,6 @@ foreach(_i RANGE 0 ${_pa_last} 2)
   endforeach()
   list(REMOVE_DUPLICATES _rels)
 
-  set(_seen_keys "")
   set(_nfrags_total 0)
 
   foreach(_R ${_rels})
@@ -107,17 +109,6 @@ foreach(_i RANGE 0 ${_pa_last} 2)
             message(FATAL_ERROR
               "${_tier}: line does not match ACPP_<NAME>=@CMAKE_VAR@: '${_line}'")
           endif()
-
-          # (c) no key appears twice across every unit/tier for this
-          # platform/arch - at install time they all land in one file.
-          string(REGEX REPLACE "=.*" "" _key "${_line}")
-          list(FIND _seen_keys "${_key}" _idx)
-          if(NOT _idx EQUAL -1)
-            message(FATAL_ERROR
-              "${_platform}/${_arch}: key ${_key} appears twice across "
-              "app-config fragments (duplicate at ${_tier})")
-          endif()
-          list(APPEND _seen_keys "${_key}")
         endforeach()
 
         if(NOT _saw_header)
@@ -126,6 +117,13 @@ foreach(_i RANGE 0 ${_pa_last} 2)
       endif()
     endforeach()
   endforeach()
+
+  # (c) No key appears twice across every unit's fragments, across every
+  # tier, for this platform/arch - at install time they all land in one
+  # file. acpp_merge_all FATAL_ERRORs on exactly that; its return value
+  # (the concatenated text) is not otherwise needed here, since there is
+  # no app-config golden to compare it against.
+  acpp_merge_all("app" "${_platform}" "${_arch}" _acpp_merged_app_text)
 
   message(STATUS
     "${_platform}/${_arch}: ${_nfrags_total} app-config fragment(s), no "
