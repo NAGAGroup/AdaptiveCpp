@@ -41,7 +41,9 @@
 # LLVM_DIR, OpenCL_LIBRARY, WITH_*_BACKEND - never named here, they belong to
 # discovery) and one install subdirectory, ACPP_<VENDOR>_SUBDIR. After
 # discovery and that one knob, everything else about the vendor is derived:
-# there is no per-resource -D override, in any strategy. A user of the
+# There is no per-resource -D override. Under managed there is one per
+# vendor root, ACPP_<VENDOR>_ROOT (see acpp_declare_vendor_root); full and
+# full-permissive-only take none for what they ship. A user of the
 # installed toolchain can still override any entry through the environment,
 # at the moment they use it - unchanged.
 #
@@ -253,14 +255,55 @@ endmacro()
 # it to use instead. Driver-only: nothing here is a two-sided resource,
 # because the root by itself names no file an application reads; its
 # subdirs (below) do that.
+#
+# Under managed, -DACPP_<STEM>_ROOT moves where a not-shipped vendor is
+# found: absolute is used as-is; relative is relative to the install
+# prefix ({{ acpp-root }}/<rel> for the driver, $ACPP_RT_LIB_DIR-relative
+# for the application config). ACPP_<STEM>_APP_ROOT is the application
+# side of the root; ACPP_<STEM>_DISCOVERED_ROOT stays what discovery found
+# (the install rules copy from it, and only for shipped vendors).
 macro(acpp_declare_vendor_root stem lower discovered_var discovered)
   acpp_require_discovered(${discovered_var})
   set(ACPP_${stem}_DISCOVERED_ROOT "${discovered}")
+  set(ACPP_${stem}_APP_ROOT "${discovered}")
+  if(DEFINED ACPP_${stem}_ROOT AND NOT "${ACPP_${stem}_ROOT}" STREQUAL "")
+    set(_acpp_override "${ACPP_${stem}_ROOT}")
+  else()
+    set(_acpp_override "")
+  endif()
   if(ACPP_${stem}_SHIPPED)
+    if(NOT "${_acpp_override}" STREQUAL "")
+      message(FATAL_ERROR
+        "ACPP_${stem}_ROOT moves where the ${lower} vendor unit is found, "
+        "which only applies to a vendor that is not shipped. Under "
+        "ACPP_DEPLOYMENT_STRATEGY=${ACPP_DEPLOYMENT_STRATEGY} ${lower} is "
+        "shipped into the toolchain, and a shipped vendor takes no override.")
+    endif()
     set(ACPP_${stem}_INSTALL_ROOT "{{ acpp-root }}/{{ ${lower}-subdir }}")
+  elseif(NOT "${_acpp_override}" STREQUAL "")
+    if("${_acpp_override}" MATCHES "\\{\\{|\\$")
+      message(FATAL_ERROR "ACPP_${stem}_ROOT must be a plain path, not a template ('${_acpp_override}').")
+    endif()
+    if(IS_ABSOLUTE "${_acpp_override}")
+      string(REGEX REPLACE "(.)/+$" "\\1" _acpp_override "${_acpp_override}")
+      set(ACPP_${stem}_INSTALL_ROOT "${_acpp_override}")
+      set(ACPP_${stem}_APP_ROOT "${_acpp_override}")
+    else()
+      string(REGEX REPLACE "^(\\./)+" "" _acpp_override "${_acpp_override}")
+      string(REGEX REPLACE "/+$" "" _acpp_override "${_acpp_override}")
+      set(ACPP_${stem}_INSTALL_ROOT "{{ acpp-root }}/${_acpp_override}")
+      acpp_relative_from_rt_libdir(_acpp_override_rel "${_acpp_override}")
+      if("${_acpp_override_rel}" STREQUAL "")
+        set(ACPP_${stem}_APP_ROOT "\$ACPP_RT_LIB_DIR")
+      else()
+        set(ACPP_${stem}_APP_ROOT "\$ACPP_RT_LIB_DIR/${_acpp_override_rel}")
+      endif()
+      unset(_acpp_override_rel)
+    endif()
   else()
     set(ACPP_${stem}_INSTALL_ROOT "${discovered}")
   endif()
+  unset(_acpp_override)
 endmacro()
 
 # Declare one vendor-relative subdir fact, "<lower>-<x>-subdir": always the
@@ -283,9 +326,10 @@ endmacro()
 # to the vendor subdir, plus this subdir fact - matching where the manifest's
 # copy rows actually deploy the vendor.
 #
-# NOT SHIPPED: the discovered root joined with this subdir fact directly -
-# an application run against a not-shipped vendor reaches the same absolute
-# location the driver did, because nothing else was put anywhere for it.
+# NOT SHIPPED: the application-side root (what discovery found, or
+# ACPP_<STEM>_ROOT) joined with this subdir fact directly - an application
+# run against a not-shipped vendor reaches the same location the driver
+# did, because nothing else was put anywhere for it.
 macro(acpp_declare_vendor_app_dir stem lower x)
   if(ACPP_${stem}_SHIPPED)
     acpp_relative_from_rt_libdir(_acpp_vendor_app_rel "${ACPP_${stem}_SUBDIR}")
@@ -299,7 +343,7 @@ macro(acpp_declare_vendor_app_dir stem lower x)
     unset(_acpp_vendor_app_rel)
   else()
     acpp_join_absolute(ACPP_APP_${stem}_${x}_DIR
-      "${ACPP_${stem}_DISCOVERED_ROOT}" "${ACPP_${stem}_${x}_SUBDIR}")
+      "${ACPP_${stem}_APP_ROOT}" "${ACPP_${stem}_${x}_SUBDIR}")
   endif()
 endmacro()
 
@@ -320,7 +364,7 @@ macro(acpp_declare_vendor_app_root stem lower)
     endif()
     unset(_acpp_vendor_app_rel)
   else()
-    set(ACPP_APP_${stem}_INSTALL_ROOT "${ACPP_${stem}_DISCOVERED_ROOT}")
+    set(ACPP_APP_${stem}_INSTALL_ROOT "${ACPP_${stem}_APP_ROOT}")
   endif()
 endmacro()
 
@@ -485,7 +529,7 @@ acpp_declare_vendor_root(LIBOMP libomp ACPP_LIBOMP_SOURCE_DIR "${ACPP_LIBOMP_SOU
 # ACPP_LIBOMP_SOURCE_DIR itself is still correct as-is for the root wiring
 # commit's install rule, which needs a real path to copy the SHIPPED case
 # from; only the not-shipped toolchain side is overridden here.
-if(NOT ACPP_LIBOMP_SHIPPED AND LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+if(NOT ACPP_LIBOMP_SHIPPED AND LLVM_ADAPTIVECPP_LINK_INTO_TOOLS AND "${ACPP_LIBOMP_ROOT}" STREQUAL "")
   set(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
 endif()
 
