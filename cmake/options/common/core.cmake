@@ -513,14 +513,43 @@ if(NOT DEFINED ACPP_JIT_HOST_OPT_FLAGS)
 endif()
 
 # ---------------------------------------------------------------------------
+# Upstream's -D names
+# ---------------------------------------------------------------------------
+#
+# A builder coming from upstream AdaptiveCpp sets these names; they feed the
+# options model's own ACPP_* values unless those are set too. The ACPP_*
+# name wins when both are given.
+foreach(_acpp_alias
+    "OMP_LINK_LINE:ACPP_OMP_LINK_LINE"
+    "OMP_CXX_FLAGS:ACPP_OMP_CXX_FLAGS"
+    "SEQUENTIAL_LINK_LINE:ACPP_SEQUENTIAL_LINK_LINE"
+    "SEQUENTIAL_CXX_FLAGS:ACPP_SEQUENTIAL_CXX_FLAGS"
+    "CUDA_LINK_LINE:ACPP_CUDA_LINK_LINE"
+    "CUDA_CXX_FLAGS:ACPP_CUDA_CXX_FLAGS"
+    "ROCM_LINK_LINE:ACPP_HIP_LINK_LINE"
+    "ROCM_CXX_FLAGS:ACPP_HIP_CXX_FLAGS")
+  string(REPLACE ":" ";" _acpp_alias_pair "${_acpp_alias}")
+  list(GET _acpp_alias_pair 0 _acpp_alias_from)
+  list(GET _acpp_alias_pair 1 _acpp_alias_to)
+  if(DEFINED ${_acpp_alias_from} AND NOT DEFINED ${_acpp_alias_to})
+    set(${_acpp_alias_to} "${${_acpp_alias_from}}")
+  endif()
+endforeach()
+unset(_acpp_alias)
+unset(_acpp_alias_pair)
+unset(_acpp_alias_from)
+unset(_acpp_alias_to)
+
+# ---------------------------------------------------------------------------
 # Driver behaviour - platform-independent defaults
 # ---------------------------------------------------------------------------
 
 if(NOT DEFINED ACPP_TARGETS)
   set(ACPP_TARGETS "${DEFAULT_TARGETS}")
 endif()
+# Upstream's SEQUENTIAL_CXX_FLAGS default.
 if(NOT DEFINED ACPP_SEQUENTIAL_CXX_FLAGS)
-  set(ACPP_SEQUENTIAL_CXX_FLAGS "")
+  set(ACPP_SEQUENTIAL_CXX_FLAGS "-D_ENABLE_EXTENDED_ALIGNED_STORAGE")
 endif()
 if(NOT DEFINED ACPP_DRYRUN)
   set(ACPP_DRYRUN "false")
