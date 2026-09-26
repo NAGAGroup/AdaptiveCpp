@@ -515,22 +515,17 @@ endif()
 acpp_declare_vendor(LIBOMP libomp permissive)
 acpp_declare_vendor_root(LIBOMP libomp ACPP_LIBOMP_SOURCE_DIR "${ACPP_LIBOMP_SOURCE_DIR}")
 
-# NOT SHIPPED normally means "a machine asset, named by its absolute
-# location" (acpp_declare_vendor_root's ordinary shape, kept above for
-# plugin mode). But in toolchain mode, not-shipped libomp is still OURS -
-# built by this same build, not discovered on some machine - so baking
-# ACPP_LIBOMP_SOURCE_DIR's absolute ${CMAKE_INSTALL_PREFIX} into the
-# toolchain config here would be wrong, for the same reason rule 1 keeps
-# every owned resource's toolchain side a deploy-layout placeholder rather
-# than a resolved path: the config has to keep meaning the same thing after the
-# toolchain is copied or reinstalled elsewhere. The deploy-layout
-# placeholder says the same thing those do - wherever this LLVM's own
-# libdir ends up - without freezing today's prefix into it. The absolute
-# ACPP_LIBOMP_SOURCE_DIR itself is still correct as-is for the root wiring
-# commit's install rule, which needs a real path to copy the SHIPPED case
-# from; only the not-shipped toolchain side is overridden here.
-if(NOT ACPP_LIBOMP_SHIPPED AND LLVM_ADAPTIVECPP_LINK_INTO_TOOLS AND "${ACPP_LIBOMP_ROOT}" STREQUAL "")
-  set(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
+# In toolchain mode libomp is ours: LLVM's own install puts it into this
+# same prefix (the DLL in bindir on Windows), so the toolchain config
+# points there in every strategy and nothing is copied at install time.
+# Under full, --acpp-deploy still copies it from there into libomp-subdir,
+# where deployed binaries' rpaths and the Windows app config look for it.
+if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS AND "${ACPP_LIBOMP_ROOT}" STREQUAL "")
+  if(WIN32)
+    set(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-bindir }}")
+  else()
+    set(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
+  endif()
 endif()
 
 # ---------------------------------------------------------------------------

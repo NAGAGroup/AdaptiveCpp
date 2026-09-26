@@ -171,7 +171,7 @@ expect_eq(ACPP_APP_SVML_INSTALL_ROOT "")
 # Driver-only resources and behaviour. cpu-cxx is ours in toolchain mode
 # (rule 1): the same placeholder as the device compiler, unconditional. The
 # compiler plugin exists as a deployable file only in the plugin build.
-expect_eq(ACPP_CPU_CXX "{{ acpp-root }}/bin/clang++")
+expect_eq(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++")
 expect_unset(ACPP_PLUGIN_PATH)
 expect_eq(ACPP_JIT_HOST_LLC_CPU_FLAG "-mcpu=native")
 expect_eq(ACPP_JIT_HOST_OPT_CPU_FLAG "--mcpu=native")

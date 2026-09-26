@@ -35,7 +35,7 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # No {{ acpp-bindir }} entry exists on this platform (only Windows names
   # one): CMAKE_INSTALL_BINDIR is "bin" everywhere cmake's own GNU install
   # dirs apply, so the segment is written literally.
-  acpp_declare_owned_resource(DEVICE_CMPLR "bin/clang++")
+  acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++")
   acpp_declare_owned_resource(LLC "bin/llc")
   acpp_declare_owned_resource(OPT "bin/opt")
   # The host JIT links Mach-O with ld64.lld.
@@ -71,7 +71,7 @@ acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-
 # strategy, decides its shape; see linux/common/core.cmake's comment,
 # unchanged here.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  set(ACPP_CPU_CXX "{{ acpp-root }}/bin/clang++")
+  set(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++")
 else()
   set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
 endif()

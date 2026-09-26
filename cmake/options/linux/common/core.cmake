@@ -50,7 +50,7 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # one): CMAKE_INSTALL_BINDIR is "bin" everywhere cmake's own GNU install
   # dirs apply, unlike the libdir, which varies (lib64, multiarch), so the
   # segment is written literally.
-  acpp_declare_owned_resource(DEVICE_CMPLR "bin/clang++")
+  acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++")
   acpp_declare_owned_resource(LLC "bin/llc")
   acpp_declare_owned_resource(OPT "bin/opt")
   acpp_declare_owned_resource(LLD "bin/ld.lld")
@@ -100,7 +100,7 @@ acpp_declare_vendor_app_root(AMATH amath)
 # with, absolute, in every strategy, overridable only by reconfiguring with
 # a different CMAKE_CXX_COMPILER - not by a strategy choice.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  set(ACPP_CPU_CXX "{{ acpp-root }}/bin/clang++")
+  set(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++")
 else()
   set(ACPP_CPU_CXX "${CMAKE_CXX_COMPILER}")
 endif()
