@@ -118,11 +118,25 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 ##### CMake options to configure the AdaptiveCpp build
 
 ###### General
-*  `-DCMAKE_CXX_COMPILER` should be pointed to the C++ compiler to compile AdaptiveCpp with. Note that this also sets the default C++ compiler for the CPU backend when using acpp once AdaptiveCpp is installed. This can however also be modified later using `HIPSYCL_CPU_CXX`.
+*  `-DCMAKE_CXX_COMPILER` should be pointed to the C++ compiler to compile AdaptiveCpp with. Note that this also sets the default C++ compiler for the CPU backend when using acpp once AdaptiveCpp is installed (in toolchain mode, the default is instead the toolchain's own `clang++`). This can be changed later with `--acpp-cpu-cxx` or the `ACPP_CPU_CXX` environment variable.
 * `-DACPP_COMPILER_FEATURE_PROFILE` can be used to configure the desired degree of compiler support. Supported values:
     * `full` (default and recommended): Enables all AdaptiveCpp features, requires a compatible LLVM installation as described [here](install-llvm.md). This is recommended for both functionality and performance.
     * `minimal`: Only enables the older interoperability-focused compilation flows for CUDA and HIP (`--acpp-targets=cuda` and `--acpp-targets=hip`). No OpenCL or Level Zero support, no C++ standard parallelism offloading support, no generic JIT compiler (`generic` target), no compiler acceleration for SYCL constructs on CPU device. **Should only be selected in specific circumstances.**
     * `none`: Disables all compiler support and dependencies on LLVM. In addition to `minimal`, also disables the support for `--acpp-targets=cuda` and `--acpp-targets=hip`. In this mode, AdaptiveCpp operates purely as a library for third-party compilers. **Should only be selected in specific circumstances.**
+
+###### Backends, deployment and relocation
+
+* Backends are enabled automatically when their dependencies are found (`-DWITH_<X>_BACKEND=ON/OFF` overrides this). OpenCL and Level Zero additionally need the generic SSCP compiler; Vulkan and Metal are opt-in and need to be requested explicitly.
+* `-DACPP_DEPLOYMENT_STRATEGY=managed|full|full-permissive-only` controls how the toolchain treats the vendor runtimes it uses:
+    * `managed` (default): an ordinary CMake project - vendor runtimes are used where they are found, and nothing is copied.
+    * `full`: the toolchain ships the vendor runtimes it uses into its own tree, and `acpp --acpp-deploy` becomes available.
+    * `full-permissive-only`: the same, but only for vendors that need no licence decision.
+* `-DACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN=ON` is required for `full` to ship CUDA, the HPC SDK runtime, SVML or AMATH.
+* `-DACPP_<VENDOR>_SUBDIR` sets where a shipped vendor is installed, relative to the install root (empty installs it straight at the root).
+* `-DACPP_<VENDOR>_ROOT` (under `managed`) sets where a vendor is found, either an absolute path or one relative to the install prefix.
+* Install directories follow CMake's `GNUInstallDirs` (`CMAKE_INSTALL_LIBDIR` etc.), and nothing about the build machine's own paths is recorded in the installed binaries, so an install can be moved afterwards.
+
+See [the configuration model](configuration-model.md) for the details.
 
 ###### generic
 
@@ -244,4 +258,6 @@ To enable support for the generic JIT compiler, you may want to refer to the [2-
 ## Installation from source (Windows)
 
 Windows, via `omp.accelerated` and `generic` compilation flows, is only supported when [building AdaptiveCpp as part of LLVM](#building-an-llvm-toolchain-with-adaptivecpp-linked-in-experimental-but-also-for-windows) (see above). Supported backends and devices on Windows include OpenMP (host CPU), CUDA (NVIDIA GPUs), HIP (AMD GPUs) and OpenCL (Intel GPUs).
+
+HIP on Windows uses AMD's HIP SDK (x86_64), found through its CMake package; set `-DROCM_PATH` or `-Dhip_ROOT` to the SDK root if it is not found automatically.
 

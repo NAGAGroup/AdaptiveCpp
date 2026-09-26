@@ -11,6 +11,7 @@ If you use a very recent CUDA version, you might get a warning when compiling wi
 CMake variables:
 
 * `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda` to point AdaptiveCpp to the CUDA root installation directory (e.g. `/usr/local/cuda`), if cmake doesn't find the right CUDA installation.
+* `-DCUDAToolkit_ROOT=/path/to/cuda` works as well (CMake's own name).
 * `-DWITH_CUDA_BACKEND=ON` if AdaptiveCpp does not automatically enable the CUDA backend 
 
 ## If using nvc++

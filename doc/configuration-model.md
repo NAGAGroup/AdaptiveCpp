@@ -344,7 +344,7 @@ no-op unless `ACPP_<STEM>_SHIPPED`. The calls live in
 x86_64-only arch delta on Linux), written by hand rather than derived
 from the deploy manifest: the manifest is drive-time configuration a
 downstream toolchain user is allowed to edit (swap libomp for GOMP,
-repoint a vendor path), and packaging must never derive from something a
+repoint a vendor path), and packaging should not derive from something a
 user can change.
 
 **A vendor's install file lists both kinds of thing.** Drive-only

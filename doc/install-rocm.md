@@ -26,5 +26,9 @@ Instead of building AdaptiveCpp against a regular clang/LLVM, it is also possibl
 ## CMake variables:
 
 * `-DROCM_PATH=/path/to/rocm` (default: /opt/rocm)
+* `-Dhip_ROOT=/path/to/rocm` (equivalent)
 * `-DWITH_ROCM_BACKEND=ON` if AdaptiveCpp does not automatically enable the ROCm backend 
+* `-DROCM_DEVICE_LIBS_PATH=/path/containing/ockl.bc` overrides where the device bitcode is found.
+
+Supported layouts: classic ROCm (`/opt/rocm`, bitcode under `amdgcn/bitcode`), ROCm 7.2 and later (bitcode inside the ROCm clang's own resource directory), and TheRock. On Windows, AMD's HIP SDK (x86_64).
 

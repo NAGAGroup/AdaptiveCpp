@@ -86,6 +86,8 @@ Note that this can still lead to multiple JIT compilation dumps, e.g. if Adaptiv
 
 All environment variables for the runtime (not JIT compiler) can also be set in a configuration file. This configuration file must be placed in the same directory as your program.
 
+The installed toolchain also carries an application config, `etc/AdaptiveCpp/acpp-app.cfg` (found relative to the runtime library; copied into a deployment by `acpp --acpp-deploy`). It is read first and holds the toolchain's JIT settings (e.g. `ACPP_LLC`, `ACPP_OPT`, `ACPP_LLD`, `ACPP_LLVMSPIRV`, `ACPP_CLANG`, `ACPP_CLANG_INCLUDE_PATH`, `ACPP_CUDA_LIBDEVICE_DIR`, `ACPP_HIP_DEVICE_LIBS_DIR`, `ACPP_CLSPV`, the `ACPP_JIT_HOST_*` flags, `ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY`, `ACPP_SLEEF_DIR`/`ACPP_AMATH_DIR`/`ACPP_SVML_DIR`, and on Windows the `ACPP_<VENDOR>_DLL_DIR` entries). The files below, placed beside your program, are read after it and override it.
+
 1. First, AdaptiveCpp will attempt to read `acpp-config.cfg`.
 2. Next, it reads `acpp-config-<app-name>.cfg`, where `app-name` is the full filename of your program (including file extension if you are on a platform that uses an extension for programs). If some variable was already set from `acpp-config.cfg`, it will be overwritten.
 
