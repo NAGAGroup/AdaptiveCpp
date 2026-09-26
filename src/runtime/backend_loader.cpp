@@ -13,6 +13,7 @@
 #include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/common/filesystem.hpp"
+#include "hipSYCL/common/settings.hpp"
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
@@ -110,6 +111,23 @@ std::vector<fs::path> get_plugin_search_paths()
 #endif
     paths.emplace_back(fs::path(install_dir) / ACPP_BACKEND_LIB_FOLDER / "hipSYCL");
   }
+
+#ifdef _WIN32
+  // Shipped vendors' DLLs (and, in toolchain mode, libomp.dll) do not
+  // necessarily live beside this library or under the install prefix - the
+  // app config says where (config/windows/common/app/*.cfg's
+  // ACPP_<VENDOR>_DLL_DIR rows), so each is registered here too, before any
+  // backend plugin - and the vendor DLLs it transitively loads - is opened
+  // below.
+  for(const char* setting_name :
+      {"cuda_dll_dir", "ocl_dll_dir", "ze_dll_dir", "libomp_dll_dir"}) {
+    std::string dll_dir;
+    if(hipsycl::common::settings::try_retrieve_settings_variable(setting_name, dll_dir) &&
+       !dll_dir.empty() && fs::is_directory(dll_dir)) {
+      AddDllDirectory(fs::path{dll_dir}.c_str());
+    }
+  }
+#endif
 
   const auto install_prefixed_path = fs::path{HIPSYCL_INSTALL_PREFIX} / ACPP_BACKEND_LIB_FOLDER / "hipSYCL";
 

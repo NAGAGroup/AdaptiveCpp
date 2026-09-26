@@ -147,6 +147,39 @@ resolves to a bare `"/lib"`; it exists purely as a defensive last resort
 for a lookup failure this codebase does not otherwise expect to hit, not a
 mechanism anything is designed to rely on.
 
+**Commit 4, step 4c**: Windows has no RUNPATH, so a shipped vendor's DLL
+(CUDA, OpenCL, Level Zero, and - toolchain mode only - libomp) can land
+anywhere the publisher's deploy layout puts it, outside both this
+library's own directory and the install prefix `get_plugin_search_paths()`
+already covers. `backend_loader.cpp`'s `get_plugin_search_paths()` (the
+same `#ifdef _WIN32` block that already calls `AddDllDirectory` for this
+library's own directory and the install directory) now does the same for
+each vendor's app-config-declared directory: settings `"cuda_dll_dir"`,
+`"ocl_dll_dir"`, `"ze_dll_dir"`, `"libomp_dll_dir"`, read via
+`common::settings::try_retrieve_settings_variable`, `AddDllDirectory`'d
+when non-empty and an existing directory - reading
+`ACPP_CUDA_DLL_DIR`/`ACPP_OCL_DLL_DIR`/`ACPP_ZE_DLL_DIR`/
+`ACPP_LIBOMP_DLL_DIR` from the same installed app config 4a wired up
+(`config/windows/common/app/{cuda,ocl,ze,core}.cfg`; `libomp_dll_dir` was
+new this step, added to `core.cfg` alongside the LLC/OPT/LLD/LLVMSPIRV
+rows, since `cmake/options/windows/common/core.cmake` still declares
+`ACPP_APP_LIBOMP_INSTALL_ROOT` unconditionally for exactly this reason).
+This is additive only - `cuda.cfg`/`ocl.cfg`/`ze.cfg` already carried
+their `ACPP_*_DLL_DIR` rows from the deploy-manifest work, so only
+`core.cfg`'s new row and the C++ read are this step's change.
+
+Whether these `AddDllDirectory` entries are actually honoured was checked,
+not assumed: `src/common/dylib_loader.cpp`'s `load_library` calls
+`LoadLibraryExA(..., LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)` first (falling
+back to a flagless `LoadLibraryA` only if that fails) -
+`LOAD_LIBRARY_SEARCH_DEFAULT_DIRS` is documented by Win32 to include the
+process's `AddDllDirectory` list, with no `SetDefaultDllDirectories` call
+needed to opt in (that call only matters if you want to *change* the
+default set of search dirs `LOAD_LIBRARY_SEARCH_DEFAULT_DIRS` means -
+unneeded here). So the flags already in place honour every
+`AddDllDirectory` call added this step, upstream's own two calls
+included; nothing about the loading flags was changed.
+
 ### The driver's fixpoint resolver
 
 The `{{ key }}` fixpoint resolver described in the configuration model does
