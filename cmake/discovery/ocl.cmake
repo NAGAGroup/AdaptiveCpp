@@ -27,13 +27,16 @@ endif()
 
 find_package(OpenCL 2.1 QUIET)
 
+# Probing happens first, into locals: found-but-incomplete (on Windows, the
+# import library found but OpenCL.dll missing) must not FATAL_ERROR now
+# that discovery runs unconditionally - it warns and the export below
+# lands in the same not-found state as the loader not being found at all.
+# Explicitly requesting the backend still fails, from the root's own check.
+set(_acpp_ocl_usable OFF)
 if(OpenCL_FOUND AND OpenCL_LIBRARY AND NOT "${OpenCL_LIBRARY}" MATCHES "-NOTFOUND$")
-  set(ACPP_DISCOVERED_OCL_FOUND ON)
-
   # find_package answers with the dev symlink; the real file is what deploy
   # copies and what SHARED_LIB: resolves to.
   get_filename_component(_acpp_ocl_real "${OpenCL_LIBRARY}" REALPATH)
-  set(ACPP_DISCOVERED_OCL_LOADER "${_acpp_ocl_real}")
   get_filename_component(_acpp_ocl_libdir "${_acpp_ocl_real}" DIRECTORY)
 
   # On Windows find_package answers with the import library; the DLL is
@@ -47,10 +50,23 @@ if(OpenCL_FOUND AND OpenCL_LIBRARY AND NOT "${OpenCL_LIBRARY}" MATCHES "-NOTFOUN
     find_file(ACPP_OCL_LOADER_DLL NAMES OpenCL.dll
       HINTS "${_acpp_ocl_hint}/bin" NO_DEFAULT_PATH)
     if(NOT ACPP_OCL_LOADER_DLL OR "${ACPP_OCL_LOADER_DLL}" MATCHES "-NOTFOUND$")
-      message(FATAL_ERROR
+      message(WARNING
         "OpenCL import library found at ${OpenCL_LIBRARY} but "
-        "OpenCL.dll was not found in ${_acpp_ocl_hint}/bin")
+        "OpenCL.dll was not found in ${_acpp_ocl_hint}/bin. OpenCL "
+        "support is disabled.")
+    else()
+      set(_acpp_ocl_usable ON)
     endif()
+  else()
+    set(_acpp_ocl_usable ON)
+  endif()
+endif()
+
+if(_acpp_ocl_usable)
+  set(ACPP_DISCOVERED_OCL_FOUND ON)
+  set(ACPP_DISCOVERED_OCL_LOADER "${_acpp_ocl_real}")
+
+  if(WIN32)
     get_filename_component(_acpp_ocl_dlldir "${ACPP_OCL_LOADER_DLL}" DIRECTORY)
 
     acpp_common_ancestor(ACPP_DISCOVERED_OCL_PREFIX
