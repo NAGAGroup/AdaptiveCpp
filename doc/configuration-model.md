@@ -279,3 +279,93 @@ loader falls back to `PATH`.
 **macOS** uses `@loader_path` everywhere `$ORIGIN` appears on Linux, both
 in our own binaries' RUNPATH and in a vendor's rpath entry
 (`acpp_vendor_rpath_entry` branches on `APPLE`).
+
+## Vendor install rules under full
+
+Under `full` or `full-permissive-only`, a shipped vendor is copied at
+`cmake --install` time by `cmake/acpp-vendor-install.cmake`'s three
+helpers - `acpp_install_vendor_libs` (named shared libraries, whole
+symlink chain preserved via `FOLLOW_SYMLINK_CHAIN`),
+`acpp_install_vendor_files` (plain `FILES`/executable `PROGRAMS`),
+`acpp_install_vendor_dir` (a whole directory's contents) - every one a
+no-op unless `ACPP_<STEM>_SHIPPED`. The calls live in
+`cmake/install/<platform>/common/<unit>.cmake` (plus
+`cmake/install/<platform>/<arch>/core.cmake` for core, since SVML is an
+x86_64-only arch delta on Linux), written by hand rather than derived
+from the deploy manifest: the manifest is drive-time configuration a
+downstream toolchain user is allowed to edit (swap libomp for GOMP,
+repoint a vendor path), and packaging must never derive from something a
+user can change.
+
+**A vendor's install file lists both kinds of thing.** Toolchain-only
+pieces the manifest never deploys - needed to drive compilation, not
+opened by a running application - and everything the manifest also
+deploys with an application. The toolchain-only pieces, as things stand:
+CUDA's whole include tree and its `ptxas`/`fatbinary` tools (both
+platforms), Windows CUDA's `cudart.lib` import library, and HIP's whole
+include tree (needed only by the generic `clangJitLink` path when hipRTC
+is not linked). Everything else an install file names - CUDA's
+`libcudart`/`cudart64_<major>.dll` and `libdevice.10.bc`, HIP's seven
+runtime libraries plus its `rocm_sysdeps` and device-bitcode directories,
+the HPC SDK's whole `REDIST` runtime directory, the OpenCL and Level Zero
+loaders, the Vulkan loader (and, on macOS, MoltenVK), `clspv`'s
+executable, libomp, and (on Linux) SLEEF/AMATH/libnuma/SVML - is also a
+manifest row.
+
+**A symlink chain is preserved, not just the file a name resolves to.**
+`acpp_install_vendor_libs`'s resolver (`_acpp_resolve_vendor_lib_files`)
+globs every `lib<name>.so*`/`lib<name>*.dylib` in the source directory
+(the single `<name>.dll`/`lib<name>.dll` on Windows, which has no chain),
+and `file(INSTALL ... FOLLOW_SYMLINK_CHAIN)` copies the whole chain
+starting from the shortest name - the unversioned link, the soname link,
+the real versioned file - so a shipped library's `DT_NEEDED` soname still
+resolves after copying, exactly as it did in the vendor's own tree.
+
+**The sync harness** (`devops/verify/verify-install-sync.cmake`) keeps
+the install files and the manifest from silently drifting apart, without
+deriving either from the other: it text-parses every
+`acpp_install_vendor_*` call and every manifest row, normalizes both
+sides' tokens (a manifest's `{{ x-y-subdir }}`/`{{ libomp-name }}` and an
+install call's `${ACPP_X_Y_SUBDIR}`/`${ACPP_LIBOMP_NAME}`) to one
+canonical form, and requires every row to be covered by a call - deriving
+which cmake stem and lowercase name belongs to which unit from the
+options files' own `acpp_declare_vendor` calls, not a hand-written table.
+An install call no row ever claims is printed, not failed: that is
+exactly the toolchain-only list above.
+
+## Driving
+
+The driver (`bin/acpp`) loads `acpp-toolchain.json` from `etc/AdaptiveCpp`
+beside its own installation (or `--acpp-config-file-dir`/
+`ACPP_CONFIG_FILE_DIR`, for an alternate location) into a `config_db`,
+resolving `{{ }}` references recursively - a referenced key is
+substituted with its own resolved value, so a chain of any length
+resolves in one top-level call, and a cycle is a runtime error naming the
+key. Every entry can be overridden: each has a command-line flag and an
+environment variable (`option`'s three-way binding: commandline,
+environment, config_db key) that both take precedence over the installed
+value.
+
+**The CLI driver never adds rpaths by itself.** Someone driving `acpp` by
+hand, outside CMake, owns their own link. A multipass backend's link line
+therefore carries only `-L`/`-l` - `ACPP_CUDA_LINK_LINE` is
+`-L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart`,
+`ACPP_HIP_LINK_LINE` is the same shape for `amdhip64` - and
+`ACPP_NVCXX_LINK_LINE` is empty by default: nvc++ links its own way, and
+neither an rpath nor an `-Mnorpath` override to suppress one belongs to a
+link line the driver contributes on the application's behalf.
+
+**A CMake application gets its rpath from `add_sycl_to_target` instead.**
+Under `full`/`full-permissive-only`, the installed CMake package bakes
+`ACPP_APP_INSTALL_RPATH` (an overridable cache variable, computed once at
+the toolchain's own configure/install time by `acpp_app_install_rpath`) -
+`$ORIGIN/../<libdir>` plus one `acpp_vendor_rpath_entry` per vendor
+`add_sycl_to_target` covers (`CUDA:RT`, `NVHPC:RT`, `LIBOMP`, each only if
+that vendor is even declared and only a non-empty entry) - and appends it
+to the target's `INSTALL_RPATH` property. This assumes the executable
+installs to `<prefix>/<CMAKE_INSTALL_BINDIR>`, since the deploy tree
+mirrors the install tree (see "Deploying"); a project installing its
+executables elsewhere overrides the variable itself. Empty, and
+appending nothing, under `managed` (an ordinary CMake project's own
+rpath choices are none of the toolchain's business) and on Windows (no
+RPATH there at all - see "Linked vs consumed").
