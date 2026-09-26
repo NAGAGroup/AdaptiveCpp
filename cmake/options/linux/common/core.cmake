@@ -46,14 +46,12 @@ acpp_declare_vendor_root(LIBNUMA libnuma ACPP_DISCOVERED_LIBNUMA_DIR "${ACPP_DIS
 # found no plugin to build (decision d).
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  # No {{ acpp-bindir }} entry exists on this platform (only Windows names
-  # one): CMAKE_INSTALL_BINDIR is "bin" everywhere cmake's own GNU install
-  # dirs apply, unlike the libdir, which varies (lib64, multiarch), so the
-  # segment is written literally.
+  # Toolchain mode's own LLVM tools live in CMAKE_INSTALL_BINDIR under the
+  # prefix, like everything else this build installs.
   acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++")
-  acpp_declare_owned_resource(LLC "bin/llc")
-  acpp_declare_owned_resource(OPT "bin/opt")
-  acpp_declare_owned_resource(LLD "bin/ld.lld")
+  acpp_declare_owned_resource(LLC "${CMAKE_INSTALL_BINDIR}/llc")
+  acpp_declare_owned_resource(OPT "${CMAKE_INSTALL_BINDIR}/opt")
+  acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/ld.lld")
   # clang's resource include directory. The JIT's HIP compilation needs it,
   # so it has two sides like the compiler itself. Concrete now, not a {{ }}
   # template: acpp_declare_owned_resource's application side is written by

@@ -32,14 +32,13 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # linux/common/core.cmake's comment, unchanged here.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  # No {{ acpp-bindir }} entry exists on this platform (only Windows names
-  # one): CMAKE_INSTALL_BINDIR is "bin" everywhere cmake's own GNU install
-  # dirs apply, so the segment is written literally.
+  # Toolchain mode's own LLVM tools live in CMAKE_INSTALL_BINDIR under the
+  # prefix, like everything else this build installs.
   acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++")
-  acpp_declare_owned_resource(LLC "bin/llc")
-  acpp_declare_owned_resource(OPT "bin/opt")
+  acpp_declare_owned_resource(LLC "${CMAKE_INSTALL_BINDIR}/llc")
+  acpp_declare_owned_resource(OPT "${CMAKE_INSTALL_BINDIR}/opt")
   # The host JIT links Mach-O with ld64.lld.
-  acpp_declare_owned_resource(LLD "bin/ld64.lld")
+  acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/ld64.lld")
   # clang's resource include directory. The JIT's HIP compilation needs it,
   # so it has two sides like the compiler itself. Concrete now, not a {{ }}
   # template: acpp_declare_owned_resource's application side is written by
