@@ -369,3 +369,93 @@ executables elsewhere overrides the variable itself. Empty, and
 appending nothing, under `managed` (an ordinary CMake project's own
 rpath choices are none of the toolchain's business) and on Windows (no
 RPATH there at all - see "Linked vs consumed").
+
+## Deploying
+
+`acpp --acpp-deploy` only works against a toolchain built `full` or
+`full-permissive-only` - against `managed`, or when no `acpp-deploy.json`
+was installed at all, `run_deployment` prints the exact message
+`acpp: deployment requires a toolchain built with the full or
+full-permissive-only strategy` to stderr and exits 1. No partial
+behaviour.
+
+**`{{ acpp-runtime-root }}`** is the one token only a deploy invocation
+resolves, to the absolute target path it was given
+(`os.path.abspath(target_path)`) - every other `{{ }}` in a manifest row
+resolves against the installed toolchain config exactly as the driver
+would resolve it elsewhere, read fresh at deploy time, so editing the
+installed configuration between builds changes deploy behaviour with no
+reinstall.
+
+**Which groups deploy** depends on the strategy actually driving the
+deployment (the installed `deployment-strategy` value, which a toolchain
+user may have changed since the toolchain was built): `internal` and
+`llvm` always (rule 1 - what was built is always deployed);
+`external-permissive` always; `external-nonpermissive` only when the
+strategy is `full` (never under `full-permissive-only`, exactly the
+per-vendor shipped rule's own table). Every row in a deployed group is
+copied - `SHARED_LIB:<name>` resolves to the platform's shared-library
+filename, `*` copies every file in the source directory, anything else
+copies by that literal name - and a shared library that is itself a
+symlink deploys its whole chain the same way the install step preserved
+it. A missing source file or directory is a warning, not a failure:
+deployment continues, and every miss is listed at the end.
+
+**The application config copies with its own rule**, separate from the
+manifest's rows: absent at the deploy target → copy; present and
+byte-identical → skip (`  <src> -> (already present, identical)
+<dest>`); present and different → fail loud (`acpp: deployment target
+already has an application config that differs from the installed one:
+... refusing to overwrite it.`, exit 1) rather than silently keep a stale
+one, since a deployed application trusts this file completely and a
+stale mismatch is exactly the failure mode worth refusing outright.
+Absent at the *install* (no installed configuration directory, or no
+`acpp-app.cfg` inside it) is a warning only: deployment still ships
+everything else.
+
+**The deploy tree mirrors the install tree.** Every `dest` is
+`{{ acpp-runtime-root }}` plus the same relative path a fragment's
+`src`/`dest` composes elsewhere (`{{ acpp-libdir }}`, a vendor's own
+subdir) - the same layout the toolchain itself has under its own install
+prefix, just rooted at the deployment target instead. This is what makes
+`add_sycl_to_target`'s `<prefix>/bin`-relative rpath assumption (see
+"Driving") correct for a deployed application too, without a separate
+deploy-specific rpath computation.
+
+**The component list is ignored.** `--acpp-deploy`'s legacy component
+selection (`core`, `all`, or a named component) is accepted for
+compatibility only; any other value prints a warning
+(`--acpp-deploy's component selection (...) is accepted for compatibility
+only; the installed manifest is merged and deployed as a whole.`) and
+changes nothing - there is one installed manifest, merged from whichever
+units the toolchain build enabled, and it deploys as a whole.
+
+## The per-vendor sweep
+
+Linked means the runtime's own `DT_NEEDED` (or the Windows DLL search);
+consumed means opened by path, read from an `acpp-app.cfg` key. Shipped
+follows the strategy table under "The two strategies".
+
+| unit | category | linked | consumed (app-config key) | toolchain-only |
+|---|---|---|---|---|
+| CUDA | nonpermissive | `rt-backend-cuda` → `cudart` (`cudart64_<major>.dll` on Windows) | `libdevice.10.bc` (`ACPP_CUDA_LIBDEVICE_DIR`) | include tree, `ptxas`/`fatbinary`; Windows `cudart.lib` |
+| nvhpc | nonpermissive | nothing of ours; a `cuda-nvcxx` app links the HPC SDK `REDIST` runtime itself, through `nvc++` | - | - (whole `REDIST` dir ships; `nvc++` itself is never in the tree) |
+| HIP | permissive | `rt-backend-hip` → 7 runtime libs (`amdhip64`, `hsa-runtime64`, `amd_comgr`, `hiprtc`, `hiprtc-builtins`, `rocprofiler-register`, `rocm-core`) + `rocm_sysdeps`; `llvm-to-amdgpu` → `hiprtc` optionally | device bitcode dir (`ACPP_HIP_BITCODE_DIR`) | whole include tree (generic `clangJitLink` path, only when hipRTC not linked) |
+| OpenCL | permissive | `rt-backend-ocl` → the ICD loader | - | - (loader-only; the ICD itself is never shipped) |
+| Level Zero | permissive | `rt-backend-ze` → `ze_loader` | - | - (loader-only; headers are build-only) |
+| Vulkan | permissive | `rt-backend-vk` → the Vulkan loader (+ MoltenVK on macOS) | - | - (nothing ships on Windows at all: `vulkan-1.dll` is the system's) |
+| clspv | permissive | not linked - a two-sided executable resource the JIT invokes (`ACPP_TOOLCHAIN_CLSPV`/`ACPP_APP_CLSPV`) | the executable path itself (`ACPP_CLSPV`) | - |
+| OMP / libomp | permissive | `rt-backend-omp` → `ACPP_LIBOMP_NAME` (default `omp`); also linked directly into `omp.*`-flavour applications | - | - |
+| libnuma | permissive | `rt-backend-omp` → `numa` | - | - |
+| sleef / amath | permissive | not linked | host JIT's vector-math directory (`ACPP_SLEEF_DIR`/`ACPP_AMATH_DIR`) | - (found only off x86_64 on Linux; a no-op elsewhere) |
+| SVML (+ intlc) | permissive in the tree as it stands | not linked | host JIT's vector-math directory (shares SLEEF/AMATH's app-config shape) | - (x86_64-only; one manifest row and one install call name both `svml` and `intlc`) |
+| Metal | n/a - no vendor unit | the system Metal framework, at the runtime's own run time | - | - (`metal-cpp` is a build-only discovery requirement, never a row) |
+
+A short note on SVML's category: the design discussion flagged it as
+needing a check against Intel's redistribution terms before
+implementation ("svml's category ... is to be checked against Intel's
+license during implementation"). The tree as it stands declares it
+permissive, the same as every other vendor unit here
+(`acpp_declare_vendor(SVML svml permissive)`), with nothing recording
+that check having actually happened - described above as the code has
+it, not as settled.
