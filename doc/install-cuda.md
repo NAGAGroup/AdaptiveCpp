@@ -13,6 +13,7 @@ CMake variables:
 * `-DCUDA_TOOLKIT_ROOT_DIR=/path/to/cuda` to point AdaptiveCpp to the CUDA root installation directory (e.g. `/usr/local/cuda`), if cmake doesn't find the right CUDA installation.
 * `-DCUDAToolkit_ROOT=/path/to/cuda` works as well (CMake's own name).
 * `-DWITH_CUDA_BACKEND=ON` if AdaptiveCpp does not automatically enable the CUDA backend 
+* `-DCUDA_DEVICE_LIBS_PATH=/path/containing/libdevice.10.bc` if the CUDA device bitcode is not under the toolkit's `nvvm/libdevice`
 
 ## If using nvc++
 

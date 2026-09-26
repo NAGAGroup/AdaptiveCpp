@@ -22,17 +22,25 @@ set(_acpp_cuda_usable OFF)
 if(CUDAToolkit_FOUND)
   list(GET CUDAToolkit_INCLUDE_DIRS 0 _acpp_cuda_incdir)
 
-  # libdevice: the generic JIT cannot target CUDA without it. The toolkit's
-  # own root is a search hint here, not an asserted prefix - the common
-  # ancestor below is what the prefix actually becomes.
-  set(_acpp_cuda_libdevice_dir "${CUDAToolkit_LIBRARY_ROOT}/nvvm/libdevice")
+  # Upstream's -DCUDA_DEVICE_LIBS_PATH, honoured first, like
+  # ROCM_DEVICE_LIBS_PATH for HIP.
+  if(DEFINED CUDA_DEVICE_LIBS_PATH AND NOT "${CUDA_DEVICE_LIBS_PATH}" STREQUAL ""
+      AND EXISTS "${CUDA_DEVICE_LIBS_PATH}/libdevice.10.bc")
+    set(_acpp_cuda_libdevice_dir "${CUDA_DEVICE_LIBS_PATH}")
+  else()
+    # libdevice: the generic JIT cannot target CUDA without it. The toolkit's
+    # own root is a search hint here, not an asserted prefix - the common
+    # ancestor below is what the prefix actually becomes.
+    set(_acpp_cuda_libdevice_dir "${CUDAToolkit_LIBRARY_ROOT}/nvvm/libdevice")
+  endif()
   if(EXISTS "${_acpp_cuda_libdevice_dir}/libdevice.10.bc")
     set(_acpp_cuda_usable ON)
   else()
     message(WARNING
       "The generic JIT cannot target CUDA without libdevice. Expected "
-      "${_acpp_cuda_libdevice_dir}/libdevice.10.bc to exist. CUDA support "
-      "is disabled.")
+      "${_acpp_cuda_libdevice_dir}/libdevice.10.bc to exist. Point "
+      "-DCUDA_DEVICE_LIBS_PATH at the directory holding libdevice.10.bc. "
+      "CUDA support is disabled.")
   endif()
 endif()
 
