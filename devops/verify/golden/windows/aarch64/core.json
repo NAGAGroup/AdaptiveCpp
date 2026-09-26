@@ -111,10 +111,22 @@
   {
     "value" : "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@"
   },
+  "plugin-llvm-version-major" : 
+  {
+    "value" : "@ACPP_PLUGIN_LLVM_VERSION_MAJOR@"
+  },
   "plugin-path" : 
   {
     "envvar" : "ACPP_PLUGIN_PATH",
     "value" : "@ACPP_PLUGIN_PATH@"
+  },
+  "plugin-with-cpu-acceleration" : 
+  {
+    "value" : "@ACPP_PLUGIN_WITH_CPU_ACCELERATION@"
+  },
+  "plugin-with-sscp-compiler" : 
+  {
+    "value" : "@ACPP_PLUGIN_WITH_SSCP_COMPILER@"
   },
   "save-temps" : 
   {
@@ -135,6 +147,11 @@
   {
     "envvar" : "ACPP_TARGETS",
     "value" : "@ACPP_TARGETS@"
+  },
+  "use-accelerated-cpu" : 
+  {
+    "envvar" : "ACPP_USE_ACCELERATED_CPU",
+    "value" : "@ACPP_USE_ACCELERATED_CPU_DEFAULT@"
   },
   "vector-math-lib" : 
   {

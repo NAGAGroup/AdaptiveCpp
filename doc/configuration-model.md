@@ -473,6 +473,11 @@ tree directly. Real builds go through acpp-toolchain CI.
   deployment) into a scratch tree, correctly scoped to the strategy's
   group list, and the application-config copy/skip/fail rule behaves as
   declared.
+- `verify-driver-keys.py` - every config key `bin/acpp` reads (`option()`
+  definitions plus literal `config_db` reads) is defined on every
+  platform/arch it applies to, except the command-line/environment-only
+  keys and backend-scoped keys a vendor's unit file does not exist for;
+  guards the driver/config reader-writer pair against drift.
 - `verify-common.cmake` - every unit's merge, at every platform/arch,
   equals its golden fixture (`devops/verify/golden`); the tier rule
   holds; no fragment is orphaned.

@@ -531,3 +531,38 @@ endif()
 if(NOT DEFINED ACPP_EXPLICIT_MULTIPASS)
   set(ACPP_EXPLICIT_MULTIPASS "false")
 endif()
+
+# ---------------------------------------------------------------------------
+# Plugin capability facts - platform-independent
+# ---------------------------------------------------------------------------
+#
+# The driver reads these to decide which compiler features the installed
+# plugin has (whether it can accelerate the CPU nd-range parallel_for, and
+# whether it has the SSCP/generic compiler), and, for the version, nothing
+# beyond "was a plugin built at all" (0 means no).
+
+if(NOT DEFINED ACPP_PLUGIN_LLVM_VERSION_MAJOR)
+  if(BUILD_CLANG_PLUGIN AND DEFINED LLVM_VERSION_MAJOR)
+    set(ACPP_PLUGIN_LLVM_VERSION_MAJOR "${LLVM_VERSION_MAJOR}")
+  else()
+    set(ACPP_PLUGIN_LLVM_VERSION_MAJOR "0")
+  endif()
+endif()
+if(NOT DEFINED ACPP_PLUGIN_WITH_CPU_ACCELERATION)
+  if(WITH_ACCELERATED_CPU)
+    set(ACPP_PLUGIN_WITH_CPU_ACCELERATION "true")
+  else()
+    set(ACPP_PLUGIN_WITH_CPU_ACCELERATION "false")
+  endif()
+endif()
+if(NOT DEFINED ACPP_PLUGIN_WITH_SSCP_COMPILER)
+  if(WITH_SSCP_COMPILER)
+    set(ACPP_PLUGIN_WITH_SSCP_COMPILER "true")
+  else()
+    set(ACPP_PLUGIN_WITH_SSCP_COMPILER "false")
+  endif()
+endif()
+# Upstream's default-use-accelerated-cpu was WITH_ACCELERATED_CPU.
+if(NOT DEFINED ACPP_USE_ACCELERATED_CPU_DEFAULT)
+  set(ACPP_USE_ACCELERATED_CPU_DEFAULT "${ACPP_PLUGIN_WITH_CPU_ACCELERATION}")
+endif()

@@ -27,6 +27,15 @@
   "plugin-linked-into-llvm": {
     "value": "@LLVM_ADAPTIVECPP_LINK_INTO_TOOLS@"
   },
+  "plugin-llvm-version-major": {
+    "value": "@ACPP_PLUGIN_LLVM_VERSION_MAJOR@"
+  },
+  "plugin-with-cpu-acceleration": {
+    "value": "@ACPP_PLUGIN_WITH_CPU_ACCELERATION@"
+  },
+  "plugin-with-sscp-compiler": {
+    "value": "@ACPP_PLUGIN_WITH_SSCP_COMPILER@"
+  },
   "device-clang-cmplr": {
     "value": "@ACPP_TOOLCHAIN_DEVICE_CMPLR@",
     "envvar": "ACPP_CLANG"
@@ -110,5 +119,9 @@
   "is-explicit-multipass": {
     "value": "@ACPP_EXPLICIT_MULTIPASS@",
     "envvar": "ACPP_EXPLICIT_MULTIPASS"
+  },
+  "use-accelerated-cpu": {
+    "value": "@ACPP_USE_ACCELERATED_CPU_DEFAULT@",
+    "envvar": "ACPP_USE_ACCELERATED_CPU"
   }
 }
