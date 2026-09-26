@@ -38,14 +38,16 @@ endfunction()
 # LLVM_ADAPTIVECPP_LINK_INTO_TOOLS selects ("toolchain" when ON, "plugin"
 # when OFF).
 #
-# A row with no unless key always applies. "unless": "hiprtc-link" is the
-# one condition the model currently defines: the clang++/resource-dir rows
-# hip's manifest ships for the generic clangJitLink path are needed only
-# when the build did NOT link hipRTC's own alternative - so the row is
-# dropped when ACPP_DISCOVERED_HIP_HIPRTC is ON. See doc/configuration-
-# model.md ("Clang and its headers are hip's rows, not core's") and
-# cmake/discovery/hip.cmake (where ACPP_DISCOVERED_HIP_HIPRTC is set from
-# whether libhiprtc.so exists next to the discovered HIP install).
+# A row with no unless key always applies. Two conditions the model
+# currently defines: "unless": "hiprtc-link" - the clang++/resource-dir
+# rows hip's manifest ships for the generic clangJitLink path are needed
+# only when the build did NOT link hipRTC's own alternative, so the row is
+# dropped when ACPP_DISCOVERED_HIP_HIPRTC is ON (see doc/configuration-
+# model.md, "Clang and its headers are hip's rows, not core's", and
+# cmake/discovery/hip.cmake, where ACPP_DISCOVERED_HIP_HIPRTC is set from
+# whether libhiprtc.so exists next to the discovered HIP install); and
+# "unless": "hip-no-sysdeps" - hip-no-sysdeps drops the rocm_sysdeps row
+# when the HIP distribution has no such tree (classic ROCm).
 # ---------------------------------------------------------------------------
 function(_acpp_filter_deploy_group result_var group_arr)
   set(_out "[]")
@@ -73,6 +75,10 @@ function(_acpp_filter_deploy_group result_var group_arr)
         if(NOT _unerr)
           if("${_un}" STREQUAL "hiprtc-link")
             if(ACPP_DISCOVERED_HIP_HIPRTC)
+              set(_keep FALSE)
+            endif()
+          elseif("${_un}" STREQUAL "hip-no-sysdeps")
+            if("${ACPP_DISCOVERED_HIP_SYSDEPS_DIR}" STREQUAL "")
               set(_keep FALSE)
             endif()
           else()

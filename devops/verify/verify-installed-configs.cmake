@@ -75,6 +75,43 @@ include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/cuda.cmake)
 include(${ACPP_REPO_ROOT}/cmake/acpp-installed-configs.cmake)
 
+# ---------------------------------------------------------------------------
+# _acpp_filter_deploy_group's two HIP-specific unless conditions, exercised
+# directly against a hand-built row for each, both ways (dropped, kept) -
+# neither condition depends on anything else acpp_generate_installed_configs
+# assembles, so a full generate is not needed to prove either one.
+# ---------------------------------------------------------------------------
+
+function(_verify_unless_case label unless_key control_var drop_value keep_value)
+  set(_row "{\"unless\":\"${unless_key}\",\"src\":\"x\",\"dest\":\"y\",\"files\":[\"*\"]}")
+  set(_arr "[${_row}]")
+
+  set(${control_var} "${drop_value}")
+  _acpp_filter_deploy_group(_kept_dropped "${_arr}")
+  string(JSON _n_dropped LENGTH "${_kept_dropped}")
+  if(NOT _n_dropped EQUAL 0)
+    message(FATAL_ERROR
+      "${label}: row should have been dropped when ${control_var}='${drop_value}', kept: ${_kept_dropped}")
+  endif()
+
+  set(${control_var} "${keep_value}")
+  _acpp_filter_deploy_group(_kept_kept "${_arr}")
+  string(JSON _n_kept LENGTH "${_kept_kept}")
+  if(NOT _n_kept EQUAL 1)
+    message(FATAL_ERROR
+      "${label}: row should have been kept when ${control_var}='${keep_value}', holds: ${_kept_kept}")
+  endif()
+  string(JSON _kept_unless ERROR_VARIABLE _kept_unless_err GET "${_kept_kept}" 0 "unless")
+  if(NOT _kept_unless_err)
+    message(FATAL_ERROR "${label}: kept row still carries its unless key: ${_kept_kept}")
+  endif()
+
+  message(STATUS "verify-installed-configs: ${label} - dropped when set, kept (unless stripped) otherwise")
+endfunction()
+
+_verify_unless_case("unless: hiprtc-link" "hiprtc-link" ACPP_DISCOVERED_HIP_HIPRTC ON OFF)
+_verify_unless_case("unless: hip-no-sysdeps" "hip-no-sysdeps" ACPP_DISCOVERED_HIP_SYSDEPS_DIR "" "/opt/rocm/lib/rocm_sysdeps/lib")
+
 set(_managed_dir "/tmp/acpp-verify-installed-configs-managed")
 file(REMOVE_RECURSE "${_managed_dir}")
 

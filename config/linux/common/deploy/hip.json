@@ -47,6 +47,7 @@
       ]
     },
     {
+      "unless": "hip-no-sysdeps",
       "src": "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ hip-subdir }}/{{ hip-sysdeps-subdir }}",
       "files": ["*"]

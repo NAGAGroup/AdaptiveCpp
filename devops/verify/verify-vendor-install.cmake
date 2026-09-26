@@ -168,6 +168,33 @@ endif()
 message(STATUS "verify-vendor-install: SHIPPED ON records exactly the expected destination paths")
 
 # ---------------------------------------------------------------------------
+# (4b) OPTIONAL: one present name, one absent name - the plan holds only
+# the present one, and configure does not fail over the absent one.
+# ---------------------------------------------------------------------------
+
+set(ACPP_VENDOR_INSTALL_PLAN "")
+acpp_install_vendor_libs(STEM FOO FACT "" OPTIONAL NAMES foo doesnotexist)
+
+list(FIND ACPP_VENDOR_INSTALL_PLAN "ext/foo/libfoo.so" _optional_idx)
+if(_optional_idx EQUAL -1)
+  message(FATAL_ERROR
+    "OPTIONAL: present library 'foo' missing from plan, holds: ${ACPP_VENDOR_INSTALL_PLAN}")
+endif()
+foreach(_entry IN LISTS ACPP_VENDOR_INSTALL_PLAN)
+  if(_entry MATCHES "doesnotexist")
+    message(FATAL_ERROR
+      "OPTIONAL: absent library 'doesnotexist' should not appear in the plan, holds: ${ACPP_VENDOR_INSTALL_PLAN}")
+  endif()
+endforeach()
+list(LENGTH ACPP_VENDOR_INSTALL_PLAN _optional_plan_len)
+if(NOT _optional_plan_len EQUAL 3)
+  message(FATAL_ERROR
+    "OPTIONAL: expected exactly 3 plan entries (foo's symlink chain), got ${_optional_plan_len}: ${ACPP_VENDOR_INSTALL_PLAN}")
+endif()
+
+message(STATUS "verify-vendor-install: OPTIONAL skips an absent name and keeps a present one, without failing configure")
+
+# ---------------------------------------------------------------------------
 # (5) hip (linux): the real install file, four facts, against a fake
 # TheRock-shaped tree. SHIPPED OFF first (every call in the file a no-op),
 # then SHIPPED ON, asserting the plan holds exactly the expected dest path

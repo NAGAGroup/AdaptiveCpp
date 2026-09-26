@@ -178,8 +178,11 @@ endfunction()
 # - resolution is deferred into the install(CODE) block itself, which runs
 # at `cmake --install` time (after this component's own install has queued
 # it), and fails there, clearly, if the vendor still is not present then.
+#
+# OPTIONAL: a name not present is skipped (not an error), for libraries
+# only some versions of a vendor ship.
 function(acpp_install_vendor_libs)
-  cmake_parse_arguments(_avl "" "STEM;FACT" "NAMES" ${ARGN})
+  cmake_parse_arguments(_avl "OPTIONAL" "STEM;FACT" "NAMES" ${ARGN})
   if(NOT ACPP_${_avl_STEM}_SHIPPED)
     return()
   endif()
@@ -192,6 +195,11 @@ function(acpp_install_vendor_libs)
       # resolved filename(s) in the plan.
       _acpp_resolve_vendor_lib_files(_avl_files "${_avl_srcdir}" "${_avl_name}")
       if(NOT _avl_files)
+        if(_avl_OPTIONAL)
+          message(STATUS
+            "Vendor '${_avl_STEM}': optional library '${_avl_name}' not present, not shipped")
+          continue()
+        endif()
         message(FATAL_ERROR
           "Vendor '${_avl_STEM}' is SHIPPED but library '${_avl_name}' was "
           "not found under ${_avl_srcdir} at configure time.")
@@ -201,6 +209,11 @@ function(acpp_install_vendor_libs)
         list(APPEND ACPP_VENDOR_INSTALL_PLAN "${_avl_destrel}/${_avl_fname}")
       endforeach()
     else()
+      if(_avl_OPTIONAL)
+        message(STATUS
+          "Vendor '${_avl_STEM}': optional library '${_avl_name}' not present, not shipped")
+        continue()
+      endif()
       # Not known yet - the source directory itself does not exist at
       # configure time (toolchain-mode libomp; see
       # cmake/install/*/common/omp.cmake). Record what is sought, not a

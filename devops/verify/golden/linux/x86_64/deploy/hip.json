@@ -18,7 +18,8 @@
     {
       "dest" : "{{ acpp-runtime-root }}/{{ hip-subdir }}/{{ hip-sysdeps-subdir }}",
       "files" : [ "*" ],
-      "src" : "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}"
+      "src" : "{{ hip-install-root }}/{{ hip-sysdeps-subdir }}",
+      "unless" : "hip-no-sysdeps"
     },
     {
       "dest" : "{{ acpp-runtime-root }}/{{ hip-subdir }}/{{ hip-bitcode-subdir }}",
