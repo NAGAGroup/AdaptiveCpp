@@ -459,3 +459,98 @@ permissive, the same as every other vendor unit here
 (`acpp_declare_vendor(SVML svml permissive)`), with nothing recording
 that check having actually happened - described above as the code has
 it, not as settled.
+
+## Verification
+
+Nothing is built locally to verify this model; every check is a
+`cmake -P` harness or a standalone python script, run against the source
+tree directly. Real builds go through acpp-toolchain CI.
+
+- `verify-driver-config.py` - the driver's `config_db` resolves `{{ }}`
+  chains to a fixpoint, detects cycles, and rejects an undefined key.
+- `verify-driver-deploy.py` - `deployment_engine`/`run_deployment` copy
+  every deployed group's rows (`SHARED_LIB:`/`*` expansion, symlink-chain
+  deployment) into a scratch tree, correctly scoped to the strategy's
+  group list, and the application-config copy/skip/fail rule behaves as
+  declared.
+- `verify-common.cmake` - every unit's merge, at every platform/arch,
+  equals its golden fixture (`devops/verify/golden`); the tier rule
+  holds; no fragment is orphaned.
+- `verify-parse.cmake` - every cmake file in the tree parses, and the
+  root `CMakeLists.txt`, `src/runtime/CMakeLists.txt` and
+  `cmake/adaptivecpp-config.cmake.in` still wire in discovery/options/
+  installed-configs, the backends' vendor rpaths, and the application
+  install rpath respectively.
+- `verify-app-config.cmake` - every platform/arch's merged `app/*.cfg`
+  fragments are free of `{{ }}`, shaped `ACPP_<NAME>=@VAR@`, and free of
+  duplicate keys.
+- `verify-app-rpath.cmake` - `acpp_app_install_rpath` is empty under
+  `managed` and on Windows, and under `full` composes `$ORIGIN/../lib`
+  plus the CUDA/libomp entries correctly, including the conda-shaped
+  empty-subdir case.
+- `verify-vendor-rpath.cmake` - `acpp_vendor_rpath_entry`/
+  `acpp_add_vendor_rpaths` compute the right `$ORIGIN`/`@loader_path`
+  entry for a shipped vendor, nothing for one that is not, and skip a
+  target that does not exist without erroring.
+- `verify-vendor-install.cmake` (+ `-inner`) - the three install helpers
+  record the right destination plan when a vendor is shipped, nothing
+  when it is not, resolve a whole symlink chain, and fail loudly (in a
+  child process) when a declared-shipped library is actually missing.
+- `verify-install-sync.cmake` (+ `-inner`, `-lib`) - every manifest row
+  is covered by an install call, across every platform/arch/unit,
+  printing the toolchain-only list as it goes; a scratch row naming
+  something no install call provides fails, checked in a child process.
+- `verify-installed-configs.cmake` (+ `-inner`) -
+  `acpp_generate_installed_configs` end to end: no manifest under
+  `managed`, a manifest with `build-mode`/`unless` stripped and an
+  `$ACPP_RT_LIB_DIR`-relative libdevice line under `full`, and an
+  undefined `@VAR@` is a configure error.
+- `verify-strategy-cuda.cmake` (+ `-inner`) - the app-config value for a
+  nonpermissive vendor is the discovered path under `managed` and
+  `$ACPP_RT_LIB_DIR`-relative under `full`; the gate fires exactly when
+  it should; no manifest carries `app-config`/`runtime-configurable`/
+  `toolchain-only` keys or an unresolved `@` token.
+- `verify-strategy-matrix.cmake` (+ `-inner`) - under
+  `full-permissive-only`, a permissive vendor (OCL) ships while a
+  nonpermissive one (CUDA) does not, with no gate variable even set;
+  under `managed`, neither ships.
+- `verify-core.cmake`/`-core-plugin.cmake`/`-core-plugin-none.cmake` -
+  core's options parse clean and produce every declared default, in
+  toolchain mode, plugin mode with a plugin found, and plugin mode with
+  none.
+- `verify-<vendor>.cmake`/`-<vendor>-placeholder.cmake` (cuda, hip,
+  nvhpc, ocl, vk, ze, clspv) and `verify-omp.cmake` - each vendor's
+  options file parses clean and produces every declared default, both
+  when its discovery found something and when it found nothing.
+- `verify-discovery.cmake`/`-discovery-<vendor>.cmake` (clspv, cuda, hip,
+  metal, nvhpc, ocl, plugin, vk, ze) - each backend's `find_*` either
+  succeeds against what the running machine actually has, or reports a
+  named skip rather than a false pass.
+- `verify-aarch64.cmake`, `verify-windows-x86_64.cmake` (+
+  `-placeholder`), `verify-windows-aarch64.cmake`,
+  `verify-macos-arm64.cmake` (+ `-placeholder`) - every platform/arch's
+  option files parse clean and its documented per-platform deltas (no
+  SVML off x86_64, Windows' bin-relative vendor subdirs, macOS's
+  `@loader_path`) hold.
+
+## What changed
+
+The model used to describe four deployment strategies (`default`,
+`managed`, `full-permissive-only`, `full`), distinguishing a same-system,
+absolute-path flavour (`default`) from the others; two remain (`managed`,
+and `full`/`full-permissive-only`), governing vendor units only, with
+`default`'s absolute-path behaviour gone as a named strategy - a vendor
+simply is or is not shipped, and not-shipped already means the discovered
+absolute path, in every remaining strategy. What used to live in manifest
+`app-config` rows, baked per resource into whichever manifest owned it,
+is now `acpp-app.cfg`: one flat file, generated once per build, found by
+the runtime at a fixed offset from its own library directory, with no
+per-application name or embedded symbol at all. What used to be
+`"toolchain-only": true` manifest rows are per-vendor cmake install rules
+instead (`cmake/install/<platform>/common/<unit>.cmake`), kept in sync
+with the manifest by a harness rather than derived from it. The driver
+reads one installed config, not four strategies' worth of branches on
+what a resource might mean; and the CLI driver adds no rpaths of its own
+to a multipass link line, leaving that to the application builder -
+`add_sycl_to_target` under CMake, or a hand-driven build's own link
+otherwise.
