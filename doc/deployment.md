@@ -4,47 +4,42 @@ AdaptiveCpp provides mechanisms to aid in deploying AdaptiveCpp-compiled binarie
 
 ## Deployment infrastructure
 
-Developers can use `acpp --acpp-deploy` to populate a directory with runtime dependencies of AdaptiveCpp applications.
+`acpp --acpp-deploy=<path>` populates a directory with what an application needs at run time, for a toolchain built with `ACPP_DEPLOYMENT_STRATEGY=full` or `full-permissive-only` (under `managed`, the default, the toolchain is an ordinary CMake project and deploying is the configurer's business - the command reports that and exits).
 
-The contents of that directory can then be distributed along with the application. Please ensure that the application uses this directory to resolve library dependencies, e.g. by setting `LD_LIBRARY_PATH`.
+The directory mirrors the toolchain's own install layout. Deployed libraries find each other and the shipped vendor libraries through relative rpaths (`$ORIGIN`/`@loader_path`; on Windows, through the DLL directories in the deployed application config), so no `LD_LIBRARY_PATH` is needed. Install your application's executable into the deployment's `bin` directory; CMake applications get the matching rpath from `add_sycl_to_target`. See [the configuration model](configuration-model.md) for the details.
 
 ### Deployment components
 
-`--acpp-deploy` distinguishes separate deployment targets that can be deployed either individually or all at once:
+`--acpp-deploy` still accepts a `<component>:` selection (`core`, `cuda`, `hip`, `ocl`, `all`), but it is now accepted for compatibility only and ignored: the installed manifest covers every backend the toolchain was built with, and deploys as a whole.
 
-* `core`: Core infrastructure, CPU backend and dependencies
-* `cuda`: CUDA backend and dependencies
-* `hip`: HIP backend and dependencies
-* `ocl`: OpenCL backend and dependencies
-* `all`: All of the above.
+What is deployed:
 
-**The `core` component always needs to be available for an AdaptiveCpp-compiled application to function**. The other components are optional.
-
-Because applications compiled with AdaptiveCpp's generic SSCP compiler are decoupled from hardware targets and specific backends, the optional deployment components can also be installed by end users at any later point in time. For example, if users change their hardware setup, the same application will work on the hardware once users install the required component.
-
-In order to minimize the size of the deployment package for end users, it might be a good idea for application vendors to provide the optional components only as needed (e.g. as optional selections in an installation wizard).
+* The AdaptiveCpp runtime, its backends, and the JIT compiler's own libraries and bitcode.
+* In toolchain mode (AdaptiveCpp linked into LLVM), the LLVM pieces the JIT needs. In plugin mode (AdaptiveCpp built against a system LLVM), that LLVM is not deployed - an application's users need the same LLVM installed.
+* The vendor runtimes the toolchain ships: permissive ones (SLEEF, libnuma, the OpenCL/Level Zero/Vulkan loaders, OMP's libomp, ...) always; nonpermissive ones (CUDA, the HPC SDK runtime, SVML, AMATH) only under `full`, and only once the builder accepted their terms with `ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN`.
+* The application config, `etc/AdaptiveCpp/acpp-app.cfg`.
 
 **Note on the `ocl` component:** AdaptiveCpp only handles the deployment of the OpenCL ICD loader. End users are responsible for installing an OpenCL driver for their hardware, as in the established deployment model for OpenCL applications.
 
 ### Invoking `--acpp-deploy`
 
-A deployment package can be generated using `acpp --acpp-deploy=<component>:<path>`. For example, 
+A deployment package can be generated using `acpp --acpp-deploy=/my/deployment/path` (a `<component>:` prefix such as `all:` is still accepted, for compatibility). For example, 
 
 ```
-acpp --acpp-deploy=all:/my/deployment/path
+acpp --acpp-deploy=/my/deployment/path
 ```
 
-will deploy all components to `/my/deployment/path`. You should then be able to run your binary e.g. using `LD_LIBRARY_PATH=/my/deployment/path:$LD_LIBRARY_PATH ./myapplication`.
+will deploy the toolchain's installed manifest to `/my/deployment/path`. You should then be able to run your binary from there directly, with no environment setup.
 
-**Note that for a successful deployment of a component, AdaptiveCpp must have been built with the respective backend enabled!** We can only deploy a component if we have it :-)
+**Note that for a successful deployment, AdaptiveCpp must have been built with the respective backend enabled!** We can only deploy what we have :-)
 
 ## Limitations and handling indirect transitive dependencies
 
-In the deployment package, depending on which component was requested for deployment, AdaptiveCpp includes:
+The deployment includes:
 
 * AdaptiveCpp runtime libraries
 * AdaptiveCpp runtime backends
-* Infrastructure for the JIT compiler, including bitcode libraries and needed LLVM components
+* Infrastructure for the JIT compiler, including bitcode libraries and, in toolchain mode, the needed LLVM components
 * Backend-specific dependencies (e.g. needed CUDA runtime libraries, necessary components from ROCm etc)
 
 However, for LLVM and backend dependencies, AdaptiveCpp cannot know in detail how exactly those were built and which transitive dependencies these may have in all cases.
@@ -53,7 +48,7 @@ The AdaptiveCpp deployment mechanism includes needed dependencies for common set
 After a successful deployment, `acpp` will recommend that you run a command to check for dependencies outside of your deployment tree. This command will look similar to
 
 ```sh
-LD_LIBRARY_PATH=/some/deployment/path:$LD_LIBRARY_PATH ldd `find /some/deployment/path -type f | grep -v .bc` | grep -v /some/deployment/path | awk '{print $3;}' | sort | uniq
+ldd `find /some/deployment/path -type f ! -name '*.bc'` | grep -v /some/deployment/path | awk '{print $3;}' | sort | uniq
 ```
 
 Libraries listed by this command are additional transitive dependencies of libraries in the deployment tree that you may want to consider including as well.
@@ -63,11 +58,11 @@ However, you should **not** include the following libraries:
 * `libcuda.so`, as it is provided by the NVIDIA graphics driver and needs to match it
 * `libdrm*`, as it too is part of the graphics driver stack.
 
-When including additional dependencies, even if they were detected as transitive dependencies of specific backends, we recommend including them in the `core` package *if* you decide to ship separate deployment packages. The reason is that this can avoid file conflicts if several components pull in the same dependency.
+When adding dependencies by hand, put them beside the runtime in the deployment's library directory.
 
 ## Decreasing the size of the deployment package
 
-The size of the deployment package is typically strongly dominated by the size of `libLLVM.so`, which on its own can reach around 150MB in size.
+The size of the deployment package is typically strongly dominated by the size of `libLLVM.so` (part of the deployment only in toolchain mode), which on its own can reach around 150MB in size.
 
 The `hip` deployment component specifically is expected to pull in a library from ROCm (`libamd_comgr`) which may be statically linked against ROCm's LLVM and might thus again be around another 150MB in size.
 
@@ -127,3 +122,5 @@ The deployment mechanism may include and redistribute third-party libraries unde
 
 - SLEEF Vector Math Library (`sleef.so`)
   Provided under the [Boost Software License, Version 1.0](https://www.boost.org/LICENSE_1_0.txt)
+
+SVML and AMATH are nonpermissive vendor units in the fork: they ship only under `full`, once `ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN` is on, and never under `full-permissive-only`. SLEEF is permissive and ships under both `full` and `full-permissive-only`.

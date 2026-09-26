@@ -2643,7 +2643,7 @@ def run_deployment(config, components, target_path):
   else:
     print("To avoid surprises, it is strongly recommended to check for remaining indirect dependencies outside the deployment tree, e.g. by running\n")
 
-    command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v {targetdir} | awk '{{print $3;}}' | sort | uniq".format(
+    command="ldd `find {targetdir} -type f ! -name '*.bc'` | grep -v {targetdir} | awk '{{print $3;}}' | sort | uniq".format(
       targetdir=runtime_root)
     print(command)
     print("\nand consider whether you would like to also ship those libraries with your application.")
