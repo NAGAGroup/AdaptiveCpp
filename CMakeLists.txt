@@ -121,10 +121,8 @@ if(NOT HIPSYCL_DEBUG_LEVEL)
   endif()
 endif()
 
-# Check for CUDA/ROCm and clang
+# Our own cmake modules (FindFilesystem)
 list(INSERT CMAKE_MODULE_PATH 0 "${ACPP_SOURCE_ROOT}/cmake/")
-find_package(CUDA QUIET)
-find_package(HIP QUIET HINTS ${ROCM_PATH} ${ROCM_PATH}/lib/cmake)
 
 #set(WITH_CUDA_NVCXX_ONLY FALSE CACHE BOOL "(Deprecated) Whether to target CUDA exclusively with nvc++")
 
@@ -201,65 +199,91 @@ endif()
 
 message(STATUS "Building with compiler feature profile: ${ACPP_COMPILER_FEATURE_PROFILE}")
 
-# Check for OpenCL unless user has explicitly set WITH_SSCP_COMPILER to False
-if (DEFINED WITH_SSCP_COMPILER)
-  if (WITH_SSCP_COMPILER)
-    find_package(OpenCL QUIET)
-  endif()
-else()
-  find_package(OpenCL QUIET)
-endif()
+##########################################################
+## Backend discovery and enablement.
+##
+## Each backend's cmake/discovery/<vendor>.cmake runs unless the builder
+## explicitly turned that backend off, and WITH_<X>_BACKEND defaults from
+## what discovery found. Upstream's -D spellings still steer the finds:
+## CUDA_TOOLKIT_ROOT_DIR/CUDAToolkit_ROOT, ROCM_PATH/hip_ROOT,
+## NVCXX_COMPILER, OpenCL_LIBRARY. The per-unit includes further down
+## (the ACPP_UNITS block) are no-ops under each file's include_guard.
+##
+## OpenCL and Level Zero are only looked for when the SSCP compiler is on,
+## as upstream only looked for OpenCL then. Level Zero defaults ON when its
+## loader is found. Vulkan and Metal stay OFF unless requested.
+##########################################################
 
-# In case HIP is not found via the cmake pkgs we fall back to the legacy rocm discovery:
-if (NOT HIP_FOUND)
-  message(STATUS "Could not find HIP cmake integration, falling back to finding hipcc")
-  find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH} ${ROCM_PATH}/bin)
-  set(ROCM_PATH /opt/rocm CACHE PATH "Path to ROCm installation")
-  if(HIPCC_COMPILER MATCHES "-NOTFOUND")
-    message(STATUS "Could not find ROCm installation by looking for hipcc. ROCm support unavailable.")
-    set(ROCM_FOUND false)
-  else()
-    set(ROCM_FOUND true)
-  endif()
+if(NOT DEFINED WITH_CUDA_BACKEND OR WITH_CUDA_BACKEND)
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/cuda.cmake)
 else()
-  set(ROCM_FOUND true)
+  set(ACPP_DISCOVERED_CUDA_FOUND OFF)
+endif()
+set(WITH_CUDA_BACKEND ${ACPP_DISCOVERED_CUDA_FOUND} CACHE BOOL "Build AdaptiveCpp support for NVIDIA GPUs with CUDA")
+if(WITH_CUDA_BACKEND AND NOT ACPP_DISCOVERED_CUDA_FOUND)
+  message(SEND_ERROR "WITH_CUDA_BACKEND is ON but no CUDA toolkit was found. Point CUDAToolkit_ROOT (or CUDA_TOOLKIT_ROOT_DIR) at it.")
 endif()
 
 if(WITH_CUDA_BACKEND)
-  if(NOT CUDA_FOUND)
-    message(SEND_ERROR "CUDA was not found")
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/nvhpc.cmake)
+else()
+  set(ACPP_DISCOVERED_NVHPC_FOUND OFF)
+endif()
+if(WITH_CUDA_NVCXX_ONLY AND NOT ACPP_DISCOVERED_NVHPC_FOUND)
+  message(SEND_ERROR "Could not find nvc++; specify it with -DNVCXX_COMPILER=")
+endif()
+
+if(NOT DEFINED WITH_ROCM_BACKEND OR WITH_ROCM_BACKEND)
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/hip.cmake)
+else()
+  set(ACPP_DISCOVERED_HIP_FOUND OFF)
+endif()
+set(WITH_ROCM_BACKEND ${ACPP_DISCOVERED_HIP_FOUND} CACHE BOOL "Build AdaptiveCpp support for AMD GPUs with ROCm")
+if(WITH_ROCM_BACKEND AND NOT ACPP_DISCOVERED_HIP_FOUND)
+  message(SEND_ERROR "WITH_ROCM_BACKEND is ON but no ROCm/HIP installation was found. Point ROCM_PATH (or hip_ROOT) at it.")
+endif()
+
+if(WITH_OPENCL_BACKEND OR (NOT DEFINED WITH_OPENCL_BACKEND AND WITH_SSCP_COMPILER))
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/ocl.cmake)
+else()
+  set(ACPP_DISCOVERED_OCL_FOUND OFF)
+endif()
+set(WITH_OPENCL_BACKEND ${ACPP_DISCOVERED_OCL_FOUND} CACHE BOOL "Build AdaptiveCpp support for OpenCL SPIR-V devices supporting USM")
+if(WITH_OPENCL_BACKEND AND NOT ACPP_DISCOVERED_OCL_FOUND)
+  message(SEND_ERROR "WITH_OPENCL_BACKEND is ON but no OpenCL loader (2.1 or newer) was found. Point OpenCL_LIBRARY at it.")
+endif()
+
+if(WITH_LEVEL_ZERO_BACKEND OR (NOT DEFINED WITH_LEVEL_ZERO_BACKEND AND WITH_SSCP_COMPILER))
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/ze.cmake)
+else()
+  set(ACPP_DISCOVERED_ZE_FOUND OFF)
+endif()
+set(WITH_LEVEL_ZERO_BACKEND ${ACPP_DISCOVERED_ZE_FOUND} CACHE BOOL "Build AdaptiveCpp support for Intel GPUs with Level Zero")
+if(WITH_LEVEL_ZERO_BACKEND AND NOT ACPP_DISCOVERED_ZE_FOUND)
+  message(SEND_ERROR "WITH_LEVEL_ZERO_BACKEND is ON but no Level Zero loader (ze_loader) was found. Point ACPP_ZE_LOADER_LIBRARY at it.")
+endif()
+
+set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") # OFF while experimental, as upstream
+if(WITH_VULKAN_BACKEND)
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/vk.cmake)
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/clspv.cmake)
+  if(NOT ACPP_DISCOVERED_VK_FOUND)
+    message(SEND_ERROR "WITH_VULKAN_BACKEND is ON but the Vulkan loader, headers and SPIRV-Tools were not all found.")
+  endif()
+  if(NOT ACPP_DISCOVERED_CLSPV_FOUND)
+    message(SEND_ERROR "WITH_VULKAN_BACKEND is ON but clspv was not found.")
   endif()
 endif()
 
-
-if(WITH_OPENCL_BACKEND)
-  if(NOT OpenCL_FOUND)
-    message(SEND_ERROR "OpenCL was not found")
+set(WITH_METAL_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Apple GPUs with Metal (macOS only)")
+if(WITH_METAL_BACKEND)
+  include(${ACPP_SOURCE_ROOT}/cmake/discovery/metal.cmake)
+  if(NOT ACPP_DISCOVERED_METAL_FOUND)
+    message(SEND_ERROR "WITH_METAL_BACKEND is ON but the Metal framework was not found.")
   endif()
 endif()
-
-set(WITH_CUDA_BACKEND ${CUDA_FOUND} CACHE BOOL "Build AdaptiveCpp support for NVIDIA GPUs with CUDA")
-set(WITH_ROCM_BACKEND ${ROCM_FOUND} CACHE BOOL "Build AdaptiveCpp support for AMD GPUs with ROCm")
-set(WITH_OPENCL_BACKEND ${OpenCL_FOUND} CACHE BOOL "Build AdaptiveCpp support for OpenCL SPIR-V devices supporting USM")
-set(WITH_VULKAN_BACKEND OFF CACHE BOOL "Build AdaptiveCpp support for Vulkan") # Default to OFF while experimental
 
 set(WITH_CPU_BACKEND true)
-
-
-
-if(WITH_VULKAN_BACKEND)
-  find_package(Vulkan 1.4 QUIET COMPONENTS SPIRV-Tools REQUIRED)
-endif()
-
-if(WITH_CUDA_BACKEND)
-  find_program(NVCXX_COMPILER NAMES nvc++)
-endif()
-
-if(WITH_CUDA_NVCXX_ONLY)
-  if(NVCXX_COMPILER MATCHES "-NOTFOUND")
-      message(SEND_ERROR "Could not find nvc++ executable, specifiy with -DNVCXX_COMPILER=")
-  endif()
-endif()
 
 
 if(WITH_ACCELERATED_CPU) # sanitize input
@@ -364,20 +388,20 @@ if(BUILD_CLANG_PLUGIN)
     endif()
     if(WITH_ROCM_BACKEND)
       # Check if we're building against ROCm LLVM. This code checks if
-      # CLANG_EXECUTABLE_PATH is located within ROCM_PATH.
+      # CLANG_EXECUTABLE_PATH is located within the discovered ROCm prefix.
       # Note: This might fail in ROCm distributions where ROCm is strongly decomposed
       # (spack?) but it is more reliable than just parsing the output of clang++ --version.
       # This is then later used to decide whether we need to make exemptions
       # from LLVM version compatibility checks.
-      file(GLOB_RECURSE ROCM_FOUND_FILES FOLLOW_SYMLINKS "${ROCM_PATH}/bin/*" "${ROCM_PATH}/llvm/bin/*" "${ROCM_PATH}/lib/llvm/bin/*")
+      file(GLOB_RECURSE ROCM_FOUND_FILES FOLLOW_SYMLINKS "${ACPP_DISCOVERED_HIP_PREFIX}/bin/*" "${ACPP_DISCOVERED_HIP_PREFIX}/llvm/bin/*" "${ACPP_DISCOVERED_HIP_PREFIX}/lib/llvm/bin/*")
       if ("${CLANG_EXECUTABLE_PATH}" IN_LIST ROCM_FOUND_FILES)
-        message(STATUS "${CLANG_EXECUTABLE_PATH} found in ${ROCM_PATH}; assuming that we are building against ROCm LLVM")
+        message(STATUS "${CLANG_EXECUTABLE_PATH} found in ${ACPP_DISCOVERED_HIP_PREFIX}; assuming that we are building against ROCm LLVM")
         set(USE_ROCM_LLVM true)
       else()
         set(USE_ROCM_LLVM false)
       endif()
 
-      find_program(ROCM_CLANG_PATH NAMES clang++ HINTS ${ROCM_PATH} ${ROCM_PATH}/bin ${ROCM_PATH}/llvm/bin NO_DEFAULT_PATH CACHE STRING)
+      find_program(ROCM_CLANG_PATH NAMES clang++ HINTS ${ACPP_DISCOVERED_HIP_PREFIX} ${ACPP_DISCOVERED_HIP_PREFIX}/bin ${ACPP_DISCOVERED_HIP_PREFIX}/llvm/bin NO_DEFAULT_PATH CACHE STRING)
       if(ROCM_CLANG_PATH)
         # Figure out ROCm LLVM version - this is used to check whether the AdaptiveCpp LLVM version
         # is compatible with ROCm for SSCP.
@@ -474,70 +498,6 @@ if(BUILD_CLANG_PLUGIN)
   endif()
 endif()
 
-if(WITH_ROCM_BACKEND)
-  find_path(ROCM_DEVICE_LIBS_PATH ockl.bc HINTS
-      ${ROCM_PATH}/amdgcn/bitcode
-      DOC "Path to ROCm bitcode libraries. Typically, $ROCM_PATH/amdgcn/bitcode")
-
-  if(ROCM_DEVICE_LIBS_PATH)
-    message(STATUS "Found ROCm bitcode library path: ${ROCM_DEVICE_LIBS_PATH}")
-  else()
-    message(SEND_ERROR "ROCm device library path not found; please provide the path containing the ROCm bitcode libraries (e.g. ockl.bc) manually using -DROCM_DEVICE_LIBS_PATH")
-  endif()
-
-  # hipcc, for the ROCm interoperability flow. The legacy fallback above may
-  # already have found it while deciding whether ROCm is available at all;
-  # this covers the case where HIP was found through its cmake packages and
-  # that probe never ran. One discovery, one name.
-  if(NOT HIPCC_COMPILER)
-    find_program(HIPCC_COMPILER NAMES hipcc HINTS ${ROCM_PATH} ${ROCM_PATH}/bin)
-  endif()
-
-  # The ROCm runtime libraries. The discovered results feed the
-  # ACPP_ROCM_LIB_PATH option, the vendor-asset gate and the deploy manifest
-  # fill; the ROCm backend itself links through ROCM_LIBS and the loader
-  # shims reach these libraries at run time.
-  # TODO Can we unify with the other ROCm detection logic that we already have?
-  find_library(AMDHIP64_LIBRARY amdhip64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
-  if(NOT WIN32)
-    find_library(HSARUNTIME64_LIBRARY hsa-runtime64 HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib REQUIRED)
-  endif()
-  find_library(AMDCOMGR_LIBRARY amd_comgr HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
-  find_library(HSAKMT_LIBRARY hsakmt HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
-  find_library(ROCPROFILERREGISTER_LIBRARY rocprofiler-register HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 ${ROCM_PATH}/hip/lib)
-endif()
-
-
-if(WITH_CUDA_BACKEND)
-  find_path(CUDA_DEVICE_LIBS_PATH libdevice.10.bc HINTS
-      ${CUDA_TOOLKIT_ROOT_DIR}/nvvm/libdevice
-      DOC "Path containing the CUDA bitcode libraries. Typically, $CUDA_PATH/nvvm/libdevice")
-
-  if(CUDA_DEVICE_LIBS_PATH)
-    message(STATUS "Found CUDA bitcode library path: ${CUDA_DEVICE_LIBS_PATH}")
-  else()
-    message(SEND_ERROR "CUDA device library path not found; please provide the path containing the CUDA bitcode libraries (libdevice.10.bc) manually using -DCUDA_DEVICE_LIBS_PATH")
-  endif()
-endif()
-
-if(WITH_LEVEL_ZERO_BACKEND)
-  # The Level Zero loader: the backend links it, and ACPP_ZE_LIB_PATH and the
-  # vendor-asset gate read where it was found. The find used to live beside
-  # the backend target in src/runtime; find results are cache entries, so the
-  # target_link_libraries there keeps reading this one.
-  find_library(ACPP_ZE_LOADER_LIBRARY NAMES ze_loader REQUIRED)
-endif()
-
-if(WITH_VULKAN_BACKEND)
-  # clspv, for the Vulkan backend's llvm-to-clspv target. The find used to
-  # live beside the target in src/compiler/llvm-to-backend; ACPP_CLSPV_PATH
-  # reads it here instead.
-  find_program(CLSPV_COMPILER NAMES clspv REQUIRED)
-endif()
-
-
-
-
 #add_compile_definitions(HIPSYCL_DEBUG_LEVEL="${HIPSYCL_DEBUG_LEVEL}")
 #Use add_definitions for now for older cmake versions
 cmake_policy(SET CMP0005 NEW)
@@ -567,7 +527,6 @@ else()
 endif()
 
 
-set(ROCM_LIBS "-L${ROCM_PATH}/lib -L${ROCM_PATH}/hip/lib -lamdhip64" CACHE STRING "Necessary libraries for ROCm")
 set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Which filesystem libraries should be searched for")
 
 # Vector math library discovery. The add_definitions that turn these results
@@ -677,23 +636,10 @@ endif()
 ## ACPP_<VENDOR>_SHIPPED gate the corresponding options file's
 ## acpp_declare_vendor() call sets, below.
 ##
-## cmake/discovery.cmake and cmake/discovery/<vendor>.cmake run their own
-## find_* calls (CUDAToolkit, hip CONFIG, OpenCL >=2.1, a raw Vulkan
-## loader/SPIRV-Tools search, ze_loader, clspv, nvc++) independently of
-## the finds above (legacy CUDA/HIP modules, an unconstrained OpenCL
-## search, find_package(Vulkan) with imported targets). Checked against
-## every cmake/discovery/*.cmake: none collide - every export lands under
-## ACPP_DISCOVERED_* or a differently-named upstream variable
-## (CUDAToolkit_* vs CUDA_*, lowercase hip_* vs uppercase HIP_*,
-## ACPP_VK_* vs Vulkan_*), so re-finding the same hardware twice is
-## redundant, not conflicting, with one exception: find_library(
-## ACPP_ZE_LOADER_LIBRARY NAMES ze_loader REQUIRED) above and the same
-## call (without REQUIRED) in discovery/ze.cmake name the SAME cache
-## variable on purpose - the second call is a cache hit, not a second
-## search. doc/source-obligations.md already records that the block
-## above is meant to be deleted once a later step wires
-## WITH_LEVEL_ZERO_BACKEND's own default from discovery instead of a
-## user -D.
+## Backend discovery already ran above, where each WITH_*_BACKEND took its
+## default from it; the per-unit includes below re-include those files as
+## no-ops (include_guard) purely so each options file visibly follows its
+## own discovery.
 ##
 ## Separately, cmake/discovery.cmake's own LLVM half (not a vendor file)
 ## requires LLVM whenever ACPP_COMPILER_FEATURE_PROFILE is not "none",

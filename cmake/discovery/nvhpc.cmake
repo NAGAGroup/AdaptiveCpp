@@ -9,11 +9,12 @@
 
 include_guard(GLOBAL)
 
-find_program(_acpp_nvhpc_nvcxx NAMES nvc++)
+# Upstream's cache name, so -DNVCXX_COMPILER= works as it did there.
+find_program(NVCXX_COMPILER NAMES nvc++)
 
-if(_acpp_nvhpc_nvcxx)
+if(NVCXX_COMPILER AND NOT NVCXX_COMPILER MATCHES "-NOTFOUND$")
   # Resolve symlinks so the SDK root derivation sees the real installation.
-  get_filename_component(_acpp_nvhpc_real "${_acpp_nvhpc_nvcxx}" REALPATH)
+  get_filename_component(_acpp_nvhpc_real "${NVCXX_COMPILER}" REALPATH)
   # <root>/compilers/bin/nvc++ -> two directories up is the SDK root.
   get_filename_component(_acpp_nvhpc_bindir "${_acpp_nvhpc_real}" DIRECTORY)
   get_filename_component(_acpp_nvhpc_compilers "${_acpp_nvhpc_bindir}" DIRECTORY)

@@ -133,9 +133,9 @@ if(WITH_CUDA_BACKEND)
     cuda/cuda_code_object.cpp)
 
   target_include_directories(rt-backend-cuda PRIVATE
-    ${HIPSYCL_SOURCE_DIR}/include
-    ${CUDA_TOOLKIT_ROOT_DIR}/include)
-  target_link_libraries(rt-backend-cuda PRIVATE acpp-rt ${CUDA_LIBS})
+    ${HIPSYCL_SOURCE_DIR}/include)
+  # Imported targets from find_package(CUDAToolkit) in cmake/discovery/cuda.cmake; they carry the include directory.
+  target_link_libraries(rt-backend-cuda PRIVATE acpp-rt CUDA::cudart CUDA::cuda_driver)
 
   target_compile_options(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-cuda PRIVATE ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
@@ -184,14 +184,10 @@ if(WITH_ROCM_BACKEND)
     target_compile_definitions(rt-backend-hip PRIVATE HIPSYCL_RT_HIP_SUPPORTS_UNIFIED_MEMORY=1)
   endif()
   target_include_directories(rt-backend-hip PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
-  if(NOT HIP_FOUND)
-    target_include_directories(rt-backend-hip PRIVATE ${ROCM_PATH}/include)
-    target_link_libraries(rt-backend-hip PRIVATE ${ROCM_LIBS})
-  else()
-    # Supress warnings because wrongly set CXX arguments
-    target_compile_options(rt-backend-hip PRIVATE -Wno-unused-command-line-argument)
-    target_link_libraries(rt-backend-hip PRIVATE hip::host)
-  endif()
+  # hip::host comes from find_package(hip CONFIG) in cmake/discovery/hip.cmake.
+  # Supress warnings because wrongly set CXX arguments
+  target_compile_options(rt-backend-hip PRIVATE -Wno-unused-command-line-argument)
+  target_link_libraries(rt-backend-hip PRIVATE hip::host)
 
   target_compile_options(rt-backend-hip PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
   target_link_libraries(rt-backend-hip PRIVATE acpp-rt ${HIPSYCL_RT_EXTRA_LINKER_FLAGS})
@@ -231,8 +227,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_code_object.cpp)
 
   target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
-  # The loader is found in the root CMakeLists. find results are cache
-  # entries, so ACPP_ZE_LOADER_LIBRARY is visible here.
+  # ACPP_ZE_LOADER_LIBRARY is cmake/discovery/ze.cmake's find_library cache entry.
   target_link_libraries(rt-backend-ze PRIVATE acpp-rt ${ACPP_ZE_LOADER_LIBRARY})
 
   target_compile_options(rt-backend-ze PRIVATE ${HIPSYCL_RT_EXTRA_CXX_FLAGS})
@@ -277,8 +272,9 @@ if(WITH_VULKAN_BACKEND)
   target_include_directories(rt-backend-vk PRIVATE
                              ${HIPSYCL_SOURCE_DIR}/include
                              ${ACPP_BINARY_ROOT}/include/
-                             "${Vulkan_INCLUDE_DIR}")
-  target_link_libraries(rt-backend-vk PRIVATE acpp-rt Vulkan::Vulkan Vulkan::SPIRV-Tools)
+                             "${ACPP_VK_INCLUDE_DIR}")
+  # cmake/discovery/vk.cmake's finds (it does not use find_package(Vulkan)).
+  target_link_libraries(rt-backend-vk PRIVATE acpp-rt ${ACPP_VK_LOADER_LIBRARY} ${ACPP_VK_SPIRV_TOOLS_LIBRARY})
 
   # Need portability subset beta extension for moltenvk
   target_compile_definitions(rt-backend-vk PRIVATE -DVK_ENABLE_BETA_EXTENSIONS)

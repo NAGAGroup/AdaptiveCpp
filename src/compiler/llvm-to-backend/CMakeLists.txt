@@ -268,12 +268,12 @@ if(WITH_SSCP_COMPILER)
       LIBRARY amdgpu/LLVMToAmdgpu.cpp
       TOOL amdgpu/LLVMToAmdgpuTool.cpp)
 
-    find_library(HIPRTC_LIBRARY hiprtc HINTS ${ROCM_PATH}/lib)
+    find_library(HIPRTC_LIBRARY hiprtc HINTS "${ACPP_DISCOVERED_HIP_PREFIX}/${ACPP_DISCOVERED_HIP_LIBDIR}")
 
     if(HIPRTC_LIBRARY)
       message(STATUS "Found hipRTC: ${HIPRTC_LIBRARY}")
 
-      target_include_directories(llvm-to-amdgpu PRIVATE ${ROCM_PATH}/include)
+      target_include_directories(llvm-to-amdgpu PRIVATE "${ACPP_DISCOVERED_HIP_PREFIX}/${ACPP_DISCOVERED_HIP_INCDIR}")
       target_link_libraries(llvm-to-amdgpu PRIVATE ${HIPRTC_LIBRARY})
       target_compile_definitions(llvm-to-amdgpu PRIVATE -DACPP_HIPRTC_LINK)
 
