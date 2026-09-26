@@ -12,6 +12,13 @@ else()
   set(base @loader_path)
 endif()
 
+# Tools install to CMAKE_INSTALL_BINDIR and find our libraries in
+# CMAKE_INSTALL_LIBDIR, whatever either is called.
+file(RELATIVE_PATH ACPP_TOOL_TO_LIBDIR
+  "/acpp-relative-path-anchor/${CMAKE_INSTALL_BINDIR}"
+  "/acpp-relative-path-anchor/${CMAKE_INSTALL_LIBDIR}")
+set(ACPP_TOOL_INSTALL_RPATH "${base}/${ACPP_TOOL_TO_LIBDIR}")
+
 add_subdirectory(common)
 
 set(WITH_LLVM_TO_AMDGPU_AMDHSA false)

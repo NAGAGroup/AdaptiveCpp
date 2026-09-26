@@ -854,7 +854,7 @@ class acpp_config:
       'ACPP_ROCM_PATH' : self.rocm_path,
       'ACPP_ROCM_LIB_PATH' : self.rocm_lib_path,
       'ACPP_PATH' : self.acpp_installation_path,
-      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, self._config_db.get_or_default("acpp-libdir", "lib"))
     }
 
   def _get_cuda_substitution_vars(self):
@@ -862,13 +862,13 @@ class acpp_config:
       'ACPP_CUDA_PATH' : self.cuda_path,
       'ACPP_CUDA_LIB_PATH' : self.cuda_lib_path,
       'ACPP_PATH' : self.acpp_installation_path,
-      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, self._config_db.get_or_default("acpp-libdir", "lib"))
     }
 
   def _get_omp_substitution_vars(self):
     return {
       'ACPP_PATH' : self.acpp_installation_path,
-      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, "lib")
+      'ACPP_LIB_PATH' : os.path.join(self.acpp_installation_path, self._config_db.get_or_default("acpp-libdir", "lib"))
     }
 
   def _substitute_template_string(self, template_string, substitution_dict):
@@ -1194,10 +1194,12 @@ class acpp_config:
 
   @property
   def acpp_plugin_path(self):
+    if self._config_db.contains_key("plugin-path"):
+      return self._config_db.get("plugin-path")
     if sys.platform.startswith('win32'):
-      return os.path.join(self.acpp_installation_path, "bin", "acpp-clang.dll")
+      return os.path.join(self.acpp_installation_path, self._config_db.get_or_default("acpp-bindir", "bin"), "acpp-clang.dll")
     else:
-      return os.path.join(self.acpp_installation_path, "lib", "libacpp-clang.so")
+      return os.path.join(self.acpp_installation_path, self._config_db.get_or_default("acpp-libdir", "lib"), "libacpp-clang.so")
 
   @property
   def sequential_link_line(self):

@@ -15,6 +15,6 @@ endif()
 # Make sure that acpp-info uses compatible sanitizer flags for sanitized runtime builds
 target_link_libraries(acpp-info PRIVATE ${ACPP_RT_SANITIZE_FLAGS})
 target_compile_options(acpp-info PRIVATE ${ACPP_RT_SANITIZE_FLAGS})
-set_target_properties(acpp-info PROPERTIES INSTALL_RPATH ${base}/../lib/)
+set_target_properties(acpp-info PROPERTIES INSTALL_RPATH ${ACPP_TOOL_INSTALL_RPATH})
 
-install(TARGETS acpp-info DESTINATION bin)
+install(TARGETS acpp-info DESTINATION ${CMAKE_INSTALL_BINDIR})

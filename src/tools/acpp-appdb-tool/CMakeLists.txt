@@ -11,6 +11,6 @@ target_link_libraries(acpp-appdb-tool PRIVATE acpp-common)
 # Make sure that acpp-info uses compatible sanitizer flags for sanitized runtime builds
 target_link_libraries(acpp-appdb-tool PRIVATE ${ACPP_RT_SANITIZE_FLAGS})
 target_compile_options(acpp-appdb-tool PRIVATE ${ACPP_RT_SANITIZE_FLAGS})
-set_target_properties(acpp-appdb-tool PROPERTIES INSTALL_RPATH ${base}/../lib/)
+set_target_properties(acpp-appdb-tool PROPERTIES INSTALL_RPATH ${ACPP_TOOL_INSTALL_RPATH})
 
-install(TARGETS acpp-appdb-tool DESTINATION bin)
+install(TARGETS acpp-appdb-tool DESTINATION ${CMAKE_INSTALL_BINDIR})

@@ -514,6 +514,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # as a fallback behind that lookup.
 set(ACPP_RECORDED_INSTALL_PREFIX "")
 
+# Where our shared libraries live relative to the install prefix is fixed
+# at configure time; the prefix itself is not. The runtime finds its own
+# directory from the loader and walks this relative path back up.
+if(WIN32)
+  set(_acpp_shlib_dir "${CMAKE_INSTALL_BINDIR}")
+else()
+  set(_acpp_shlib_dir "${CMAKE_INSTALL_LIBDIR}")
+endif()
+file(RELATIVE_PATH ACPP_LIBDIR_TO_PREFIX
+  "/acpp-relative-path-anchor/${_acpp_shlib_dir}" "/acpp-relative-path-anchor")
+
 set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
 
 
@@ -945,9 +956,9 @@ if(NOT WIN32)
 # we already have SYCL/sycl.hpp
 install(FILES include/SYCL/sycl.hpp DESTINATION include/AdaptiveCpp/sycl/)
 endif()
-install(PROGRAMS bin/acpp DESTINATION bin)
-install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc)
-install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
+install(PROGRAMS bin/acpp DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(PROGRAMS bin/acpp DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME syclcc)
+install(PROGRAMS bin/acpp DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME syclcc-clang)
 
 include(CMakePackageConfigHelpers)
 
@@ -963,12 +974,12 @@ acpp_app_install_rpath(ACPP_APP_INSTALL_RPATH_DEFAULT)
 
 
 set(HIPSYCL_INSTALL_CMAKE_DIR
-  "lib/cmake/hipSYCL" CACHE PATH "Install path for legacy CMake config files")
+  "${CMAKE_INSTALL_LIBDIR}/cmake/hipSYCL" CACHE PATH "Install path for legacy CMake config files")
 
 # Set relative paths for install root in the following variables so that
 # configure_package_config_file will generate paths relative whatever is
 # the future install root
-set(HIPSYCL_INSTALL_COMPILER_DIR bin)
+set(HIPSYCL_INSTALL_COMPILER_DIR ${CMAKE_INSTALL_BINDIR})
 set(HIPSYCL_INSTALL_LAUNCHER_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 set(HIPSYCL_INSTALL_LAUNCHER_RULE_DIR ${HIPSYCL_INSTALL_CMAKE_DIR})
 
@@ -1011,12 +1022,12 @@ mark_as_advanced(
 # Legacy module (Open SYCL)
 
 set(OPENSYCL_INSTALL_CMAKE_DIR
-  "lib/cmake/OpenSYCL" CACHE PATH "Install path for CMake config files")
+  "${CMAKE_INSTALL_LIBDIR}/cmake/OpenSYCL" CACHE PATH "Install path for CMake config files")
 
 # Set relative paths for install root in the following variables so that
 # configure_package_config_file will generate paths relative whatever is
 # the future install root
-set(OPENSYCL_INSTALL_COMPILER_DIR bin)
+set(OPENSYCL_INSTALL_COMPILER_DIR ${CMAKE_INSTALL_BINDIR})
 set(OPENSYCL_INSTALL_LAUNCHER_DIR ${OPENSYCL_INSTALL_CMAKE_DIR})
 set(OPENSYCL_INSTALL_LAUNCHER_RULE_DIR ${OPENSYCL_INSTALL_CMAKE_DIR})
 
@@ -1059,12 +1070,12 @@ mark_as_advanced(
 
 
 set(ADAPTIVECPP_INSTALL_CMAKE_DIR
-  "lib/cmake/AdaptiveCpp" CACHE PATH "Install path for CMake config files")
+  "${CMAKE_INSTALL_LIBDIR}/cmake/AdaptiveCpp" CACHE PATH "Install path for CMake config files")
 
 # Set relative paths for install root in the following variables so that
 # configure_package_config_file will generate paths relative whatever is
 # the future install root
-set(ADAPTIVECPP_INSTALL_COMPILER_DIR bin)
+set(ADAPTIVECPP_INSTALL_COMPILER_DIR ${CMAKE_INSTALL_BINDIR})
 set(ADAPTIVECPP_INSTALL_LAUNCHER_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
 set(ADAPTIVECPP_INSTALL_LAUNCHER_RULE_DIR ${ADAPTIVECPP_INSTALL_CMAKE_DIR})
 

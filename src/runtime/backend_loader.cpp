@@ -83,14 +83,11 @@ std::vector<fs::path> get_plugin_search_paths()
 {
   std::vector<fs::path> paths;
 #ifndef _WIN32
-  #define ACPP_BACKEND_LIB_FOLDER "lib"
   Dl_info info;
   if (dladdr(reinterpret_cast<void*>(&get_plugin_search_paths), &info)) {
     paths.emplace_back(fs::path{info.dli_fname}.parent_path() / "hipSYCL");
   }
 #else
-  #define ACPP_BACKEND_LIB_FOLDER "bin"
-
   if(HMODULE handle = GetModuleHandleA(HIPSYCL_RT_LIBRARY_NAME))
   {
     std::vector<char> path_buffer(MAX_PATH);
@@ -105,11 +102,11 @@ std::vector<fs::path> get_plugin_search_paths()
   }
 #endif
 
-  if(auto install_dir = hipsycl::common::filesystem::get_install_directory(); !install_dir.empty()) {
+  if(auto lib_dir = hipsycl::common::filesystem::get_lib_directory(); !lib_dir.empty()) {
 #ifdef _WIN32
-    AddDllDirectory((fs::path(install_dir) / ACPP_BACKEND_LIB_FOLDER).c_str());
+    AddDllDirectory(fs::path(lib_dir).c_str());
 #endif
-    paths.emplace_back(fs::path(install_dir) / ACPP_BACKEND_LIB_FOLDER / "hipSYCL");
+    paths.emplace_back(fs::path(lib_dir) / "hipSYCL");
   }
 
 #ifdef _WIN32
@@ -129,13 +126,6 @@ std::vector<fs::path> get_plugin_search_paths()
   }
 #endif
 
-  const auto install_prefixed_path = fs::path{HIPSYCL_INSTALL_PREFIX} / ACPP_BACKEND_LIB_FOLDER / "hipSYCL";
-
-  if(paths.empty()
-      || !fs::is_directory(paths.back())
-      || (fs::is_directory(install_prefixed_path)
-          && !fs::equivalent(install_prefixed_path, paths.back())))
-    paths.emplace_back(std::move(install_prefixed_path));
   return paths;
 }
 

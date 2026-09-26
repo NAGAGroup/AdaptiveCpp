@@ -78,16 +78,20 @@ std::string get_lib_directory() {
   
 #endif
   if(paths.empty() || !fs::is_directory(paths.back())) {
-    return join_path(HIPSYCL_INSTALL_PREFIX, "lib");
+    // Nothing is recorded at build time; callers treat empty as unknown.
+    return std::string{};
   }
   return paths.back().string();
 }
 
 std::string get_install_directory() {
-  auto lib_path = fs::path{get_lib_directory()};
-  if(lib_path.has_parent_path())
-    return lib_path.parent_path().string();
-  return lib_path.string();
+  auto lib_dir = get_lib_directory();
+  if(lib_dir.empty())
+    return std::string{};
+  auto result = (fs::path{lib_dir} / ACPP_LIBDIR_TO_PREFIX).lexically_normal().string();
+  if(result.size() > 1 && (result.back() == '/' || result.back() == '\\'))
+    result.pop_back();
+  return result;
 }
 
 

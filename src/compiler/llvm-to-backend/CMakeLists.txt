@@ -66,9 +66,9 @@ function(create_llvm_based_library)
 
   set(install_subdir hipSYCL/llvm-to-backend)
   install(TARGETS ${target}
-    RUNTIME DESTINATION bin/${install_subdir}
-    LIBRARY DESTINATION lib/${install_subdir}
-    ARCHIVE DESTINATION lib/${install_subdir})
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/${install_subdir}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${install_subdir}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${install_subdir})
 endfunction()
 
 function(create_llvm_to_backend_library)
@@ -120,9 +120,9 @@ function(create_llvm_to_backend_tool)
 
   set(install_subdir hipSYCL/llvm-to-backend)
   install(TARGETS ${target}-tool
-    RUNTIME DESTINATION bin/${install_subdir}
-    LIBRARY DESTINATION lib/${install_subdir}
-    ARCHIVE DESTINATION lib/${install_subdir})
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/${install_subdir}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${install_subdir}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${install_subdir})
 endfunction()
 
 function(add_hipsycl_llvm_backend)
@@ -204,7 +204,7 @@ if(WITH_SSCP_COMPILER)
       set(LLVMSPIRV_GIT_TAG origin/${LLVMSPIRV_BRANCH})
       set(LLVMSPIRV_GIT_SHALLOW ON)
     endif()
-    set(LLVMSPIRV_RELATIVE_INSTALLDIR lib/hipSYCL/ext/llvm-spirv)
+    set(LLVMSPIRV_RELATIVE_INSTALLDIR ${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv)
     set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/${LLVMSPIRV_RELATIVE_INSTALLDIR})
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
     if(WIN32)

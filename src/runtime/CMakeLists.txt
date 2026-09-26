@@ -114,9 +114,9 @@ endif()
 install(TARGETS acpp-rt
         EXPORT install_exports
         INCLUDES DESTINATION include/AdaptiveCpp
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 set(CMAKE_INSTALL_RPATH ${base}/../ ${base}/llvm-to-backend)
 
@@ -154,9 +154,9 @@ if(WITH_CUDA_BACKEND)
   endif()
 
   install(TARGETS rt-backend-cuda
-        RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/hipSYCL
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL)
 
   # Reaches a SHIPPED CUDA's runtime libraries relative to this backend's
   # own install directory (lib/hipSYCL); a no-op if CUDA is not shipped
@@ -206,9 +206,9 @@ if(WITH_ROCM_BACKEND)
   endif()
 
   install(TARGETS rt-backend-hip
-        RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/hipSYCL
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL)
 
   # RT (the ROCm runtime libraries) and SYSDEPS (libhsa-runtime64/
   # libamdhip64's own rocm_sysdeps dependency tree, see
@@ -247,9 +247,9 @@ if(WITH_LEVEL_ZERO_BACKEND)
   endif()
 
   install(TARGETS rt-backend-ze
-        RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/hipSYCL
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL)
 
   # Reaches a SHIPPED Level Zero loader relative to this backend's own
   # install directory.
@@ -291,9 +291,9 @@ if(WITH_VULKAN_BACKEND)
   endif()
 
   install(TARGETS rt-backend-vk
-        RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/hipSYCL
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL)
 
   # Reaches a SHIPPED Vulkan loader (and, on macOS, MoltenVK - same RT
   # fact, see cmake/install/macos/common/vk.cmake) relative to this
@@ -353,9 +353,9 @@ if(WITH_OPENCL_BACKEND)
   endif()
 
   install(TARGETS rt-backend-ocl
-        RUNTIME DESTINATION bin/hipSYCL
-        LIBRARY DESTINATION lib/hipSYCL
-        ARCHIVE DESTINATION lib/hipSYCL)
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/hipSYCL
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL)
 
   # Reaches a SHIPPED OpenCL ICD loader relative to this backend's own
   # install directory.
@@ -462,9 +462,9 @@ if(WITH_CPU_BACKEND)
   endif()
 
   install(TARGETS rt-backend-omp
-      RUNTIME DESTINATION bin/hipSYCL
-      LIBRARY DESTINATION lib/hipSYCL
-      ARCHIVE DESTINATION lib/hipSYCL)
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/hipSYCL
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL)
 
   # LIBOMP and LIBNUMA are both single-library vendor units with no
   # internal lib/include/bin split (no FACT), reached relative to this
@@ -508,7 +508,7 @@ if (WITH_METAL_BACKEND)
   target_link_libraries(rt-backend-metal PRIVATE "-framework Metal" "-framework Foundation" "-framework CoreFoundation" "-framework IOKit" )
 
   install(TARGETS rt-backend-metal
-      RUNTIME DESTINATION bin/hipSYCL
-      LIBRARY DESTINATION lib/hipSYCL
-      ARCHIVE DESTINATION lib/hipSYCL)
+      RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/hipSYCL
+      LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL
+      ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/hipSYCL)
 endif ()
