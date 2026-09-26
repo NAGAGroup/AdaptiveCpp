@@ -18,6 +18,7 @@
 #include <iostream>
 #include <algorithm>
 #include <unordered_map>
+#include <type_traits>
 
 #include "export.hpp"
 
@@ -70,19 +71,26 @@ bool try_retrieve_environment_variable(const std::string& name, T& out) {
   }
   
   if (!env.empty()) {
-    
-    T val;
-    std::stringstream sstr{std::string{env}};
-    sstr >> val;
 
-    if (sstr.fail() || sstr.bad()) {
-      std::cerr << "AdaptiveCpp settings parsing: Could not parse value of environment "
-                    "variable: "
-                << env_name << std::endl;
-      return false;
+    if constexpr (std::is_same_v<T, std::string>) {
+      // sstr >> val below would truncate at the first whitespace; a
+      // string value is used verbatim instead.
+      out = env;
+      return true;
+    } else {
+      T val;
+      std::stringstream sstr{std::string{env}};
+      sstr >> val;
+
+      if (sstr.fail() || sstr.bad()) {
+        std::cerr << "AdaptiveCpp settings parsing: Could not parse value of environment "
+                      "variable: "
+                  << env_name << std::endl;
+        return false;
+      }
+      out = val;
+      return true;
     }
-    out = val;
-    return true;
   }
   return false;
 }
@@ -100,18 +108,26 @@ bool try_retrieve_settings_variable(const std::string& name, T& out) {
 
   if(settings_config_file::get().retrieve_setting(var_name, value_string)) {
 
-    T val;
-    std::istringstream sstr{std::string{value_string}};
-    sstr >> val;
+    if constexpr (std::is_same_v<T, std::string>) {
+      // sstr >> val below would truncate at the first whitespace; a
+      // string value is used verbatim instead. (settings_config_file
+      // already trims the value when it loads a file.)
+      out = value_string;
+      return true;
+    } else {
+      T val;
+      std::istringstream sstr{std::string{value_string}};
+      sstr >> val;
 
-    if (sstr.fail() || sstr.bad()) {
-      std::cerr << "AdaptiveCpp settings parsing: Could not parse value of config file "
-                    "entry: "
-                << var_name << std::endl;
-      return false;
+      if (sstr.fail() || sstr.bad()) {
+        std::cerr << "AdaptiveCpp settings parsing: Could not parse value of config file "
+                      "entry: "
+                  << var_name << std::endl;
+        return false;
+      }
+      out = val;
+      return true;
     }
-    out = val;
-    return true;
   }
   
   return false;

@@ -64,11 +64,36 @@ void settings_config_file::load_file(const std::string& filename) {
     std::string value = entry.second;
     trim(key);
     trim(value);
+
+    // A value may begin with the literal $ACPP_RT_LIB_DIR, which expands
+    // to the directory containing this library (acpp-common), the same
+    // directory the installed application config itself is found relative
+    // to, below - no other expansion is performed.
+    static const std::string rt_lib_dir_token = "$ACPP_RT_LIB_DIR";
+    if(value.compare(0, rt_lib_dir_token.size(), rt_lib_dir_token) == 0) {
+      value = common::filesystem::get_lib_directory() +
+              value.substr(rt_lib_dir_token.size());
+    }
+
     _values[key] = value;
   }
 }
 
 settings_config_file::settings_config_file() {
+  // The app config installed beside this runtime copy
+  // (etc/AdaptiveCpp/acpp-app.cfg, cmake/acpp-installed-configs.cmake),
+  // found relative to the directory containing this library - loaded
+  // FIRST, so upstream's beside-the-executable files below still override
+  // it, matching upstream's existing user-facing behaviour.
+  std::string this_lib_directory = common::filesystem::get_lib_directory();
+  if(!this_lib_directory.empty()) {
+    std::string runtime_app_config_file = common::filesystem::join_path(
+        this_lib_directory, ACPP_RT_LIB_DIR_TO_APP_CONFIG);
+    if(common::filesystem::exists(runtime_app_config_file)) {
+      load_file(runtime_app_config_file);
+    }
+  }
+
   std::string app_filename, app_directory;
   common::filesystem::get_this_executable_path(&app_filename, &app_directory);
   if(!app_directory.empty()){

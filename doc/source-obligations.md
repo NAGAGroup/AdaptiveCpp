@@ -71,6 +71,34 @@ configuration discovery mechanism described in `doc/configuration-model.md` is
 not implemented; the exported-symbol lookup, the padded-field rewriting, the
 XDG search order, and the one-per-process semantics do not exist.
 
+**Commit 4, step 4a**: the installed app config (`etc/AdaptiveCpp/acpp-app.cfg`
+- one per runtime copy, `cmake/acpp-installed-configs.cmake` +
+`CMakeLists.txt`'s root `install(FILES)` rules) is now loaded too, before
+upstream's beside-the-executable files, which still override it unchanged -
+`settings_config_file`'s constructor loads it first, via
+`common::filesystem::get_lib_directory()` (the directory containing
+`acpp-common` itself, already `dladdr`/`GetModuleHandle`-based - reused
+as-is rather than adding a second function that would return the same
+thing) joined with `ACPP_RT_LIB_DIR_TO_APP_CONFIG`, a `PRIVATE` compile
+definition `src/common/CMakeLists.txt` computes with `file(RELATIVE_PATH)`
+at configure time (`<CMAKE_INSTALL_LIBDIR>` on non-Windows,
+`<CMAKE_INSTALL_BINDIR>` on Windows, to
+`<ACPP_CONFIG_FILE_INSTALL_DIR>/acpp-app.cfg`), never an absolute path. A
+value beginning with the literal `$ACPP_RT_LIB_DIR` (only that prefix - no
+other expansion) is rewritten the same way in `load_file`. Separately,
+`try_retrieve_environment_variable`/`try_retrieve_settings_variable`
+(`include/hipSYCL/common/settings.hpp`) no longer truncate a
+`std::string`-typed setting at its first whitespace - `sstr >> val` was
+doing that for every type, strings included; an `if constexpr
+(std::is_same_v<T, std::string>)` branch now assigns the whole value
+instead, every other type's behaviour unchanged.
+
+Still not implemented: the exported-symbol lookup, the padded-field
+rewriting, the XDG search order, and the one-per-process semantics for the
+richer per-application `app-cfgs/<name>.cfg` mechanism "The global
+configuration installation" (below) describes - 4a is the single
+one-per-runtime-copy config only.
+
 ### The driver's fixpoint resolver
 
 The `{{ key }}` fixpoint resolver described in the configuration model does

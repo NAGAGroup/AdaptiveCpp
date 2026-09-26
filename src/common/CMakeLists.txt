@@ -17,6 +17,27 @@ target_include_directories(acpp-common
 
 target_link_libraries(acpp-common PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
 
+# The installed application config (etc/AdaptiveCpp/acpp-app.cfg,
+# cmake/acpp-installed-configs.cmake + the root install(FILES) rules) is
+# found by the runtime relative to its OWN library directory - the
+# directory containing this library, acpp-common, which installs beside
+# acpp-rt (get_lib_directory() in filesystem.cpp already returns exactly
+# that, via dladdr/GetModuleHandle on a symbol/name inside this same
+# library). The relative path from there to the app config is a layout
+# fact fixed at configure time, never an absolute path baked in - the same
+# reasoning as every other install-prefix-independent path in this build.
+if(WIN32)
+  set(_acpp_rt_libdir_for_app_config "${CMAKE_INSTALL_BINDIR}")
+else()
+  set(_acpp_rt_libdir_for_app_config "${CMAKE_INSTALL_LIBDIR}")
+endif()
+set(_acpp_app_config_anchor "/acpp-app-config-anchor")
+file(RELATIVE_PATH ACPP_RT_LIB_DIR_TO_APP_CONFIG
+  "${_acpp_app_config_anchor}/${_acpp_rt_libdir_for_app_config}"
+  "${_acpp_app_config_anchor}/${ACPP_CONFIG_FILE_INSTALL_DIR}/acpp-app.cfg")
+target_compile_definitions(acpp-common PRIVATE
+  -DACPP_RT_LIB_DIR_TO_APP_CONFIG="${ACPP_RT_LIB_DIR_TO_APP_CONFIG}")
+
 list(INSERT CMAKE_MODULE_PATH 0 "${ACPP_SOURCE_ROOT}/cmake/")
 find_package(Filesystem REQUIRED "${ACPP_FILESYSTEM_SEARCH_OPTIONS}")
 set(CXX_FILESYSTEM_HEADER "${CXX_FILESYSTEM_HEADER}" PARENT_SCOPE)
