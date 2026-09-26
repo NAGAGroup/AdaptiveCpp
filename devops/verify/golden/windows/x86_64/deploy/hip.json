@@ -1,0 +1,39 @@
+{
+  "external-permissive" : 
+  [
+    {
+      "dest" : "{{ acpp-runtime-root }}/{{ hip-subdir }}/{{ hip-bin-subdir }}",
+      "files" : 
+      [
+        "SHARED_LIB:{{ hip-amdhip-dll }}",
+        "SHARED_LIB:{{ hip-comgr-dll }}",
+        "SHARED_LIB:{{ hip-hiprtc-dll }}",
+        "SHARED_LIB:{{ hip-hiprtc-builtins-dll }}"
+      ],
+      "src" : "{{ hip-install-root }}/{{ hip-bin-subdir }}"
+    },
+    {
+      "dest" : "{{ acpp-runtime-root }}/{{ hip-subdir }}/{{ hip-bitcode-subdir }}",
+      "files" : [ "*" ],
+      "src" : "{{ hip-install-root }}/{{ hip-bitcode-subdir }}"
+    }
+  ],
+  "internal" : 
+  [
+    {
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL",
+      "files" : [ "SHARED_LIB:rt-backend-hip" ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL"
+    },
+    {
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend",
+      "files" : [ "SHARED_LIB:llvm-to-amdgpu" ],
+      "src" : "{{ acpp-root }}/{{ acpp-bindir }}/hipSYCL/llvm-to-backend"
+    },
+    {
+      "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
+      "files" : [ "libkernel-sscp-amdgpu-amdhsa-full.bc" ],
+      "src" : "{{ acpp-root }}/{{ acpp-libdir }}/hipSYCL/bitcode"
+    }
+  ]
+}
