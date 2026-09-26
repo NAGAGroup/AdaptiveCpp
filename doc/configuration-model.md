@@ -5,12 +5,21 @@ deployment manifest and vendor libraries work: what is always installed,
 what a strategy governs, the three files a build installs into
 `etc/AdaptiveCpp`, how a deployed application finds its libraries and its
 consumed files, and how `acpp --acpp-deploy` populates a deployment tree.
-Source code that contradicts this document has a defect; this document
-does not compromise to match the source.
+It describes the design as built. Where the source and this document
+disagree, one of them is out of date, and the design's goal decides
+which: no build-machine paths in binaries, configuration instead of
+hardcoded values, and predictable, relocatable deployment.
 
 ## Ownership
 
-Three kinds of asset, and only one of them is a strategy's business.
+The fork handles two kinds of thing: what it builds, and vendor
+runtimes - anything used to run kernels on a device (CUDA, HIP/ROCm, the
+OpenCL/Level Zero/Vulkan loaders, libomp for the OMP backend, device
+bitcode such as libdevice) plus the vector-math libraries the host JIT
+links. A toolchain it did not build - plugin mode's LLVM, `clang`,
+`llc`/`opt`/`lld`, `libLLVM`, `cpu-cxx` - is the system's: never shipped
+or deployed, on the assumption that plugin-mode users, and their
+applications' users in turn, already have that toolchain.
 
 **What we build (rule 1)** is installed in every strategy, both build
 modes - that is just build-and-install. In toolchain mode this is LLVM
@@ -44,9 +53,12 @@ governed by the strategy, permissive. The build mode changes only the
 *default source* - `ACPP_LIBOMP_SOURCE_DIR` - not whether it is a vendor
 unit at all:
 
-- In toolchain mode, the libomp belonging to the LLVM this build produces
-  (`${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}`) - guaranteed to
-  exist, since the toolchain must work with only what it ships.
+- In toolchain mode, libomp is built by the same LLVM build and installed
+  by LLVM itself into the prefix; the toolchain config points at it
+  there (`{{ acpp-root }}/{{ acpp-libdir }}`, `{{ acpp-bindir }}` on
+  Windows) in every strategy, and nothing is copied at install time.
+  Under `full`, `acpp --acpp-deploy` still copies it from there into
+  libomp's subdir, for a deployed application to find.
 - In plugin mode, whatever `find_package(OpenMP)` found for the compiler
   AdaptiveCpp itself was built with (`ACPP_DISCOVERED_LIBOMP_DIR`).
 
@@ -54,11 +66,6 @@ unit at all:
 JIT composes with a directory; discovery cannot choose between libomp and
 GOMP, so a packager who wants GOMP (ABI-compatible) points
 `ACPP_LIBOMP_SOURCE_DIR` at it directly and sets `ACPP_LIBOMP_NAME=gomp`.
-In toolchain mode, when libomp is *not* shipped, its driver-facing
-install-root value is still the deploy-layout placeholder rather than
-today's absolute build prefix (it is still ours, just not copied into the
-vendor subdir) - one of the few places ownership and shipped-ness
-interact instead of being independent axes.
 
 ## The two strategies
 
@@ -78,10 +85,12 @@ and `acpp --acpp-deploy` becomes available. They differ only in which
 vendors that covers.
 
 **Permissive** means redistributable without an EULA opt-in (permissive
-or weak-copyleft licensing, dynamically linked - e.g. libnuma under
-LGPL). **Nonpermissive** means it requires an EULA opt-in (CUDA, the HPC
-SDK). Every vendor unit declares its category once, at
-`acpp_declare_vendor(<STEM> <lower> permissive|nonpermissive)`.
+or weak-copyleft licensing, dynamically linked - e.g. libnuma under LGPL,
+SLEEF under the Boost licence). **Nonpermissive** means it requires an
+EULA opt-in (CUDA, the HPC SDK, SVML/intlc under Intel's EULA, AMATH
+under Arm's EULA). Every vendor unit declares its category once, at
+`acpp_declare_vendor(<STEM> <lower> permissive|nonpermissive [<discovered
+location>])`.
 
 **The gate**, `ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN` (default
 `OFF`), is the redistribution decision: copying a nonpermissive vendor
@@ -90,7 +99,9 @@ have read its terms and to pass the obligation on to their own users.
 `full` with the gate off is a configure-time `FATAL_ERROR` naming the
 vendor and pointing at the gate; `full-permissive-only` never needs it -
 a self-contained toolchain that only wants what needs no legal decision
-should not have to make one.
+should not have to make one. The gate only applies to a nonpermissive
+vendor discovery actually found - a declared-but-absent SVML or AMATH
+needs no redistribution decision, since there is nothing to ship.
 
 **The per-vendor shipped rule** (`ACPP_<STEM>_SHIPPED`, set once by
 `acpp_declare_vendor`) is exactly this:
@@ -110,14 +121,17 @@ consumed".
 
 ## Packager knobs
 
-A vendor unit gets exactly three knobs, and nothing else - there is no
-per-resource `-D` override of anything a vendor's own discovery or
-category already settled:
+A vendor unit is steered by a small set of knobs:
 
-1. **Discovery hints** - the find's own variables (`CUDAToolkit_ROOT`,
-   `LLVM_DIR`, `OpenCL_LIBRARY`, `WITH_*_BACKEND`). These belong to
-   discovery, not to the options layer, and are never named again once
-   discovery has run.
+1. **Discovery hints** - the finds' own variables, including upstream's
+   spellings: `CUDAToolkit_ROOT`/`CUDA_TOOLKIT_ROOT_DIR`,
+   `hip_ROOT`/`ROCM_PATH`, `ROCM_DEVICE_LIBS_PATH` (bitcode),
+   `NVCXX_COMPILER`, `OpenCL_LIBRARY`, `LLVM_DIR`,
+   `CLANG_EXECUTABLE_PATH`. `WITH_<X>_BACKEND` defaults from what
+   discovery found (OpenCL and Level Zero only with the SSCP compiler,
+   Level Zero `ON` when its loader is found, Vulkan and Metal `OFF`
+   unless requested); an explicit `OFF` skips that backend's discovery
+   entirely.
 2. **The strategy** (`ACPP_DEPLOYMENT_STRATEGY`) and **the gate**
    (`ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN`) - matrix-wide, not
    per-vendor.
@@ -129,11 +143,31 @@ category already settled:
    string installs the vendor straight at the install root, for a
    packager whose own layout already scopes it. Meaningful only for a
    shipped vendor, since an unshipped one is never copied anywhere.
+4. **`ACPP_<VENDOR>_ROOT`**, for a managed (not-shipped) vendor only:
+   moves where the vendor is found, while its internal layout still
+   comes from discovery. An absolute value is used as-is; a relative
+   value is relative to the install prefix (`{{ acpp-root }}/<rel>` for
+   the driver, the matching `$ACPP_RT_LIB_DIR`-relative path for the
+   application config). Setting it for a shipped vendor is a configure
+   error: `full` and `full-permissive-only` take no knobs for what they
+   ship - there is nowhere else to point a copy that already lives under
+   the toolchain's own subdirectory. Stems: `CUDA`, `NVHPC`, `HIP`,
+   `OCL`, `ZE`, `VK`, `CLSPV`, `LIBOMP`, `LIBNUMA`, `SLEEF`, `AMATH`,
+   `SVML`.
 
 OMP gets two more, described above: `ACPP_LIBOMP_SOURCE_DIR` and
 `ACPP_LIBOMP_NAME`. Nothing else is a packager knob - once discovery, the
 strategy, the gate, and (for a shipped vendor) its subdirectory have run,
 every other value a vendor exports is derived.
+
+**Upstream's `-D` names.** `OMP_LINK_LINE`/`OMP_CXX_FLAGS`,
+`SEQUENTIAL_LINK_LINE`/`SEQUENTIAL_CXX_FLAGS`,
+`CUDA_LINK_LINE`/`CUDA_CXX_FLAGS`, and `ROCM_LINK_LINE`/`ROCM_CXX_FLAGS`
+feed the matching `ACPP_*` option (`ACPP_*` wins when both are set), so a
+builder using upstream's own `-D` spellings still lands on the same
+option this model describes. `DEFAULT_TARGETS` (and the deprecated
+`DEFAULT_PLATFORM`/`DEFAULT_GPU_ARCH`) sets the default compilation
+targets the same way upstream's build always did.
 
 **Conda-packaged CUDA, worked through.** A conda environment installs the
 CUDA toolkit at its own environment prefix, with the runtime libraries
@@ -150,8 +184,9 @@ straight at the install root under `full`/`full-permissive-only`, because
 the conda environment's own layout already scopes it; under `managed`
 nothing is copied at all, and the app-config value CUDA gets is simply
 the discovered `$PREFIX/targets/x86_64-linux/lib`, unaffected by any of
-this - conda's own prefix rewriting (or a value written relative to
-`ACPP_RT_LIB_DIR` instead) carries it through relocation.
+this. A packager that needs that value to travel with the environment
+sets `-DACPP_CUDA_ROOT` to a path relative to the install prefix rather
+than relying on prefix rewriting.
 
 ## The three installed files
 
@@ -168,7 +203,10 @@ entry is a fact nothing could override. A value may still carry
 unresolved `{{ entry-key }}` tokens the driver resolves later, to a
 fixpoint, against this same file - plus `{{ acpp-root }}`, the
 toolchain's own root, found by the driver from its own location and
-never written into the file itself.
+never written into the file itself. Two of its keys, `acpp-libdir` and
+`acpp-bindir`, are `CMAKE_INSTALL_LIBDIR`/`CMAKE_INSTALL_BINDIR`
+themselves; every install destination this document describes follows
+them, not a literal `lib`/`bin`.
 
 **`acpp-app.cfg`** is a flat `KEY=value` file - no `{{ }}`, no `@`, every
 value already concrete - generated by `configure_file(@ONLY)` from the
@@ -195,9 +233,11 @@ Four groups, each a `[{"src", "dest", "files"}, ...]` array: `internal`
 builds and deploys; absent entirely in plugin mode),
 `external-permissive` and `external-nonpermissive` (vendor assets). A row
 may carry `"build-mode": "toolchain"|"plugin"` (kept only when it matches
-`LLVM_ADAPTIVECPP_LINK_INTO_TOOLS`) or `"unless": "hiprtc-link"` (dropped
-when the build linked hipRTC's own alternative) - both keys are stripped
-from whatever rows survive, so the installed file never carries them.
+`LLVM_ADAPTIVECPP_LINK_INTO_TOOLS`) or `"unless"` - `"hiprtc-link"`
+(dropped when the build linked hipRTC's own alternative) or
+`"hip-no-sysdeps"` (dropped when the HIP distribution has no
+`rocm_sysdeps` tree) - both keys are stripped from whatever rows survive,
+so the installed file never carries them.
 There is no `app-config` group any more: every value that used to live in
 one is in `acpp-app.cfg` instead.
 
@@ -246,7 +286,8 @@ read from `acpp-app.cfg`.
 backend that links a shipped vendor gets one more entry, computed by
 `acpp_add_vendor_rpaths` (`cmake/acpp-vendor-rpath.cmake`) from that
 vendor's own subdir and fact - `rt-backend-cuda` gets `CUDA:RT`,
-`rt-backend-hip` gets `HIP:RT` and `HIP:SYSDEPS`, `rt-backend-ze` gets
+`rt-backend-hip` gets `HIP:RT` and, where the HIP distribution has a
+`rocm_sysdeps` tree (TheRock), `HIP:SYSDEPS`, `rt-backend-ze` gets
 `ZE:RT`, `rt-backend-vk` gets `VK:RT`, `rt-backend-ocl` gets `OCL:RT`,
 `rt-backend-omp` gets `LIBOMP` and `LIBNUMA`, `llvm-to-amdgpu` gets
 `HIP:RT` - each a no-op unless that vendor is `SHIPPED`
@@ -267,25 +308,34 @@ absolute location otherwise - baked into the app config by
 **Windows has no RUNPATH.** A shipped vendor's DLL directory reaches the
 loader instead through `AddDllDirectory`, fed from an app-config row -
 `ACPP_<VENDOR>_DLL_DIR` (`cuda_dll_dir`, `ocl_dll_dir`, `ze_dll_dir`,
-`libomp_dll_dir`) - registered by `backend_loader.cpp` before any backend
-plugin (and the vendor DLLs it transitively loads) is opened.
-`dylib_loader.cpp`'s `LoadLibraryExA` call passes
+`libomp_dll_dir`, `hip_dll_dir`) - registered by `backend_loader.cpp`
+before any backend plugin (and the vendor DLLs it transitively loads) is
+opened. `dylib_loader.cpp`'s `LoadLibraryExA` call passes
 `LOAD_LIBRARY_SEARCH_DEFAULT_DIRS`, which is what makes an
 `AddDllDirectory`-registered directory part of the search at all -
-without it, only the process's own default search order would apply. A
-vendor not shipped means no `ACPP_<VENDOR>_DLL_DIR` row exists, and the
-loader falls back to `PATH`.
+without it, only the process's own default search order would apply. Not
+shipped, the row carries the vendor's discovered bin directory instead,
+so the same registration reaches the machine's own copy.
 
 **macOS** uses `@loader_path` everywhere `$ORIGIN` appears on Linux, both
 in our own binaries' RUNPATH and in a vendor's rpath entry
 (`acpp_vendor_rpath_entry` branches on `APPLE`).
+
+**Finding the install root at run time.** The runtime locates itself by
+walking `ACPP_LIBDIR_TO_PREFIX` - a relative path computed once at
+configure time from the runtime library's own install directory back to
+the install prefix - up from wherever its own library actually sits, and
+loads backend plugins from `hipSYCL/` beside itself. Nothing about the
+build machine's own prefix is ever recorded; the same binary works
+wherever it, and the tree around it, is relocated to.
 
 ## Vendor install rules under full
 
 Under `full` or `full-permissive-only`, a shipped vendor is copied at
 `cmake --install` time by `cmake/acpp-vendor-install.cmake`'s three
 helpers - `acpp_install_vendor_libs` (named shared libraries, whole
-symlink chain preserved via `FOLLOW_SYMLINK_CHAIN`),
+symlink chain preserved via `FOLLOW_SYMLINK_CHAIN`, with an `OPTIONAL`
+form for a library only some vendor versions ship),
 `acpp_install_vendor_files` (plain `FILES`/executable `PROGRAMS`),
 `acpp_install_vendor_dir` (a whole directory's contents) - every one a
 no-op unless `ACPP_<STEM>_SHIPPED`. The calls live in
@@ -302,15 +352,20 @@ pieces the manifest never deploys - needed to drive compilation, not
 opened by a running application - and everything the manifest also
 deploys with an application. The drive-only pieces, as things stand:
 CUDA's whole include tree and its `ptxas`/`fatbinary` tools (both
-platforms), Windows CUDA's `cudart.lib` import library, and HIP's whole
-include tree (needed only by the generic `clangJitLink` path when hipRTC
-is not linked). Everything else an install file names - CUDA's
-`libcudart`/`cudart64_<major>.dll` and `libdevice.10.bc`, HIP's seven
-runtime libraries plus its `rocm_sysdeps` and device-bitcode directories,
-the HPC SDK's whole `REDIST` runtime directory, the OpenCL and Level Zero
+platforms), Windows CUDA's `cudart.lib` import library, Windows HIP's
+`amdhip64.lib` import library, and HIP's whole include tree (needed only
+by the generic `clangJitLink` path when hipRTC is not linked). Everything
+else an install file names - CUDA's `libcudart`/`cudart64_<major>.dll`
+and `libdevice.10.bc`, HIP's runtime libraries (`amdhip64`,
+`hsa-runtime64` and `amd_comgr` always; `hiprtc`, `hiprtc-builtins`,
+`rocprofiler-register` and `rocm-core` where the ROCm version ships
+them), its `rocm_sysdeps` tree where the distribution has one (TheRock),
+and its device bitcode - on Windows, the HIP SDK's versioned DLLs
+(`amdhip64_N`, `amd_comgr_N`, `hiprtcXXYY`) as discovery found them - the
+HPC SDK's whole `REDIST` runtime directory, the OpenCL and Level Zero
 loaders, the Vulkan loader (and, on macOS, MoltenVK), `clspv`'s
-executable, libomp, and (on Linux) SLEEF/AMATH/libnuma/SVML - is also a
-manifest row.
+executable, libomp (plugin mode; in toolchain mode LLVM installs it), and
+(on Linux) SLEEF/AMATH/libnuma/SVML - is also a manifest row.
 
 **A symlink chain is preserved, not just the file a name resolves to.**
 `acpp_install_vendor_libs`'s resolver (`_acpp_resolve_vendor_lib_files`)
@@ -395,7 +450,9 @@ user may have changed since the toolchain was built): `internal` and
 strategy is `full` (never under `full-permissive-only`, exactly the
 per-vendor shipped rule's own table). Every row in a deployed group is
 copied - `SHARED_LIB:<name>` resolves to the platform's shared-library
-filename, `*` copies every file in the source directory, anything else
+filename; `*` copies every file in the source directory except static
+archives, libtool archives and Windows import libraries
+(`.a`/`.la`/`.lib`), which nothing loads at run time; anything else
 copies by that literal name - and a shared library that is itself a
 symlink deploys its whole chain the same way the install step preserved
 it. A missing source file or directory is a warning, not a failure:
@@ -440,36 +497,30 @@ follows the strategy table under "The two strategies".
 |---|---|---|---|---|
 | CUDA | nonpermissive | `rt-backend-cuda` → `cudart` (`cudart64_<major>.dll` on Windows) | `libdevice.10.bc` (`ACPP_CUDA_LIBDEVICE_DIR`) | include tree, `ptxas`/`fatbinary`; Windows `cudart.lib` |
 | nvhpc | nonpermissive | nothing of ours; a `cuda-nvcxx` app links the HPC SDK `REDIST` runtime itself, through `nvc++` | - | - (whole `REDIST` dir ships; `nvc++` itself is never in the tree) |
-| HIP | permissive | `rt-backend-hip` → 7 runtime libs (`amdhip64`, `hsa-runtime64`, `amd_comgr`, `hiprtc`, `hiprtc-builtins`, `rocprofiler-register`, `rocm-core`) + `rocm_sysdeps`; `llvm-to-amdgpu` → `hiprtc` optionally | device bitcode dir (`ACPP_HIP_BITCODE_DIR`) | whole include tree (generic `clangJitLink` path, only when hipRTC not linked) |
+| HIP | permissive | `rt-backend-hip` → `amdhip64` (+ `hsa-runtime64`, `amd_comgr`; optional `hiprtc`, `hiprtc-builtins`, `rocprofiler-register`, `rocm-core`) and, on TheRock, `rocm_sysdeps`; `llvm-to-amdgpu` → `hiprtc` optionally | device bitcode dir (`ACPP_HIP_BITCODE_DIR`) (Windows: `ACPP_HIP_DLL_DIR`) | whole include tree (generic `clangJitLink` path, only when hipRTC not linked) |
 | OpenCL | permissive | `rt-backend-ocl` → the ICD loader | - | - (loader-only; the ICD itself is never shipped) |
 | Level Zero | permissive | `rt-backend-ze` → `ze_loader` | - | - (loader-only; headers are build-only) |
 | Vulkan | permissive | `rt-backend-vk` → the Vulkan loader (+ MoltenVK on macOS) | - | - (nothing ships on Windows at all: `vulkan-1.dll` is the system's) |
 | clspv | permissive | not linked - a two-sided executable resource the JIT invokes (`ACPP_TOOLCHAIN_CLSPV`/`ACPP_APP_CLSPV`) | the executable path itself (`ACPP_CLSPV`) | - |
-| OMP / libomp | permissive | `rt-backend-omp` → `ACPP_LIBOMP_NAME` (default `omp`); also linked directly into `omp.*`-flavour applications | - | - |
+| OMP / libomp | permissive | `rt-backend-omp` → `ACPP_LIBOMP_NAME` (default `omp`); also linked directly into `omp.*`-flavour applications | - | - (toolchain mode: the prefix's own libomp, not a vendor copy) |
 | libnuma | permissive | `rt-backend-omp` → `numa` | - | - |
-| sleef / amath | permissive | not linked | host JIT's vector-math directory (`ACPP_SLEEF_DIR`/`ACPP_AMATH_DIR`) | - (found only off x86_64 on Linux; a no-op elsewhere) |
-| SVML (+ intlc) | permissive in the tree as it stands | not linked | host JIT's vector-math directory (shares SLEEF/AMATH's app-config shape) | - (x86_64-only; one manifest row and one install call name both `svml` and `intlc`) |
+| SLEEF | permissive | not linked | host JIT's vector-math directory (`ACPP_SLEEF_DIR`) | - (found only off x86_64 on Linux; a no-op elsewhere) |
+| AMATH | nonpermissive (Arm EULA) | not linked | host JIT's vector-math directory (`ACPP_AMATH_DIR`) | - (found only off x86_64 on Linux; a no-op elsewhere) |
+| SVML (+ intlc) | nonpermissive (Intel EULA) | not linked | host JIT's vector-math directory (shares SLEEF/AMATH's app-config shape) | - (x86_64-only; one manifest row and one install call name both `svml` and `intlc`) |
 | Metal | n/a - no vendor unit | the system Metal framework, at the runtime's own run time | - | - (`metal-cpp` is a build-only discovery requirement, never a row) |
-
-A short note on SVML's category: the design discussion flagged it as
-needing a check against Intel's redistribution terms before
-implementation ("svml's category ... is to be checked against Intel's
-license during implementation"). The tree as it stands declares it
-permissive, the same as every other vendor unit here
-(`acpp_declare_vendor(SVML svml permissive)`), with nothing recording
-that check having actually happened - described above as the code has
-it, not as settled.
 
 ## Verification
 
 Nothing is built locally to verify this model; every check is a
 `cmake -P` harness or a standalone python script, run against the source
-tree directly. Real builds go through acpp-toolchain CI.
+tree directly, and `devops/verify/run-all.py` (`pixi run -e dev verify`)
+runs them all in one pass. Real builds go through acpp-toolchain CI.
 
 - `verify-driver-config.py` - the driver's `config_db` resolves `{{ }}`
   chains to a fixpoint, detects cycles, and rejects an undefined key.
 - `verify-driver-deploy.py` - `deployment_engine`/`run_deployment` copy
-  every deployed group's rows (`SHARED_LIB:`/`*` expansion, symlink-chain
+  every deployed group's rows (`SHARED_LIB:`/`*` expansion, `*` skipping
+  static archives/libtool archives/import libraries, symlink-chain
   deployment) into a scratch tree, correctly scoped to the strategy's
   group list, and the application-config copy/skip/fail rule behaves as
   declared.
@@ -486,6 +537,15 @@ tree directly. Real builds go through acpp-toolchain CI.
   `cmake/adaptivecpp-config.cmake.in` still wire in discovery/options/
   installed-configs, the backends' vendor rpaths, and the application
   install rpath respectively.
+- `verify-root-legacy.cmake` - the root `CMakeLists.txt`'s upstream
+  legacy `find_package`/link-line logic stays gone, `DEFAULT_TARGETS`
+  (and its deprecated aliases) is still applied before the options model
+  runs, and upstream's `-D` aliases (`OMP_LINK_LINE`, `CUDA_CXX_FLAGS`,
+  and the rest) still reach the matching `ACPP_*` option.
+- `verify-install-dirs.cmake` - every install destination this model
+  describes actually follows `GNUInstallDirs`
+  (`CMAKE_INSTALL_LIBDIR`/`CMAKE_INSTALL_BINDIR`), not a literal
+  `lib`/`bin`.
 - `verify-app-config.cmake` - every platform/arch's merged `app/*.cfg`
   fragments are free of `{{ }}`, shaped `ACPP_<NAME>=@VAR@`, and free of
   duplicate keys.
@@ -497,19 +557,22 @@ tree directly. Real builds go through acpp-toolchain CI.
   `acpp_add_vendor_rpaths` compute the right `$ORIGIN`/`@loader_path`
   entry for a shipped vendor, nothing for one that is not, and skip a
   target that does not exist without erroring.
-- `verify-vendor-install.cmake` (+ `-inner`) - the three install helpers
-  record the right destination plan when a vendor is shipped, nothing
-  when it is not, resolve a whole symlink chain, and fail loudly (in a
-  child process) when a declared-shipped library is actually missing.
+- `verify-vendor-install.cmake` (+ `-inner`) - the three install helpers,
+  including `acpp_install_vendor_libs`'s `OPTIONAL` form, record the
+  right destination plan when a vendor is shipped, nothing when it is
+  not, resolve a whole symlink chain, and fail loudly (in a child
+  process) when a declared-shipped, non-optional library is actually
+  missing.
 - `verify-install-sync.cmake` (+ `-inner`, `-lib`) - every manifest row
   is covered by an install call, across every platform/arch/unit,
   printing the drive-only list as it goes; a scratch row naming
   something no install call provides fails, checked in a child process.
 - `verify-installed-configs.cmake` (+ `-inner`) -
   `acpp_generate_installed_configs` end to end: no manifest under
-  `managed`, a manifest with `build-mode`/`unless` stripped and an
-  `$ACPP_RT_LIB_DIR`-relative libdevice line under `full`, and an
-  undefined `@VAR@` is a configure error.
+  `managed`, a manifest with `build-mode`/`unless` (both `hiprtc-link`
+  and `hip-no-sysdeps`) stripped and an `$ACPP_RT_LIB_DIR`-relative
+  libdevice line under `full`, and an undefined `@VAR@` is a configure
+  error.
 - `verify-strategy-cuda.cmake` (+ `-inner`) - the app-config value for a
   nonpermissive vendor is the discovered path under `managed` and
   `$ACPP_RT_LIB_DIR`-relative under `full`; the gate fires exactly when
@@ -520,6 +583,13 @@ tree directly. Real builds go through acpp-toolchain CI.
   `full-permissive-only`, a permissive vendor (OCL) ships while a
   nonpermissive one (CUDA) does not, with no gate variable even set;
   under `managed`, neither ships.
+- `verify-managed-overrides.cmake` - `ACPP_<VENDOR>_ROOT` behaves for a
+  managed vendor: an absolute value used as-is, a relative value
+  resolved against the install prefix, a root-level relative value
+  landing exactly at the runtime libdir; a shipped vendor rejects any
+  override; a template (`{{ }}`) value is never a valid override; and
+  the nonpermissive redistribution gate fires only for a vendor
+  discovery actually found.
 - `verify-core.cmake`/`-core-plugin.cmake`/`-core-plugin-none.cmake` -
   core's options parse clean and produce every declared default, in
   toolchain mode, plugin mode with a plugin found, and plugin mode with
@@ -532,6 +602,13 @@ tree directly. Real builds go through acpp-toolchain CI.
   metal, nvhpc, ocl, plugin, vk, ze) - each backend's `find_*` either
   succeeds against what the running machine actually has, or reports a
   named skip rather than a false pass.
+- `verify-hip-layouts.cmake` - the bitcode and `rocm_sysdeps` probes
+  behave correctly across TheRock's layout, a classic ROCm install, and
+  ROCm 7.2 and later, honour a `ROCM_DEVICE_LIBS_PATH` override, and
+  discover the Windows HIP SDK's DLLs correctly.
+- `verify-hip-classic.cmake` - the options side of a classic
+  (non-TheRock) ROCm layout produces the same defaults the
+  layout-probing harness above assumes.
 - `verify-aarch64.cmake`, `verify-windows-x86_64.cmake` (+
   `-placeholder`), `verify-windows-aarch64.cmake`,
   `verify-macos-arm64.cmake` (+ `-placeholder`) - every platform/arch's
@@ -560,3 +637,18 @@ what a resource might mean; and the CLI driver adds no rpaths of its own
 to a multipass link line, leaving that to the application builder -
 `add_sycl_to_target` under CMake, or a hand-driven build's own link
 otherwise.
+
+**2026-09-26.** Backend enablement now comes from what discovery actually
+found rather than a fixed default, and upstream's legacy root
+`find_package`/link-line logic is gone entirely (upstream's own `-D`
+spellings still steer the same options, so a builder using them notices
+nothing). HIP accepts a classic ROCm install, ROCm 7.2 and later, and
+TheRock's layout, and builds on Windows through the HIP SDK. `managed`
+gained a per-vendor `ACPP_<VENDOR>_ROOT` for moving where an unshipped
+vendor is found. Every install destination follows `GNUInstallDirs`, and
+the runtime finds its own install root by walking a relative path
+computed once at configure time, rather than assuming `lib`/`bin`.
+Toolchain-mode libomp is the prefix's own - installed by LLVM itself,
+never copied at install time. SVML and AMATH are nonpermissive, alongside
+CUDA and the HPC SDK. The driver's config keys dropped their `default-`
+prefix, and the plugin-mode capability keys removed earlier are back.
