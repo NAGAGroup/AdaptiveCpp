@@ -11,6 +11,15 @@ include(adaptivecpp-targets)
 set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS}" CACHE STRING "Arguments to pass through directly to acpp.")
 set(ACPP_EXTRA_COMPILE_OPTIONS "${ACPP_EXTRA_COMPILE_OPTIONS}" CACHE STRING "Additional compile options for source files listed in add_sycl_to_target.")
 
+# The install rpath add_sycl_to_target appends to a target's INSTALL_RPATH
+# so a deployed app finds this toolchain's shipped vendor libraries - only
+# non-empty for a toolchain built with the full or full-permissive-only
+# deployment strategy (empty for managed: an ordinary CMake project's own
+# rpath is none of our business, so set your own). Assumes the executable
+# installs to <prefix>/bin; override if yours does not.
+set(ACPP_APP_INSTALL_RPATH "@ACPP_APP_INSTALL_RPATH_DEFAULT@" CACHE STRING
+  "Install rpath add_sycl_to_target appends to targets, to find this toolchain's shipped vendor libraries after deployment.")
+
 set(ACPP_TARGETS_DESC "in the format ACPP_TARGETS=<platform1>[:arch1[,arch2][..,archN]][;<platform2>[:arch1][...]][..;<platformN>]. See acpp --help for a list of platforms.")
 set(ACPP_TARGETS "${ACPP_TARGETS}" CACHE STRING "The platforms and architectures AdaptiveCpp should target, ${ACPP_TARGETS_DESC}.")
 # IF ACPP_TARGETS has not been explicitly set by the user, first try to find the corresponding environment variable.
@@ -131,6 +140,13 @@ function(add_sycl_to_target)
 
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
+
+  # Empty for a managed toolchain (nothing to append) or an ordinary
+  # target whose own build already sets an INSTALL_RPATH it wants kept -
+  # APPEND leaves that alone. BUILD_RPATH is left to CMake's own defaults.
+  if(NOT "${ACPP_APP_INSTALL_RPATH}" STREQUAL "")
+    set_property(TARGET "${ADD_SYCL_TARGET}" APPEND PROPERTY INSTALL_RPATH "${ACPP_APP_INSTALL_RPATH}")
+  endif()
 
   target_link_libraries(${ADD_SYCL_TARGET} PRIVATE AdaptiveCpp::acpp-rt)
 endfunction()

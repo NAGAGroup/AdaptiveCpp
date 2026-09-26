@@ -83,3 +83,19 @@ if(_idx_rpaths EQUAL -1)
 endif()
 
 message(STATUS "parse: src/runtime/CMakeLists.txt still wires the backends' vendor rpaths")
+
+# ---------------------------------------------------------------------------
+# Same rule, for the application install rpath (Commit 6): the installed
+# CMake package's add_sycl_to_target must still append ACPP_APP_INSTALL_RPATH
+# to a target's INSTALL_RPATH when it is non-empty - a plain string search,
+# independent of whether this parse check's own (non-)configure ever
+# actually computes a non-empty value.
+# ---------------------------------------------------------------------------
+file(READ "${ACPP_REPO_ROOT}/cmake/adaptivecpp-config.cmake.in" _adaptivecpp_config_text)
+
+string(FIND "${_adaptivecpp_config_text}" "APPEND PROPERTY INSTALL_RPATH \"\${ACPP_APP_INSTALL_RPATH}\"" _idx_apprpath)
+if(_idx_apprpath EQUAL -1)
+  message(FATAL_ERROR "cmake/adaptivecpp-config.cmake.in no longer appends ACPP_APP_INSTALL_RPATH to INSTALL_RPATH")
+endif()
+
+message(STATUS "parse: adaptivecpp-config.cmake.in still gives applications the full strategy's install rpath")

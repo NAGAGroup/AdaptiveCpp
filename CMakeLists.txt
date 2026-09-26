@@ -1116,7 +1116,13 @@ install(PROGRAMS bin/acpp DESTINATION bin RENAME syclcc-clang)
 
 include(CMakePackageConfigHelpers)
 
-
+# The install rpath add_sycl_to_target gives applications, under all three
+# installed CMake packages below (Commit 6, doc/design-walkthrough-2026-
+# 09-25.md, "Resolved opens -> CMake rpaths for apps") - a plain @VAR@
+# substitution shared by all three *-config.cmake.in files' configure_
+# package_config_file calls, computed once since it does not depend on
+# which package is being generated.
+acpp_app_install_rpath(ACPP_APP_INSTALL_RPATH_DEFAULT)
 
 # Legacy module (hipSYCL)
 

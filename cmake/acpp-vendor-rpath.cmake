@@ -115,3 +115,80 @@ function(acpp_add_vendor_rpaths target)
     endif()
   endforeach()
 endfunction()
+
+# acpp_app_install_rpath(<out_var>)
+#
+# Commit 6 (doc/design-walkthrough-2026-09-25.md, "Resolved opens -> CMake
+# rpaths for apps"): the install rpath add_sycl_to_target gives
+# applications - baked into the installed CMake package as
+# ACPP_APP_INSTALL_RPATH, an overridable cache variable, not computed
+# again at the consuming project's configure time (this function runs
+# once, here, at OUR configure/install time; its result is a plain string
+# by the time it reaches the package). Empty under managed (an ordinary
+# CMake project's own rpath/loader-search choices are none of our
+# business - "The simplification: two strategies") and on Windows (no
+# RPATH at all there; a deployed app reaches a shipped vendor's DLL
+# directory through the app config's AddDllDirectory mechanism instead,
+# not an application's own CMake package). Assumes the executable installs
+# to <prefix>/<CMAKE_INSTALL_BINDIR>, since the deploy tree mirrors the
+# install tree (principle 5, "Deploying is driving").
+#
+# <out_var> := "" under managed/WIN32; otherwise a ;-list whose first
+# entry reaches CMAKE_INSTALL_LIBDIR from CMAKE_INSTALL_BINDIR (normally
+# $ORIGIN/../lib), followed by one acpp_vendor_rpath_entry() per vendor
+# below (FROM CMAKE_INSTALL_BINDIR, since that is where the app installs) -
+# only for a vendor whose ACPP_<STEM>_SHIPPED is even DEFINED, same guard
+# acpp_add_vendor_rpaths itself uses, and only a non-empty entry (a vendor
+# that isn't SHIPPED contributes nothing, exactly as acpp_vendor_rpath_entry
+# already encodes).
+function(acpp_app_install_rpath out_var)
+  set(_aair_result "")
+
+  if(NOT WIN32 AND NOT "${ACPP_DEPLOYMENT_STRATEGY}" STREQUAL "managed")
+    if(APPLE)
+      set(_aair_base "@loader_path")
+    else()
+      set(_aair_base "$ORIGIN")
+    endif()
+
+    set(_aair_anchor "/acpp-rpath-anchor")
+    file(RELATIVE_PATH _aair_libdir_rel
+      "${_aair_anchor}/${CMAKE_INSTALL_BINDIR}"
+      "${_aair_anchor}/${CMAKE_INSTALL_LIBDIR}")
+    if("${_aair_libdir_rel}" STREQUAL "" OR "${_aair_libdir_rel}" STREQUAL ".")
+      list(APPEND _aair_result "${_aair_base}")
+    else()
+      list(APPEND _aair_result "${_aair_base}/${_aair_libdir_rel}")
+    endif()
+
+    # CUDA/NVHPC multipass link OpenMP into an app under the omp.*
+    # flavours too - the same three vendors "Resolved opens" names. Unlike
+    # acpp_add_vendor_rpaths's ENTRIES shorthand (a bare "RT" tag), FACT
+    # here is the real subdir *value* (ACPP_<STEM>_RT_SUBDIR, e.g. "lib64")
+    # - the same convention every acpp_install_vendor_* call in
+    # cmake/install/*/common/*.cmake already uses, and the one
+    # acpp_vendor_rpath_entry itself expects (its own docstring's example
+    # is FACT "lib64", never FACT "RT").
+    foreach(_aair_entry_spec "CUDA:RT" "NVHPC:RT" "LIBOMP")
+      string(REPLACE ":" ";" _aair_parts "${_aair_entry_spec}")
+      list(LENGTH _aair_parts _aair_n)
+      list(GET _aair_parts 0 _aair_stem)
+      if(_aair_n GREATER 1)
+        list(GET _aair_parts 1 _aair_fact_key)
+        set(_aair_fact "${ACPP_${_aair_stem}_${_aair_fact_key}_SUBDIR}")
+      else()
+        set(_aair_fact "")
+      endif()
+
+      if(DEFINED ACPP_${_aair_stem}_SHIPPED)
+        acpp_vendor_rpath_entry(_aair_value
+          STEM ${_aair_stem} FACT "${_aair_fact}" FROM "${CMAKE_INSTALL_BINDIR}")
+        if(NOT "${_aair_value}" STREQUAL "")
+          list(APPEND _aair_result "${_aair_value}")
+        endif()
+      endif()
+    endforeach()
+  endif()
+
+  set(${out_var} "${_aair_result}" PARENT_SCOPE)
+endfunction()
