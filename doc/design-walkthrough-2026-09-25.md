@@ -241,7 +241,8 @@ nvhpc). The group names stay; this is their definition.
 
 ## Implementation plan
 
-Status: proposed, awaiting Jack's glance. Local verification is `cmake -P`
+Status: implemented; the current model is doc/configuration-model.md,
+open items in doc/source-obligations.md. Local verification is `cmake -P`
 harnesses plus at most a configure; real builds go through acpp-toolchain
 CI afterwards.
 

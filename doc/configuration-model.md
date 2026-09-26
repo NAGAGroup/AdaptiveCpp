@@ -297,10 +297,10 @@ downstream toolchain user is allowed to edit (swap libomp for GOMP,
 repoint a vendor path), and packaging must never derive from something a
 user can change.
 
-**A vendor's install file lists both kinds of thing.** Toolchain-only
+**A vendor's install file lists both kinds of thing.** Drive-only
 pieces the manifest never deploys - needed to drive compilation, not
 opened by a running application - and everything the manifest also
-deploys with an application. The toolchain-only pieces, as things stand:
+deploys with an application. The drive-only pieces, as things stand:
 CUDA's whole include tree and its `ptxas`/`fatbinary` tools (both
 platforms), Windows CUDA's `cudart.lib` import library, and HIP's whole
 include tree (needed only by the generic `clangJitLink` path when hipRTC
@@ -331,7 +331,7 @@ canonical form, and requires every row to be covered by a call - deriving
 which cmake stem and lowercase name belongs to which unit from the
 options files' own `acpp_declare_vendor` calls, not a hand-written table.
 An install call no row ever claims is printed, not failed: that is
-exactly the toolchain-only list above.
+exactly the drive-only list above.
 
 ## Driving
 
@@ -436,7 +436,7 @@ Linked means the runtime's own `DT_NEEDED` (or the Windows DLL search);
 consumed means opened by path, read from an `acpp-app.cfg` key. Shipped
 follows the strategy table under "The two strategies".
 
-| unit | category | linked | consumed (app-config key) | toolchain-only |
+| unit | category | linked | consumed (app-config key) | drive-only |
 |---|---|---|---|---|
 | CUDA | nonpermissive | `rt-backend-cuda` → `cudart` (`cudart64_<major>.dll` on Windows) | `libdevice.10.bc` (`ACPP_CUDA_LIBDEVICE_DIR`) | include tree, `ptxas`/`fatbinary`; Windows `cudart.lib` |
 | nvhpc | nonpermissive | nothing of ours; a `cuda-nvcxx` app links the HPC SDK `REDIST` runtime itself, through `nvc++` | - | - (whole `REDIST` dir ships; `nvc++` itself is never in the tree) |
@@ -498,7 +498,7 @@ tree directly. Real builds go through acpp-toolchain CI.
   child process) when a declared-shipped library is actually missing.
 - `verify-install-sync.cmake` (+ `-inner`, `-lib`) - every manifest row
   is covered by an install call, across every platform/arch/unit,
-  printing the toolchain-only list as it goes; a scratch row naming
+  printing the drive-only list as it goes; a scratch row naming
   something no install call provides fails, checked in a child process.
 - `verify-installed-configs.cmake` (+ `-inner`) -
   `acpp_generate_installed_configs` end to end: no manifest under
@@ -508,8 +508,9 @@ tree directly. Real builds go through acpp-toolchain CI.
 - `verify-strategy-cuda.cmake` (+ `-inner`) - the app-config value for a
   nonpermissive vendor is the discovered path under `managed` and
   `$ACPP_RT_LIB_DIR`-relative under `full`; the gate fires exactly when
-  it should; no manifest carries `app-config`/`runtime-configurable`/
-  `toolchain-only` keys or an unresolved `@` token.
+  it should; no manifest carries an application-configuration group or
+  either of the two retired per-row flags the old model used, and no
+  unresolved `@` token.
 - `verify-strategy-matrix.cmake` (+ `-inner`) - under
   `full-permissive-only`, a permissive vendor (OCL) ships while a
   nonpermissive one (CUDA) does not, with no gate variable even set;
