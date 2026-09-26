@@ -35,10 +35,6 @@ class OptionNotSet(Exception):
   def __init__(self, msg):
     super().__init__(msg)
 
-class DeploymentComponentUnavailable(Exception):
-  def __init__(self, msg):
-    super().__init__(msg)
-
 
 ###################### Windows library dependency scanner ###################
 # Figures out dependencies for deployment on Windows
@@ -262,48 +258,66 @@ ACPP_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_i
       f.write(str(self))
 
 class deployment_db:
-  def __init__(self, config_file_dirs, config):
-    self._data = {}
-    for d in [os.path.join(x, "deploy") for x in config_file_dirs]:
-      files = os.listdir(d)
-      for f in files:
-        if f.lower().endswith(".json") and f.startswith("acpp-deployment-manifest-"):
-          component = f.replace("acpp-deployment-manifest-","").replace(".json","").lower()
-          self._data[component] = {}
-          with open(os.path.join(d, f), 'r') as manifest_file:
-            data = json.load(manifest_file)
-            for entry in data:
-              if entry != "" and not entry.endswith("-NOTFOUND"):
-                self._data[component][self._parse_entry_origin_string(entry, config)] = data[entry]
+  # Loads the single installed deploy manifest (etc/AdaptiveCpp/
+  # acpp-deploy.json), if present in any of the given directories. It
+  # exists only under full/full-permissive-only
+  # (cmake/acpp-installed-configs.cmake writes it only then) - so, unlike
+  # upstream's per-component manifest files, its absence here is not a
+  # construction-time error: the driver still has to work for compiling
+  # under managed. Rows are exposed raw, still {{ }}-templated - resolving
+  # and copying is run_deployment()/deployment_engine's job, since only
+  # deploy time knows the target (acpp-runtime-root).
+  def __init__(self, config_file_dirs):
+    self._groups = {}
+    self._is_loaded = False
 
-  def _parse_entry_origin_string(self, entry, config):
-    if "SHARED_LIB:" in entry:
-      entry = entry.replace("SHARED_LIB:","")
-      filename = os.path.basename(entry)
-      if sys.platform.startswith('win32'):
-        filename = filename + ".dll"
-      elif sys.platform == "darwin":
-        filename = "lib"+filename+".dylib"
-      else:
-        filename = "lib"+filename+".so"
-      entry = os.path.join(os.path.dirname(entry), filename)
-    return config.substitute_generic_template_string(entry)
+    for current_dir in config_file_dirs:
+      manifest_path = os.path.join(current_dir, "acpp-deploy.json")
+      if not os.path.isfile(manifest_path):
+        continue
+      with open(manifest_path, 'r') as manifest_file:
+        data = json.load(manifest_file)
+      for group in data:
+        self._groups[group] = data[group]
+      self._is_loaded = True
 
-  def deployment_manifest(self, component):
-    lower_component = component.lower()
-    if not lower_component in self._data:
-      raise DeploymentComponentUnavailable("Deployment component '"+component+"' is unvailable.")
-    return self._data[component]
+  @property
+  def is_loaded(self):
+    return self._is_loaded
+
+  def rows(self, group):
+    return self._groups.get(group, [])
 
 class deployment_engine:
-  def __init__(self, deployment_db):
-    self._deployment_db = deployment_db
+  # Resolves one deploy row's {{ }} tokens against the toolchain config
+  # (config_db.resolve_deploy_template - the ordinary 5a resolver, plus
+  # the one token only a deploy invocation knows: {{ acpp-runtime-root }}),
+  # then copies what it names to an already-absolute destination. The
+  # SHARED_LIB:/"*" expansion and the symlink-chain preservation are
+  # unchanged from before this step; only the row shape (src/dest/files,
+  # not a flat {origin: relative-dest} map) and dest no longer needing a
+  # separate target-root join are new.
+  def __init__(self, config_db, runtime_root):
+    self._config_db = config_db
+    self._runtime_root = runtime_root
+    self.misses = []
+
+  def _resolve(self, text):
+    return self._config_db.resolve_deploy_template(text, self._runtime_root)
+
+  def _platform_shared_lib_name(self, name):
+    if sys.platform.startswith('win32'):
+      return name + ".dll"
+    elif sys.platform == "darwin":
+      return "lib" + name + ".dylib"
+    else:
+      return "lib" + name + ".so"
 
   # relative symlink in same directory
   def _relative_symlink(self, target, link):
     if os.path.exists(link):
       os.unlink(link)
-    
+
     os.symlink(os.path.basename(target), link)
 
   def _get_last_so_version(self, filename):
@@ -328,32 +342,19 @@ class deployment_engine:
       sv=self._get_last_so_version(sv[1])
     return sv[1].endswith(".so") or sv[1].endswith(".dylib") or sv[1].endswith(".dll")
 
-  def _deploy(self, origin, target, target_root_path):
-    
-    if origin.endswith("/*"):
-      root=origin.replace("/*","")
-      for f in os.listdir(root):
-        full_path = os.path.join(root, f)
-        if os.path.isfile(full_path):
-          self._deploy(full_path, target, target_root_path)
+  def _copy_one(self, origin, dest_dir):
+    if not os.path.exists(origin):
+      print_warning("deploy: missing source file, skipping: "+origin)
+      self.misses.append(origin)
       return
-    
-    # os.path.join("abc", "/") returns '/', not 'abc/'.
-    # Remove leading / to fix.
-    if target.startswith("/"):
-      target=target.replace("/","",1)
-    # target is assumed to be a directory!
 
-    full_target_path = os.path.join(target_root_path, target)
-    print("  ",origin,"->",full_target_path)
+    print("  ",origin,"->",dest_dir)
+    os.makedirs(dest_dir,0o777, True)
 
-
-    os.makedirs(full_target_path,0o777, True)
-    
     if self._is_shared_library(origin) and os.path.islink(origin):
-      # first deploy link target 
+      # first deploy link target
       real_origin = os.path.realpath(origin)
-      self._deploy(real_origin, target, target_root_path)
+      self._copy_one(real_origin, dest_dir)
 
       # find all SO-versions and create symlinks for all so version subversion if applicable
       so_version = self._get_last_so_version(os.path.basename(real_origin))
@@ -364,17 +365,36 @@ class deployment_engine:
           self._get_so_versions(real_origin, os.path.dirname(real_origin)))
         for sv in so_versions:
           self._relative_symlink(
-            os.path.join(full_target_path,os.path.basename(real_origin)),
-            os.path.join(full_target_path,os.path.basename(sv)))
+            os.path.join(dest_dir,os.path.basename(real_origin)),
+            os.path.join(dest_dir,os.path.basename(sv)))
     else:
-      destination = os.path.join(full_target_path, os.path.basename(origin))
+      destination = os.path.join(dest_dir, os.path.basename(origin))
       shutil.copy(origin, destination)
 
-  def deploy_component(self, component, target_path):
-    manifest = self._deployment_db.deployment_manifest(component)
-    
-    for f in manifest:
-      self._deploy(f, manifest[f], target_path)
+  def deploy_row(self, row):
+    src = self._resolve(row["src"])
+    dest = self._resolve(row["dest"])
+
+    for raw_entry in row.get("files", []):
+      entry = self._resolve(raw_entry)
+
+      if entry == "*":
+        if not os.path.isdir(src):
+          print_warning("deploy: missing source directory, skipping: "+src)
+          self.misses.append(src+"/*")
+          continue
+        for f in sorted(os.listdir(src)):
+          full_path = os.path.join(src, f)
+          if os.path.isfile(full_path):
+            self._copy_one(full_path, dest)
+        continue
+
+      if entry.startswith("SHARED_LIB:"):
+        filename = self._platform_shared_lib_name(entry[len("SHARED_LIB:"):])
+      else:
+        filename = entry
+
+      self._copy_one(os.path.join(src, filename), dest)
 
 class config_db:
   # Loads the single installed toolchain config (etc/AdaptiveCpp/
@@ -451,6 +471,23 @@ class config_db:
       name = m.group(1)
       if name == "acpp-runtime-root":
         return m.group(0)
+      return self._resolve(name)
+    return self._TEMPLATE_KEY_RE.sub(_repl, text)
+
+  # Same resolution as _substitute above, except "acpp-runtime-root" is a
+  # real substitution too - only a deploy invocation (5b) knows this
+  # value (the target path it was asked to deploy to), so it is passed in
+  # rather than fixed at construction like "acpp-root" is. No config
+  # entry's own raw value ever contains "{{ acpp-runtime-root }}" (that
+  # token only appears directly in deploy-manifest rows), so one pass
+  # here - not a second recursive resolver - is enough.
+  def resolve_deploy_template(self, text, runtime_root):
+    if not isinstance(text, str) or "{{" not in text:
+      return text
+    def _repl(m):
+      name = m.group(1)
+      if name == "acpp-runtime-root":
+        return runtime_root
       return self._resolve(name)
     return self._TEMPLATE_KEY_RE.sub(_repl, text)
 
@@ -623,15 +660,16 @@ class acpp_config:
       * first       - Prefetch allocations only the very first time they are used in a kernel
       * auto        - Let AdaptiveCpp decide (default)"""),
       'deploy' : option("--acpp-deploy", "ACPP_DEPLOY", "default-deploy",
-"""  If set, enables deployment, i.e. AdaptiveCpp will attempt to collect all AdaptiveCpp dependencies 
-    of generated binaries in the specified directory. The format is:
-    deployment-target1,deployment-target2,...,deployment-targetN:/path/to/deploy/to
-    Supported deployment targets are:
-      * core        - Core AdaptiveCpp components and OpenMP CPU backend. This will always be required.
-      * cuda        - CUDA backend for NVIDIA hardware
-      * hip         - HIP backend for AMD hardware
-      * ocl         - OpenCL backend (e.g. Intel hardware)
-      * all         - All of the above targets""")
+"""  If set, deploys this AdaptiveCpp toolchain's installed manifest - every
+    backend and vendor library enabled when it was built - into the given
+    directory, along with its application config. Requires a toolchain
+    built with the full or full-permissive-only deployment strategy. The
+    format is:
+    <ignored-for-compatibility>:/path/to/deploy/to
+    A component list before the ':' is accepted for backwards
+    compatibility only, and otherwise ignored: the installed manifest is
+    already merged across every backend this toolchain was built with, so
+    there is nothing left to select per component.""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
@@ -718,7 +756,7 @@ class acpp_config:
       config_file_directories.append(install_config_dir)
     self._config_db = config_db(config_file_directories, os.path.abspath(self.acpp_installation_path))
     self._common_compiler_args = self._get_std_compiler_args()
-    self._deployment_db = deployment_db(config_file_directories, self)
+    self._deployment_db = deployment_db(config_file_directories)
 
 
   def _upgrade_legacy_arg(self, arg):
@@ -947,13 +985,14 @@ class acpp_config:
 
     return result
 
+  # Returns (components, target_path). The component list before ':' is
+  # accepted for backwards compatibility only - the installed manifest is
+  # already merged across every backend this toolchain was built with, so
+  # there is nothing left to select per component; run_deployment() notes
+  # when a caller named anything other than core/all, so the request is
+  # not silently reinterpreted rather than validated against a whitelist.
   def _parse_deployment(self, deployment_arg):
-    available_components = ["core", "cuda", "hip", "ocl"]
-
     deployment_components=deployment_arg.replace("'","").replace('"',"").split(':')
-
-    if len(deployment_components) == 0:
-      return {}
 
     if len(deployment_components) < 2:
       raise RuntimeError("Invalid deployment target description: "+deployment_arg)
@@ -962,26 +1001,10 @@ class acpp_config:
       second = ":".join(deployment_components[1:])
       deployment_components = [first, second]
 
-    
     target_path = deployment_components[1]
+    components = [d.strip().lower() for d in deployment_components[0].split(",")]
 
-    deployment_components = deployment_components[0].split(",")
-    deployment_components = [d.lower() for d in deployment_components]
-    enable_all = False
-    for d in deployment_components:
-      if d == "all":
-        enable_all = True
-      if not d in available_components and d != "all":
-        raise RuntimeError("Invalid deployment component: "+d)
-    
-    if enable_all:
-      deployment_components = available_components
-
-    result = {}
-    for d in deployment_components:
-      result[d] = target_path
-
-    return result
+    return (components, target_path)
 
   def _get_executable_path(self, path):
     path = self._substitute_omp_template_string(path)
@@ -1083,13 +1106,15 @@ class acpp_config:
 
     return self._targets
 
+  # None if --acpp-deploy/ACPP_DEPLOY was not given, else (components,
+  # target_path) - see _parse_deployment.
   @property
   def deployment(self):
     try:
-      d = raw_target_string = self._retrieve_option("deploy")
-      return self._parse_deployment(d)
+      d = self._retrieve_option("deploy")
     except OptionNotSet:
-      return {}
+      return None
+    return self._parse_deployment(d)
 
   @property
   def cuda_path(self):
@@ -2517,20 +2542,77 @@ class compiler:
       print("acpp: Using temporary directory:",temp_dir)
       return self._run(temp_dir)
 
-def run_deployment(config, component_path_map):
-  print("Starting deployment...")
-  de = deployment_engine(config.deployment_db)
-  target_path=""
-  for c in component_path_map:
-    target_path=component_path_map[c]
-    print("\nDeploying component: "+c+" -> "+target_path)
-    try:
-      de.deploy_component(c, target_path)
-    except DeploymentComponentUnavailable:
-      print_warning("Requested deployment component '"+c+"' is unavailable; skipping (was AdaptiveCpp built with support for it?)")
+# Application configuration model ("Application configuration" in
+# doc/design-walkthrough-2026-09-25.md): absent at the target -> copy;
+# present and byte-identical -> skip; present and different -> fail loud
+# rather than silently keep a stale one. Absent at the *install* is a
+# warning, not a failure - deploy still ships everything else.
+def deploy_app_config(config, runtime_root):
+  # The installed acpp-app.cfg lives beside whichever acpp-toolchain.json/
+  # acpp-deploy.json this run actually read (cmake writes all three to the
+  # same etc/AdaptiveCpp) - not necessarily config.acpp_installation_path,
+  # which is only where this copy of the driver itself lives and ignores
+  # a --acpp-config-file-dir override.
+  config_dirs = config.config_db.config_dirs
+  if not config_dirs:
+    print_warning("deploy: no installed configuration directory found; "
+                  "the deployed runtime will have no application config.")
+    return
+  install_cfg = os.path.join(config_dirs[0], "acpp-app.cfg")
+  if not os.path.isfile(install_cfg):
+    print_warning("deploy: no installed application config found at "+install_cfg+
+                  "; the deployed runtime will have no application config.")
+    return
 
-  print("Deployment complete. Note that AdaptiveCpp cannot know how every of its dependencies was itself built in detail.")
+  target_cfg = os.path.join(runtime_root, "etc", "AdaptiveCpp", "acpp-app.cfg")
+  if os.path.isfile(target_cfg):
+    with open(install_cfg, 'rb') as a, open(target_cfg, 'rb') as b:
+      if a.read() == b.read():
+        print("  ", install_cfg, "-> (already present, identical)", target_cfg)
+        return
+    print("acpp: deployment target already has an application config that differs from "
+          "the installed one: '"+target_cfg+"' (installed: '"+install_cfg+"') - "
+          "refusing to overwrite it.", file=sys.stderr)
+    sys.exit(1)
+
+  print("  ", install_cfg, "->", target_cfg)
+  os.makedirs(os.path.dirname(target_cfg), 0o777, True)
+  shutil.copy(install_cfg, target_cfg)
+
+def run_deployment(config, components, target_path):
+  non_trivial = [c for c in components if c not in ("core", "all")]
+  if non_trivial:
+    print_warning(
+      "--acpp-deploy's component selection ("+",".join(components)+") is accepted for "
+      "compatibility only; the installed manifest is merged and deployed as a whole.")
+
+  db = config.deployment_db
+  strategy = config.config_db.get_or_default("deployment-strategy", "managed")
+  if not db.is_loaded or strategy == "managed":
+    print("acpp: deployment requires a toolchain built with the full or full-permissive-only strategy",
+          file=sys.stderr)
+    sys.exit(1)
+
+  runtime_root = os.path.abspath(target_path)
+  groups = ["internal", "llvm", "external-permissive"]
+  if strategy == "full":
+    groups.append("external-nonpermissive")
+
+  print("Starting deployment to "+runtime_root+" ...")
+  engine = deployment_engine(config.config_db, runtime_root)
+  for group in groups:
+    for row in db.rows(group):
+      engine.deploy_row(row)
+
+  deploy_app_config(config, runtime_root)
+
+  print("\nDeployment complete. Note that AdaptiveCpp cannot know how every of its dependencies was itself built in detail.")
   print("Because of this, it only deploys its *direct* dependencies and certain indirect dependencies known for common setups.")
+
+  if engine.misses:
+    print("\nThe following source files/directories named by the manifest were missing and were skipped:")
+    for m in engine.misses:
+      print("  ", m)
 
   if sys.platform.startswith('win32'):
     
@@ -2539,20 +2621,19 @@ def run_deployment(config, component_path_map):
     print("\nThis step will fail if dumpbin.exe is not in your PATH. In this case, please add dumpbin.exe to your PATH and run again!")
     print("#############################################")
     wlds = windows_library_dependency_scanner(r'dumpbin.exe')
-    wlds.run(os.path.abspath(target_path))
+    wlds.run(runtime_root)
     print("Please consider whether you would like to include these indirect dependencies in your deployment package.")
   else:
     print("To avoid surprises, it is strongly recommended to check for remaining indirect dependencies outside the deployment tree, e.g. by running\n")
 
     command="LD_LIBRARY_PATH={targetdir}:$LD_LIBRARY_PATH ldd `find {targetdir} -type f | grep -v .bc` | grep -v {targetdir} | awk '{{print $3;}}' | sort | uniq".format(
-      targetdir=os.path.abspath(target_path))
+      targetdir=runtime_root)
     print(command)
     print("\nand consider whether you would like to also ship those libraries with your application.")
 
   print("Note 1: libcuda.so and libdrm* are typically provided by graphics drivers and typically should NOT be distributed by you! Similarly, you usually should not deploy your own libc.")
-  print("Note 2: Please ensure that the deployment path is in the library search path for your application, e.g. by setting LD_LIBRARY_PATH.")
+  print("Note 2: Under the default layout, $ORIGIN-relative rpaths and the application config just copied into etc/AdaptiveCpp already let the deployed runtime find its libraries and consumed files without any environment changes; adjust your library search path only if you relocate files after deployment.")
   print("Note 3: OpenCL backend: AdaptiveCpp only deploys the OpenCL ICD loader; end users are expected to install an OpenCL implementation for their hardware.")
-  print("Note 4: If the deployment package is too large for your liking, consider distributing individual optional packages for specific backends. Only the 'core' deployment target is mandatory for AdaptiveCpp!")
 def print_config(config):
   config_db = config.config_db
   print("\n\nFull configuration [can be overridden using environment variables or command line arguments]:")
@@ -2640,8 +2721,9 @@ if __name__ == '__main__':
         sys.exit(retval)
     
     deployment_spec = config.deployment
-    if len(deployment_spec) > 0:
-      run_deployment(config, deployment_spec)
+    if deployment_spec is not None:
+      components, target_path = deployment_spec
+      run_deployment(config, components, target_path)
 
     sys.exit(0)
   except Exception as e:
