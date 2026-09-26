@@ -39,25 +39,20 @@ std::string getLLVMRedistributablePackagePath() {
   return common::filesystem::join_path(RedistPkg, "llvm");
 }
 
-std::string replacePathPlaceholders(std::string path) {
-  auto pos = path.find("$ACPP_PATH");
-  while (pos != std::string::npos) {
-    const auto install_dir = common::filesystem::get_install_directory();
-    path.replace(pos, std::string_view("$ACPP_PATH").size(), install_dir);
-    pos = path.find("$ACPP_PATH");
-  }
-  return path;
-}
-
 }
 
 std::string getClangPath() {
   static std::string path;
   if(!path.empty())
     return path;
-  else
-    path = replacePathPlaceholders(ACPP_CLANG_PATH);
-  
+
+  // "clang" -> ACPP_CLANG in the installed app config
+  // (config/linux/common/app/hip.cfg - HIP's JIT, not core.cfg); the bare
+  // name below is only the last-resort fallback, resolved via PATH by
+  // whoever execs it.
+  if(!common::try_retrieve_settings_variable("clang", path) || path.empty())
+    path = "clang++";
+
   return path;
 }
 
@@ -72,8 +67,10 @@ std::string getLLCPath() {
 
   if(common::filesystem::exists(llc_redistributable_path)) {
     path = llc_redistributable_path;
-  } else {
-    path = replacePathPlaceholders(ACPP_LLC_PATH);
+  } else if(!common::try_retrieve_settings_variable("llc", path) || path.empty()) {
+    // "llc" -> ACPP_LLC in the installed app config; the bare name is only
+    // the last-resort fallback, resolved via PATH by whoever execs it.
+    path = ACPP_LLC_NAME;
   }
 
   return path;
@@ -90,8 +87,10 @@ std::string getLLDPath() {
 
   if(common::filesystem::exists(lld_redistributable_path)) {
     path = lld_redistributable_path;
-  } else {
-    path = replacePathPlaceholders(ACPP_LLD_PATH);
+  } else if(!common::try_retrieve_settings_variable("lld", path) || path.empty()) {
+    // "lld" -> ACPP_LLD in the installed app config; the bare name is only
+    // the last-resort fallback, resolved via PATH by whoever execs it.
+    path = ACPP_LLD_NAME;
   }
 
   return path;
@@ -108,8 +107,10 @@ std::string getOptPath() {
 
   if(common::filesystem::exists(opt_redistributable_path)) {
     path = opt_redistributable_path;
-  } else {
-    path = replacePathPlaceholders(ACPP_OPT_PATH);
+  } else if(!common::try_retrieve_settings_variable("opt", path) || path.empty()) {
+    // "opt" -> ACPP_OPT in the installed app config; the bare name is only
+    // the last-resort fallback, resolved via PATH by whoever execs it.
+    path = ACPP_OPT_NAME;
   }
 
   return path;

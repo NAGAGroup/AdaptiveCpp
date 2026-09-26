@@ -334,7 +334,6 @@ if(BUILD_CLANG_PLUGIN)
       string(REPLACE "clang++.exe" "clang.exe" CLANG_EXECUTABLE_PATH ${CLANG_EXECUTABLE_PATH})
     endif()
     message(STATUS "Selecting clang: ${CLANG_EXECUTABLE_PATH}")
-    set(CLANG_INSTALLED_PATH ${CLANG_EXECUTABLE_PATH})
 
     get_filename_component(LLVM_BIN_DIR "${CLANG_EXECUTABLE_PATH}" DIRECTORY)
     get_filename_component(LLVM_PREFIX_DIR "${LLVM_BIN_DIR}" DIRECTORY)
@@ -425,12 +424,10 @@ if(BUILD_CLANG_PLUGIN)
       "${LLVM_MAIN_SRC_DIR}/../cmake/Modules"
       )
 
-    set(CLANG_INSTALLED_PATH "$ACPP_PATH/bin/clang++")
     set(CLANG_EXECUTABLE_PATH $<TARGET_FILE:clang>)
 
     include(GetClangResourceDir)
     get_clang_resource_dir(CLANG_INCLUDE_PATH SUBDIR include)
-    set(CLANG_INCLUDE_PATH "$ACPP_PATH/${CLANG_INCLUDE_PATH}")
 
     if(CLANG_VENDOR STREQUAL "AMD")
       message(WARNING "Building AdaptiveCpp as part of AMD Clang, ROCm version not known, can't apply specific workarounds.")
@@ -901,21 +898,12 @@ else()
   endif()
 endif()
 
-# If no compile flags given, set to default.
-if(NOT ROCM_CXX_FLAGS)
-  # clang erroneously sets feature detection flags for
-  # __float128 even though it is not supported for CUDA / HIP,
-  # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-
-  set(ROCM_CXX_FLAGS "-isystem $ACPP_PATH/include/AdaptiveCpp/hipSYCL/std/hiplike -isystem ${CLANG_INCLUDE_PATH} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I$ACPP_ROCM_PATH/include -I$ACPP_ROCM_PATH/include --rocm-device-lib-path=$ACPP_ROCM_PATH/amdgcn/bitcode --rocm-path=$ACPP_ROCM_PATH -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__" CACHE STRING "Arguments passed to compiler to compile SYCL applications with ROCm")
-endif()
-
-if(NOT CUDA_CXX_FLAGS)
-  # clang erroneously sets feature detection flags for
-  # __float128 even though it is not supported for CUDA / HIP,
-  # see https://bugs.llvm.org/show_bug.cgi?id=47559.
-  set(CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem $ACPP_PATH/include/AdaptiveCpp/hipSYCL/std/hiplike" CACHE STRING "Arguments passed to compiler to compile SYCL applications with CUDA")
-endif()
+# ROCM_CXX_FLAGS/CUDA_CXX_FLAGS (both $ACPP_PATH-based) used to default
+# here; nothing reads either cache variable any more - the options model's
+# own ACPP_HIP_CXX_FLAGS/ACPP_CUDA_CXX_FLAGS (cmake/options/*/common/
+# {hip,cuda}.cmake, {{ }}-templated, never a baked absolute path) already
+# supersede both, and are what config/*/hip.json's/cuda.json's
+# "hip-cxx-flags"/"cuda-cxx-flags" entries actually read.
 
 # always need -D_ENABLE_EXTENDED_ALIGNED_STORAGE to allow correctly aligned local memory on CPU
 if(NOT OMP_CXX_FLAGS)

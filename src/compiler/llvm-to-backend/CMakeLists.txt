@@ -166,9 +166,6 @@ if(WITH_SSCP_COMPILER)
       Utils.cpp
       )
 
-  target_compile_definitions(llvm-to-backend PRIVATE
-    -DACPP_CLANG_PATH="${CLANG_INSTALLED_PATH}"
-  )
   target_link_libraries(llvm-to-backend PUBLIC
     acpp-common
   )

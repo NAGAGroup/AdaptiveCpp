@@ -6,13 +6,13 @@ Each vendor slice appends its rows here as work lands.
 
 | macro | cmake definition site | C++ consumer | reads configuration today? | configuration entry | disposition |
 |---|---|---|---|---|---|
-| `ACPP_LLC_PATH` | `src/compiler/CMakeLists.txt:62` | `Utils.cpp:76` (`getLLCPath`) | no — reads the macro | `llc` | replace with config read |
-| `ACPP_LLD_PATH` | `src/compiler/CMakeLists.txt:63` | `Utils.cpp:94` (`getLLDPath`) | no — reads the macro | `lld` | replace with config read |
-| `ACPP_OPT_PATH` | `src/compiler/CMakeLists.txt:64` | `Utils.cpp:112` (`getOptPath`) | no — reads the macro | `opt` | replace with config read |
-| `ACPP_LLC_NAME` | `src/compiler/CMakeLists.txt:66` | `Utils.cpp:71` | no — reads the macro | `llc` (exe entry) | replace with config read |
-| `ACPP_LLD_NAME` | `src/compiler/CMakeLists.txt:65` | `Utils.cpp:89` | no — reads the macro | `lld` (exe entry) | replace with config read |
-| `ACPP_OPT_NAME` | `src/compiler/CMakeLists.txt:67` | `Utils.cpp:107` | no — reads the macro | `opt` (exe entry) | replace with config read |
-| `ACPP_CLANG_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:170` | `Utils.cpp:59` (`getClangPath`) | no — reads the macro | `device-clang-cmplr` | replace with config read |
+| `ACPP_LLC_PATH` | (deleted) | `Utils.cpp` (`getLLCPath`) | yes — `try_retrieve_settings_variable("llc")` | `llc` → `ACPP_LLC` | **done** |
+| `ACPP_LLD_PATH` | (deleted) | `Utils.cpp` (`getLLDPath`) | yes — `try_retrieve_settings_variable("lld")` | `lld` → `ACPP_LLD` | **done** |
+| `ACPP_OPT_PATH` | (deleted) | `Utils.cpp` (`getOptPath`) | yes — `try_retrieve_settings_variable("opt")` | `opt` → `ACPP_OPT` | **done** |
+| `ACPP_LLC_NAME` | `src/compiler/CMakeLists.txt` (bare `"llc"`, no `find_program`) | `Utils.cpp` (`getLLCPath`) | last-resort fallback only, after the setting | `llc` (exe entry) | **done** — kept, deliberately, as the bare-name/PATH fallback; no longer build-machine-discovered |
+| `ACPP_LLD_NAME` | `src/compiler/CMakeLists.txt` (unchanged — platform-derived bare name, never `find_program`-discovered) | `Utils.cpp` (`getLLDPath`) | last-resort fallback only, after the setting | `lld` (exe entry) | **done** — same reasoning `ACPP_LLC_NAME` now also follows |
+| `ACPP_OPT_NAME` | `src/compiler/CMakeLists.txt` (bare `"opt"`, no `find_program`) | `Utils.cpp` (`getOptPath`) | last-resort fallback only, after the setting | `opt` (exe entry) | **done** — kept, deliberately, as the bare-name/PATH fallback |
+| `ACPP_CLANG_PATH` | (deleted) | `Utils.cpp` (`getClangPath`) | yes — `try_retrieve_settings_variable("clang")`, falls back to bare `"clang++"` | `clang` → `ACPP_CLANG` | **done** |
 | `ROCM_CLANG_VERSION_MAJOR`/`MINOR`/`PATCH` | `src/compiler/CMakeLists.txt:259` | `PipelineBuilder.cpp:57-58`, `Frontend.hpp:91,569,640,752`, `SMCPCompatPass.cpp:23` — all `#if defined(ROCM_CLANG_VERSION_MAJOR) && ... == N` | no — read only by the preprocessor | none | becomes a discovery export read at configure, not a config entry: every consumer is an `#if` guard selecting which code the plugin compiles, so the value can never be a runtime read; the root's own version probe (`CMakeLists.txt:388-395`, the `execute_process`/regex pair) duplicates `cmake/discovery.cmake`'s ROCm detection instead of feeding it — centralize there |
 | `ACPP_LLC_HOST_CPU_FLAG` | `src/compiler/llvm-to-backend/CMakeLists.txt:302` | `LLVMToHost.cpp:313` | no — reads the macro | `jit-host-llc-cpu-flag` → `ACPP_JIT_HOST_LLC_CPU_FLAG` | replace with config read; duplicates the entry already declared |
 | `ACPP_OPT_HOST_CPU_FLAG` | `src/compiler/llvm-to-backend/CMakeLists.txt:303` | `LLVMToHost.cpp:314` | no — reads the macro | `jit-host-opt-cpu-flag` → `ACPP_JIT_HOST_OPT_CPU_FLAG` | replace with config read; entry already exists |
@@ -22,8 +22,8 @@ Each vendor slice appends its rows here as work lands.
 | `ACPP_ROCM_DEVICE_LIBS_PATH` | (deleted) | `LLVMToAmdgpu.cpp` | yes — `try_retrieve_settings_variable("hip_device_libs_dir")` | `hip-device-libs-dir` → `ACPP_HIP_DEVICE_LIBS_DIR` | **done** |
 | `ACPP_HIPCC_PATH` | (deleted) | (deleted: `getRocmClang`/`getCommandOutput` had no callers since upstream `377178f0`) | n/a | n/a | **done** (dead code) |
 | `HIPSYCL_CLSPV_PATH` | (deleted) | `LLVMToCLSPV.cpp` | yes — `try_retrieve_settings_variable("clspv")` | `clspv` → `ACPP_CLSPV` | **done** |
-| `HIPSYCL_LLVMSPIRV_NAME` | `src/compiler/llvm-to-backend/CMakeLists.txt:257` | `LLVMToSpirv.cpp:328` | no — raw macro | `llvm-spirv` → `ACPP_LLVMSPIRV` | replace with a config read of the `llvmspirv` entry |
-| `HIPSYCL_RELATIVE_LLVMSPIRV_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt:258` | `LLVMToSpirv.cpp:328`, alongside `HIPSYCL_LLVMSPIRV_NAME` | no — raw macro | `llvm-spirv` → `ACPP_LLVMSPIRV` | replace with a config read of the `llvmspirv` entry — `llvm-spirv` is now an owned config entry (`config/common/core.json:101-109`; `acpp_declare_owned_resource(LLVMSPIRV ...)` in each platform's `core.cmake`), so both rows collapse to the same read |
+| `HIPSYCL_LLVMSPIRV_NAME` | `src/compiler/llvm-to-backend/CMakeLists.txt` (unchanged) | `LLVMToSpirv.cpp` | last-resort fallback only, after `try_retrieve_settings_variable("llvmspirv")` | `llvm-spirv` → `ACPP_LLVMSPIRV` | **done** — macro kept as the app-local-redistributable/installation-relative fallback (it names a relative path, never an absolute one) |
+| `HIPSYCL_RELATIVE_LLVMSPIRV_PATH` | `src/compiler/llvm-to-backend/CMakeLists.txt` (unchanged) | `LLVMToSpirv.cpp`, alongside `HIPSYCL_LLVMSPIRV_NAME` | last-resort fallback only, after the same settings read | `llvm-spirv` → `ACPP_LLVMSPIRV` | **done** — same fallback, same reasoning |
 | `LIB_NUMA_AVAILABLE` | `src/runtime/CMakeLists.txt:414` | `omp_allocator.cpp:14,30,58,121,159,169` | n/a — gates code | stays | stays, gates code |
 | `ACPP_HIPRTC_LINK` | `src/compiler/llvm-to-backend/CMakeLists.txt:302` | `LLVMToAmdgpu.cpp` | n/a — gates code | stays | stays |
 
@@ -98,6 +98,54 @@ rewriting, the XDG search order, and the one-per-process semantics for the
 richer per-application `app-cfgs/<name>.cfg` mechanism "The global
 configuration installation" (below) describes - 4a is the single
 one-per-runtime-copy config only.
+
+**Commit 4, step 4b**: every baked tool-path macro this table names above
+(`ACPP_LLC_PATH`/`ACPP_LLD_PATH`/`ACPP_OPT_PATH`/`ACPP_CLANG_PATH`, plus
+`HIPSYCL_LLVMSPIRV_NAME`/`HIPSYCL_RELATIVE_LLVMSPIRV_PATH`'s disposition)
+now goes through `try_retrieve_settings_variable` first
+(`Utils.cpp`'s `getLLCPath`/`getLLDPath`/`getOptPath`/`getClangPath`,
+settings `"llc"`/`"lld"`/`"opt"`/`"clang"`; `LLVMToSpirv.cpp`, setting
+`"llvmspirv"`), reading `ACPP_LLC`/`ACPP_LLD`/`ACPP_OPT`/`ACPP_LLVMSPIRV`/
+`ACPP_CLANG` from the same installed app config 4a wired up. `ACPP_CLANG`
+falls back to the bare `"clang++"`; `ACPP_LLC`/`ACPP_LLD`/`ACPP_OPT` fall
+back to `ACPP_LLC_NAME`/`ACPP_LLD_NAME`/`ACPP_OPT_NAME` (still compile
+definitions, but no longer build-machine-discovered - bare names resolved
+via `PATH` by whoever execs them, never a `find_program` result);
+`ACPP_LLVMSPIRV` falls back to the existing app-local-redistributable/
+installation-relative check (`HIPSYCL_LLVMSPIRV_NAME`/
+`HIPSYCL_RELATIVE_LLVMSPIRV_PATH`, both relative, kept exactly as before).
+The vector math library setting was checked too:
+`LLVMToHost.cpp`'s `host-vector-math-library` kernel-build option is a
+*different* settings surface (`hipsycl::rt::settings`,
+`include/hipSYCL/runtime/settings.hpp`, trait string
+`"jitopt_host_vector_math_library"`) from `common::settings` - its
+generated key, `ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY`, already matches
+`config/*/app/core.cfg`'s existing key exactly; no template change needed.
+
+Root `CMakeLists.txt` no longer computes `CLANG_INSTALLED_PATH` at all (it
+existed only to feed the now-deleted `-DACPP_CLANG_PATH`) and no longer
+wraps `CLANG_INCLUDE_PATH` in the component-mode branch with a
+`$ACPP_PATH/` prefix (its sole other consumer besides the now-deleted
+`ROCM_CXX_FLAGS` is a `message(STATUS ...)`, so the value it holds is
+`get_clang_resource_dir`'s own result, unmodified). `ROCM_CXX_FLAGS`/
+`CUDA_CXX_FLAGS`, both `$ACPP_PATH`-based cache variables, are deleted
+outright: a full-repo grep found nothing reading either one - the options
+model's `ACPP_HIP_CXX_FLAGS`/`ACPP_CUDA_CXX_FLAGS` already superseded them
+(`config/*/hip.json`'s/`cuda.json`'s `"hip-cxx-flags"`/`"cuda-cxx-flags"`
+entries read those, not the deleted root variables). `doc/install-rocm.md`
+still documents `-DROCM_CXX_FLAGS` as a user override; stale now, not
+fixed here (out of this step's scope).
+
+**New obligation**: `common::filesystem::get_lib_directory()`
+(`src/common/filesystem.cpp`) falls back to
+`join_path(HIPSYCL_INSTALL_PREFIX, "lib")` - a baked install prefix from
+`include/hipSYCL/common/config.hpp.in`'s `@ACPP_RECORDED_INSTALL_PREFIX@`
+- when `dladdr`/`GetModuleFileName` fail to locate the library actually
+running. `ACPP_RECORDED_INSTALL_PREFIX` is deliberately left empty by the
+root `CMakeLists.txt` (see its own comment there), so today this fallback
+resolves to a bare `"/lib"`; it exists purely as a defensive last resort
+for a lookup failure this codebase does not otherwise expect to hit, not a
+mechanism anything is designed to rely on.
 
 ### The driver's fixpoint resolver
 
