@@ -78,6 +78,17 @@ def build_vendor_tree(tmp):
         f.write("secret")
     vendor["nonpermissive"] = nonpermissive_dir
 
+    # A "*" wildcard row's source directory: a real shared library plus a
+    # static archive, a libtool archive and a Windows import library (all
+    # link-time only, never loaded at run time) alongside an unrelated
+    # bitcode file - only the .so and the .bc should be deployed.
+    star_dir = os.path.join(tmp, "vendor", "star")
+    os.makedirs(star_dir)
+    for name in ("libx.so", "libx.a", "libx.la", "x.lib", "ockl.bc"):
+        with open(os.path.join(star_dir, name), "w") as f:
+            f.write(name)
+    vendor["star"] = star_dir
+
     return vendor
 
 
@@ -88,6 +99,7 @@ def write_toolchain(etc_dir, strategy, vendor):
         "llvm-src": {"value": vendor["llvm"]},
         "foo-install-root": {"value": vendor["foo"]},
         "nonpermissive-src": {"value": vendor["nonpermissive"]},
+        "star-src": {"value": vendor["star"]},
     })
 
 
@@ -103,16 +115,23 @@ def write_manifest(etc_dir):
             "dest": "{{ acpp-runtime-root }}/llvm-dest",
             "files": ["world.txt"],
         }],
-        "external-permissive": [{
-            "src": "{{ foo-install-root }}",
-            "dest": "{{ acpp-runtime-root }}/ext/foo",
-            "files": ["SHARED_LIB:foo"],
-        }],
         "external-nonpermissive": [{
             "src": "{{ nonpermissive-src }}",
             "dest": "{{ acpp-runtime-root }}/nonpermissive-dest",
             "files": ["secret.txt"],
         }],
+        "external-permissive": [
+            {
+                "src": "{{ foo-install-root }}",
+                "dest": "{{ acpp-runtime-root }}/ext/foo",
+                "files": ["SHARED_LIB:foo"],
+            },
+            {
+                "src": "{{ star-src }}",
+                "dest": "{{ acpp-runtime-root }}/star-dest",
+                "files": ["*"],
+            },
+        ],
     })
 
 
@@ -172,6 +191,11 @@ def check_full_strategy(acpp, tmp, vendor):
 
     if not os.path.isfile(os.path.join(target, "nonpermissive-dest", "secret.txt")):
         fail("full: external-nonpermissive group should be included under 'full'")
+
+    star_dir = os.path.join(target, "star-dest")
+    star_deployed = sorted(os.listdir(star_dir)) if os.path.isdir(star_dir) else []
+    if star_deployed != sorted(["libx.so", "ockl.bc"]):
+        fail("full: \"*\" row should deploy only libx.so and ockl.bc, skipping .a/.la/.lib, got "+repr(star_deployed))
 
     app_cfg_target = os.path.join(target, "etc", "AdaptiveCpp", "acpp-app.cfg")
     if not os.path.isfile(app_cfg_target):

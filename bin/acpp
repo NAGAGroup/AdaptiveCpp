@@ -385,6 +385,9 @@ class deployment_engine:
           continue
         for f in sorted(os.listdir(src)):
           full_path = os.path.join(src, f)
+          # Static archives, libtool archives and Windows import libraries are link-time only; nothing loads them at run time.
+          if f.endswith(".a") or f.endswith(".la") or f.endswith(".lib"):
+            continue
           if os.path.isfile(full_path):
             self._copy_one(full_path, dest)
         continue

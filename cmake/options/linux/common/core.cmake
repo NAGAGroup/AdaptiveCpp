@@ -84,7 +84,11 @@ acpp_declare_vendor(SLEEF sleef permissive)
 acpp_declare_vendor_root(SLEEF sleef ACPP_DISCOVERED_SLEEF_DIR "${ACPP_DISCOVERED_SLEEF_DIR}")
 acpp_declare_vendor_app_root(SLEEF sleef)
 
-acpp_declare_vendor(AMATH amath permissive)
+# Nonpermissive: Arm Performance Libraries' math library is redistributed
+# under Arm's End User License Agreement (upstream's doc/deployment.md).
+# SLEEF (above) stays permissive: it ships under the Boost Software
+# License.
+acpp_declare_vendor(AMATH amath nonpermissive "${ACPP_DISCOVERED_AMATH_DIR}")
 acpp_declare_vendor_root(AMATH amath ACPP_DISCOVERED_AMATH_DIR "${ACPP_DISCOVERED_AMATH_DIR}")
 acpp_declare_vendor_app_root(AMATH amath)
 

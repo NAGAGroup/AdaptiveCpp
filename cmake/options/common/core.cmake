@@ -211,7 +211,16 @@ endmacro()
 # needed to decide shipped-ness itself - every strategy already treated
 # every subdir as relative except the one absolute-path case the design
 # walkthrough retired.
+#
+# Fourth argument, optional: where discovery found the vendor; when given
+# and empty, nothing was found, so nothing will be shipped and there is no
+# redistribution decision to gate.
 macro(acpp_declare_vendor stem lower category)
+  if(${ARGC} GREATER 3 AND "${ARGV3}" STREQUAL "")
+    set(_acpp_vendor_found OFF)
+  else()
+    set(_acpp_vendor_found ON)
+  endif()
   if(NOT DEFINED ACPP_${stem}_SUBDIR)
     if(WIN32)
       set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/${lower}"
@@ -236,7 +245,8 @@ macro(acpp_declare_vendor stem lower category)
   if(ACPP_${stem}_SHIPPED
       AND "${category}" STREQUAL "nonpermissive"
       AND ACPP_DEPLOYMENT_STRATEGY STREQUAL "full"
-      AND NOT ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN)
+      AND NOT ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN
+      AND _acpp_vendor_found)
     message(FATAL_ERROR
       "Strategy full would ship the ${lower} vendor unit, which is "
       "nonpermissive, but ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN "
@@ -245,6 +255,7 @@ macro(acpp_declare_vendor stem lower category)
       "with full-permissive-only instead, which ships permissive vendors "
       "only and needs no such decision.")
   endif()
+  unset(_acpp_vendor_found)
 endmacro()
 
 # Declare "<lower>-install-root": where the driver finds the vendor. Also

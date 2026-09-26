@@ -77,6 +77,10 @@ if(DEFINED ACPP_OVERRIDE_CHILD)
     run_case(FOOFULL "/srv/x")
   elseif(ACPP_OVERRIDE_CHILD STREQUAL "template")
     run_case(FOOTMPL "{{ acpp-root }}/x")
+  elseif(ACPP_OVERRIDE_CHILD STREQUAL "svml-gate")
+    acpp_declare_vendor(SVMLX svmlx nonpermissive "/opt/intel/lib")
+  elseif(ACPP_OVERRIDE_CHILD STREQUAL "svml-notfound")
+    acpp_declare_vendor(SVMLY svmly nonpermissive "")
   else()
     message(FATAL_ERROR "verify-managed-overrides: unknown ACPP_OVERRIDE_CHILD '${ACPP_OVERRIDE_CHILD}'")
   endif()
@@ -160,5 +164,41 @@ if(NOT "${_tmpl_err}${_tmpl_out}" MATCHES "plain path")
     "template case: failed, but not for the 'plain path' reason:\n${_tmpl_err}\n${_tmpl_out}")
 endif()
 message(STATUS "verify-managed-overrides: a template value is rejected ('plain path')")
+
+# ---------------------------------------------------------------------------
+# Error case: a nonpermissive vendor found and shipped under full, with the
+# redistribution gate off, refuses to ship it.
+# ---------------------------------------------------------------------------
+execute_process(
+  COMMAND ${CMAKE_COMMAND}
+    -DACPP_OVERRIDE_STRATEGY=full
+    -DACPP_OVERRIDE_CHILD=svml-gate
+    -P "${CMAKE_CURRENT_LIST_FILE}"
+  RESULT_VARIABLE _svmlgate_res ERROR_VARIABLE _svmlgate_err OUTPUT_VARIABLE _svmlgate_out)
+if(_svmlgate_res EQUAL 0)
+  message(FATAL_ERROR
+    "svml-gate case: should have failed but exited 0:\n${_svmlgate_out}\n${_svmlgate_err}")
+endif()
+if(NOT "${_svmlgate_err}${_svmlgate_out}" MATCHES "ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN")
+  message(FATAL_ERROR
+    "svml-gate case: failed, but not for the redistribution-gate reason:\n${_svmlgate_err}\n${_svmlgate_out}")
+endif()
+message(STATUS "verify-managed-overrides: a found nonpermissive vendor under full with the gate off refuses to ship ('ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN')")
+
+# ---------------------------------------------------------------------------
+# Non-error case: a nonpermissive vendor NOT found under full needs no
+# redistribution decision, so the gate does not apply and nothing fails.
+# ---------------------------------------------------------------------------
+execute_process(
+  COMMAND ${CMAKE_COMMAND}
+    -DACPP_OVERRIDE_STRATEGY=full
+    -DACPP_OVERRIDE_CHILD=svml-notfound
+    -P "${CMAKE_CURRENT_LIST_FILE}"
+  RESULT_VARIABLE _svmlnf_res ERROR_VARIABLE _svmlnf_err OUTPUT_VARIABLE _svmlnf_out)
+if(NOT _svmlnf_res EQUAL 0)
+  message(FATAL_ERROR
+    "svml-notfound case: should not have failed:\n${_svmlnf_out}\n${_svmlnf_err}")
+endif()
+message(STATUS "verify-managed-overrides: a not-found nonpermissive vendor under full needs no redistribution decision")
 
 message(STATUS "verify-managed-overrides: OK")
