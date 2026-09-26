@@ -9,81 +9,6 @@ the tree, read today, still shows as unfinished or unconfirmed.
 
 ## Open
 
-- `get_lib_directory()`'s `HIPSYCL_INSTALL_PREFIX` fallback
-  (`src/common/filesystem.cpp`, `include/hipSYCL/common/config.hpp.in`)
-  resolves to a bare `/lib` today, because `CMakeLists.txt` deliberately
-  leaves `ACPP_RECORDED_INSTALL_PREFIX` empty (its own comment explains
-  why: naming the build machine's prefix in the binary would be wrong).
-  It exists purely as a defensive last resort for a `dladdr`/
-  `GetModuleFileName` failure this codebase does not otherwise expect to
-  hit. Still unresolved: whether it should ever be given a real value, or
-  whether an empty fallback quietly resolving to `/lib` is itself worth a
-  guard.
-- Root `CMakeLists.txt` still runs its own upstream-style finds alongside
-  `cmake/discovery/*.cmake`'s: `find_package(CUDA QUIET)` (:126),
-  `find_package(HIP QUIET ...)` plus the `hipcc` fallback (:127,
-  :214-226), `find_package(OpenCL QUIET)` (:207, :210),
-  `find_package(Vulkan 1.4 ...)` (:251), `find_library(AMDHIP64_LIBRARY/
-  HSARUNTIME64_LIBRARY/AMDCOMGR_LIBRARY ...)` (:501-505),
-  `find_path(ROCM_DEVICE_LIBS_PATH ...)`/`find_path(CUDA_DEVICE_LIBS_PATH
-  ...)` (:478, :512), `find_library(ACPP_ZE_LOADER_LIBRARY NAMES
-  ze_loader REQUIRED)` (:528), `find_program(CLSPV_COMPILER NAMES clspv
-  REQUIRED)` (:535). The root file's own comment (:680-708) already
-  checked every one against `cmake/discovery/*.cmake`: each lands under a
-  differently-named variable, so re-finding the same hardware twice is
-  redundant, not conflicting - except `ACPP_ZE_LOADER_LIBRARY`, which
-  `src/runtime/CMakeLists.txt`'s `target_link_libraries` still reads by
-  that exact cache-variable name, on purpose. Deleting the root's copy
-  needs repointing that one target, not just the find.
-- `WITH_LEVEL_ZERO_BACKEND` and `WITH_METAL_BACKEND` still have no
-  discovery-based default (`CMakeLists.txt`:693-696 and :813-815, both
-  comments naming this file already) - every other backend flag defaults
-  from its own `ACPP_DISCOVERED_*_FOUND`; these two still need an
-  explicit `-D` or stay off.
-- SVML's redistribution category is unconfirmed against Intel's terms.
-  The tree declares it permissive
-  (`acpp_declare_vendor(SVML svml permissive)`,
-  `cmake/options/linux/x86_64/core.cmake`), the same as every other
-  vendor unit here, with nothing recording that the terms were actually
-  checked (`doc/configuration-model.md`'s "The per-vendor sweep" carries
-  the same note).
-- The nvcxx flow's own link-line entry is declared but unread. `nvcxx-
-  link-line`/`ACPP_NVCXX_LINK_LINE` exists in the toolchain config schema
-  (`config/linux/common/nvhpc.json`, written by
-  `cmake/options/linux/common/nvhpc.cmake`), but `bin/acpp` has no
-  `nvcxx-link-line` option entry, and `cuda_nvcxx_invocation` still reads
-  `config.cuda_link_line` (the CUDA multipass backend's own line) for its
-  linker args instead - the driver needs the option added and the class
-  repointed.
-- The four tool `INSTALL_RPATH` sites that hardcode `lib` instead of
-  deriving it from `CMAKE_INSTALL_LIBDIR` are unchanged:
-  `src/tools/acpp-info/CMakeLists.txt`:18,
-  `src/tools/acpp-hcf-tool/CMakeLists.txt`:11,
-  `src/tools/acpp-appdb-tool/CMakeLists.txt`:14,
-  `src/tools/acpp-pcuda-pp/CMakeLists.txt`:12 all read
-  `${base}/../lib/`; on a `lib64` layout `acpp-rt` was never installed
-  there.
-- `bin/acpp` still carries 17 `"default-"`-prefixed configuration keys,
-  all for options outside the vendor-unit model (`platform`, `gpu-arch`,
-  the `cuda-lib-path`/`rocm-lib-path` fallbacks, `config-file-dir`,
-  `deploy`, the `stdpar-*` flags, `is-export-all`,
-  `pcuda`/`pcuda-chevron-launch`, `no-warn-legacy-flows`), and three
-  places (`_get_rocm_substitution_vars`, `_get_cuda_substitution_vars`,
-  `_get_omp_substitution_vars`) still hardcode `"lib"` for the legacy
-  `$ACPP_LIB_PATH` substitution dictionary. None of this sits inside the
-  vendor-unit model commits 1-7 touched.
-- The deploy engine's `"*"` entry copies every file in a source
-  directory, including a static archive if one happens to be there -
-  `config/linux/common/deploy/nvhpc.json`'s sole row uses `"*"` to ship
-  the HPC SDK's whole `REDIST` runtime tree, which is exactly the shape
-  this would matter for. A shared-library-only filter is still an
-  engine obligation, not implemented.
-- Whether `ACPP_CONFIG_FILE_INSTALL_DIR` should ever gain a second,
-  non-prefix-relative install site (a system-package scenario, one
-  toolchain per machine, `/etc/AdaptiveCpp` outside any single prefix) is
-  Jack's call, not a code question - the toolchain's own configuration
-  directory is prefix-relative today and nothing in the tree installs it
-  anywhere else.
 - Windows CI still has to cover what a Linux harness runner cannot: every
   `devops/verify/verify-windows-*.cmake` pre-sets `ACPP_<VENDOR>_SUBDIR`
   before including a vendor's options file, so `acpp_declare_vendor`'s
@@ -96,6 +21,45 @@ the tree, read today, still shows as unfinished or unconfirmed.
   static archive, build-only); `clspv`'s own shared dependencies, if it
   has any; whether to write `MoltenVK_icd.json` beside a copied
   `libMoltenVK.dylib` on macOS.
+- HIP layouts are harness-checked against fake trees only: classic ROCm,
+  ROCm 7.2+ and the Windows HIP SDK (whether it ships `lib/cmake/hip`,
+  its DLL names) still need a real install in acpp-toolchain CI.
+- Upstream's `-DCLANG_INCLUDE_PATH` is not read by discovery - discovery
+  finds clang's resource directory itself; the escape hatch for a layout
+  discovery gets wrong is the `ACPP_CLANG_INCLUDE_PATH` environment
+  variable, read at use time.
+- Nothing compiles the C++ changes locally
+  (`backend_loader.cpp`/`filesystem.cpp`/`config.hpp.in`) or the root
+  `CMakeLists.txt` restructuring; their first compile is acpp-toolchain
+  CI.
+
+## Closed 2026-09-26
+
+- `get_lib_directory()`'s `/lib` fallback (2f37ccea): now empty - the
+  runtime finds its install root by walking `ACPP_LIBDIR_TO_PREFIX`
+  instead, and the working-directory plugin fallback this used to feed
+  is removed.
+- Root `CMakeLists.txt`'s own upstream-style finds, duplicating
+  `cmake/discovery/*.cmake` (bcacdab0, 02270e72): consolidated into
+  discovery; `ACPP_ZE_LOADER_LIBRARY` repointed along with the rest.
+- `WITH_LEVEL_ZERO_BACKEND`/`WITH_METAL_BACKEND` now default from
+  discovery the same way every other backend flag does (bcacdab0).
+- SVML's redistribution category (bac28352): nonpermissive, against
+  Intel's EULA - AMATH is nonpermissive too, against Arm's EULA.
+- The nvcxx flow's link-line entry (186e32c1): `bin/acpp` gained the
+  option, and `cuda_nvcxx_invocation` reads it instead of the CUDA
+  multipass backend's own line.
+- The tool `INSTALL_RPATH` sites that hardcoded `lib` (2f37ccea): now
+  derive it from `CMAKE_INSTALL_LIBDIR`/`CMAKE_INSTALL_BINDIR`.
+- The `"default-"`-prefixed keys and the `$ACPP_LIB_PATH` hardcodes
+  (186e32c1, 2f37ccea): the driver's config keys dropped the prefix, and
+  the substitution reads `acpp-libdir` instead of a literal `lib`.
+- The deploy engine's `"*"` entry copying a static archive (bac28352):
+  `.a`/`.la`/`.lib` are skipped now, since nothing loads them at run
+  time.
+- Whether `ACPP_CONFIG_FILE_INSTALL_DIR` should gain a second,
+  non-prefix-relative install site: Jack's ruling - not restored; the
+  configuration lives under the prefix.
 
 ## Compile-definition macros
 
@@ -108,7 +72,7 @@ the tree, read today, still shows as unfinished or unconfirmed.
 | `ACPP_LLD_NAME` | `src/compiler/CMakeLists.txt` (unchanged — platform-derived bare name, never `find_program`-discovered) | `Utils.cpp` (`getLLDPath`) | last-resort fallback only, after the setting | `lld` (exe entry) | **done** — same reasoning `ACPP_LLC_NAME` now also follows |
 | `ACPP_OPT_NAME` | `src/compiler/CMakeLists.txt` (bare `"opt"`, no `find_program`) | `Utils.cpp` (`getOptPath`) | last-resort fallback only, after the setting | `opt` (exe entry) | **done** — kept, deliberately, as the bare-name/PATH fallback |
 | `ACPP_CLANG_PATH` | (deleted) | `Utils.cpp` (`getClangPath`) | yes — `try_retrieve_settings_variable("clang")`, falls back to bare `"clang++"` | `clang` → `ACPP_CLANG` | **done** |
-| `ROCM_CLANG_VERSION_MAJOR`/`MINOR`/`PATCH` | `CMakeLists.txt:389` | `PipelineBuilder.cpp:57-58`, `Frontend.hpp:91,569,640,752`, `SMCPCompatPass.cpp:23` — all `#if defined(ROCM_CLANG_VERSION_MAJOR) && ... == N` | no — read only by the preprocessor | none | still the root's own `execute_process`/regex probe, still not centralized into `cmake/discovery.cmake` - every consumer is an `#if` guard selecting which code the plugin compiles, so the value can never be a runtime read either way |
+| `ROCM_CLANG_VERSION_MAJOR`/`MINOR`/`PATCH` | root CMakeLists.txt's ROCm LLVM probe (now against `ACPP_DISCOVERED_HIP_PREFIX`) | `PipelineBuilder.cpp:57-58`, `Frontend.hpp:91,569,640,752`, `SMCPCompatPass.cpp:23` — all `#if defined(ROCM_CLANG_VERSION_MAJOR) && ... == N` | no — read only by the preprocessor | none | still the root's own `execute_process`/regex probe, still not centralized into `cmake/discovery.cmake` - every consumer is an `#if` guard selecting which code the plugin compiles, so the value can never be a runtime read either way |
 | `ACPP_LLC_HOST_CPU_FLAG`/`ACPP_OPT_HOST_CPU_FLAG`/`ACPP_LLC_ADDITIONAL_FLAGS`/`ACPP_OPT_ADDITIONAL_FLAGS` | (deleted) | `LLVMToHost.cpp` | yes — `try_retrieve_settings_variable` | `jit-host-llc-cpu-flag`/`jit-host-opt-cpu-flag`/`jit-host-llc-flags`/`jit-host-opt-flags` → `ACPP_JIT_HOST_*` (`cmake/options/common/core.cmake`, "The host JIT") | **done** |
 | `ACPP_CUDA_DEVICE_LIBS_PATH` | (deleted) | `LLVMToPtx.cpp` | yes — `try_retrieve_settings_variable("cuda_libdevice_dir")` | `cuda-libdevice-dir` → `ACPP_CUDA_LIBDEVICE_DIR` | **done** |
 | `ACPP_ROCM_DEVICE_LIBS_PATH` | (deleted) | `LLVMToAmdgpu.cpp` | yes — `try_retrieve_settings_variable("hip_device_libs_dir")` | `hip-device-libs-dir` → `ACPP_HIP_DEVICE_LIBS_DIR` | **done** — zero remaining references anywhere under `src/`, checked by grep |
@@ -139,9 +103,8 @@ than one the config carries - the fixpoint resolver the configuration
 model describes exists in the driver today, not just in cmake. A separate
 resolver, `resolve_deploy_template`, does the same for a deploy manifest
 row, with `acpp-runtime-root` substituted from the deploy target instead
-of the config. The remaining `"default-"`-prefixed keys and the
-`$ACPP_LIB_PATH` hardcodes are recorded in "Open" above - both sit outside
-the vendor-unit model this campaign built.
+of the config. The driver's config keys dropped the `default-` prefix and
+the `$ACPP_LIB_PATH` substitution reads `acpp-libdir` (see "Closed").
 
 ### settings.cpp (the runtime's configuration singleton)
 
@@ -175,19 +138,20 @@ generated key, `ACPP_JITOPT_HOST_VECTOR_MATH_LIBRARY`, matches
 
 Root `CMakeLists.txt` no longer computes `CLANG_INSTALLED_PATH` at all
 (checked by grep - zero remaining references) and no longer wraps
-`CLANG_INCLUDE_PATH` in a deploy-path prefix. `ROCM_CXX_FLAGS`/
-`CUDA_CXX_FLAGS` are deleted outright: the options model's
-`ACPP_HIP_CXX_FLAGS`/`ACPP_CUDA_CXX_FLAGS` supersede them.
-`doc/install-rocm.md` still documents `-DROCM_CXX_FLAGS` as a user
-override; stale, not fixed here.
+`CLANG_INCLUDE_PATH` in a deploy-path prefix. The root no longer defines
+`ROCM_CXX_FLAGS`/`CUDA_CXX_FLAGS` itself; a builder's
+`-DROCM_CXX_FLAGS`/`-DCUDA_CXX_FLAGS` feed
+`ACPP_HIP_CXX_FLAGS`/`ACPP_CUDA_CXX_FLAGS` (`cmake/options/common/
+core.cmake`, "Upstream's `-D` names").
 
 Windows: `backend_loader.cpp`'s `get_plugin_search_paths()` calls
 `AddDllDirectory` for each vendor's app-config-declared directory -
 settings `"cuda_dll_dir"`, `"ocl_dll_dir"`, `"ze_dll_dir"`,
-`"libomp_dll_dir"`, read via `try_retrieve_settings_variable`, reading
+`"libomp_dll_dir"`, `"hip_dll_dir"`, read via
+`try_retrieve_settings_variable`, reading
 `ACPP_CUDA_DLL_DIR`/`ACPP_OCL_DLL_DIR`/`ACPP_ZE_DLL_DIR`/
-`ACPP_LIBOMP_DLL_DIR` from the installed app config
-(`config/windows/common/app/{cuda,ocl,ze,core}.cfg`).
+`ACPP_LIBOMP_DLL_DIR`/`ACPP_HIP_DLL_DIR` from the installed app config
+(`config/windows/common/app/{cuda,ocl,ze,core,hip}.cfg`).
 `src/common/dylib_loader.cpp`'s `load_library` calls `LoadLibraryExA(...,
 LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)` first, which Win32 documents to include
 the process's `AddDllDirectory` list with no `SetDefaultDllDirectories`
@@ -196,13 +160,10 @@ actually honoured.
 
 ### Install rpaths that hardcode lib
 
-Six `INSTALL_RPATH`/`CMAKE_INSTALL_RPATH` sites exist under `src/`.
-`${base}` is set once, in `src/CMakeLists.txt:9,12`, to `$ORIGIN`
-(non-Apple) or `@loader_path` (Apple). Two build on it without naming a
-libdir (`src/runtime/CMakeLists.txt:23,121`,
-`src/compiler/llvm-to-backend/CMakeLists.txt:7`) and need nothing further.
-The remaining four, in `src/tools/*/CMakeLists.txt`, still hardcode `lib`
-- see "Open" above.
+Closed - tools use `ACPP_TOOL_INSTALL_RPATH` (`src/CMakeLists.txt`,
+computed from `CMAKE_INSTALL_BINDIR` to `CMAKE_INSTALL_LIBDIR`), every
+install destination follows `GNUInstallDirs`, guarded by
+`verify-install-dirs.cmake`.
 
 ### The global configuration installation
 
@@ -210,10 +171,8 @@ The remaining four, in `src/tools/*/CMakeLists.txt`, still hardcode `lib`
 `ACPP_CONFIG_FILE_INSTALL_DIR` (`CMakeLists.txt:557`), set to the relative
 subpath `etc/AdaptiveCpp`, joined under the install prefix and read the
 same way by `bin/acpp`. Nothing in the tree installs it, or anything else,
-to a literal absolute `/etc/AdaptiveCpp` outside a prefix. What is still
-open - whether it should ever gain a second, non-prefix-relative install
-site - is recorded under "Open" above; it needs Jack's ruling, not more
-reading of the source.
+to a literal absolute `/etc/AdaptiveCpp` outside a prefix. Jack's ruling
+(2026-09-26): not restored.
 
 ### Wiring-slice obligations, by vendor slice
 
@@ -229,11 +188,10 @@ each slice's own section here used to flag as not yet done and is not
 covered above is:
 
 - The root `CMakeLists.txt` finds each slice complained still duplicated
-  discovery - consolidated into the one "Open" bullet above rather than
-  repeated per vendor.
+  discovery - consolidated and removed (bcacdab0).
 - The CUDA slice's `bin/acpp` obligations (`cuda_lib_path` composing
   `cuda-install-root`/`cuda-rt-subdir`, the `nvcxx_invocation` class) are
-  done except the nvcxx link-line gap - see "Open" above.
+  done, including the nvcxx link-line gap (186e32c1).
 - The Vulkan slice's three nightly questions (`DT_NEEDED` omitting
   `SPIRV-Tools`, `clspv`'s own shared deps, `MoltenVK_icd.json`) are
   still open - see "Open" above.
@@ -261,8 +219,8 @@ configuration key duplicated across files is a configure error
 (`acpp_merge_json_objects`); an identical row arriving from more than one
 vendor's manifest collapses to one (`acpp_merge_deploy`'s `dedupe`
 argument). All three are covered by `verify-common.cmake`'s golden
-comparisons. The one still-open deploy-engine question, the `"*"` entry
-not filtering out static archives, is recorded under "Open" above.
+comparisons. The `"*"` entry skips static archives, libtool archives and
+import libraries (bac28352).
 
 ### The path model
 

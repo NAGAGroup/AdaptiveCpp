@@ -1,9 +1,10 @@
 # Design walkthrough, 2026-09-24/25
 
-Status: **current direction, supersedes `configuration-model.md` wherever
-they conflict.** This is the record of a step-by-step discussion (Jack and
-the agent), not an implementation. Nothing here is implemented yet. Items
-marked *open* were not settled.
+Status: **historical.** The record of the 2026-09-24/25 design discussion
+(Jack and the agent). Its plan is implemented (see the plan section
+below); `configuration-model.md` describes the current state, and where
+later decisions (2026-09-26) differ from this record, they supersede it.
+Items marked *open* were not settled at the time.
 
 The walkthrough followed one case, CUDA + OMP on Linux, in toolchain mode,
 under the full strategy, with the generic flow, stage by stage (configure,

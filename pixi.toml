@@ -76,8 +76,8 @@ ninja = "*"
 # ---- Development ------------------------------------------------------------
 # The dev feature takes the package as a DEV dependency: pixi assembles its
 # dependency closure WITHOUT building it. So the environment carries the
-# toolchain and every dependency the real build uses, and the in-tree cmake
-# build below runs inside exactly that.
+# toolchain and every dependency the real build uses; the verify harnesses
+# run inside it (nothing is built locally).
 [feature.dev.dev]
 naga-acpp = { path = "." }
 
