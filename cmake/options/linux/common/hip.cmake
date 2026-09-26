@@ -22,16 +22,10 @@ acpp_declare_vendor_subdir_fact(HIP RT ACPP_DISCOVERED_HIP_LIBDIR "${ACPP_DISCOV
 acpp_declare_vendor_subdir_fact(HIP INCLUDE ACPP_DISCOVERED_HIP_INCDIR "${ACPP_DISCOVERED_HIP_INCDIR}")
 acpp_declare_vendor_subdir_fact(HIP BITCODE ACPP_DISCOVERED_HIP_BITCODE_DIR "${ACPP_DISCOVERED_HIP_BITCODE_DIR}")
 
-# libhsa-runtime64 and libamdhip64 DT_NEED librocm_sysdeps_* through their
-# own $ORIGIN/rocm_sysdeps/lib RUNPATH; the sysdeps subdir has to keep that
-# position relative to RT, so it is computed from RT's own discovered value
-# directly, not from the vendor root a second way.
-if(NOT "${ACPP_DISCOVERED_HIP_LIBDIR}" STREQUAL "")
-  set(_acpp_hip_sysdeps_rel "${ACPP_DISCOVERED_HIP_LIBDIR}/rocm_sysdeps/lib")
-else()
-  set(_acpp_hip_sysdeps_rel "")
-endif()
-acpp_declare_vendor_subdir_fact(HIP SYSDEPS ACPP_DISCOVERED_HIP_LIBDIR "${_acpp_hip_sysdeps_rel}")
+# TheRock's libhsa-runtime64/libamdhip64 DT_NEED librocm_sysdeps_* through
+# their own $ORIGIN/rocm_sysdeps/lib RUNPATH; discovery reports where that
+# tree is, and empty where the distribution has none (classic ROCm).
+acpp_declare_vendor_subdir_fact(HIP SYSDEPS ACPP_DISCOVERED_HIP_SYSDEPS_DIR "${ACPP_DISCOVERED_HIP_SYSDEPS_DIR}")
 
 # The application's own view of each (D7): the manifest's app-config
 # section embeds these via @VAR@; Piece 3's concern to wire in.

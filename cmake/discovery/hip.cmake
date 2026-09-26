@@ -2,11 +2,13 @@
 #
 # Loaded by cmake/discovery.cmake after the core half; exports
 # ACPP_DISCOVERED_HIP_*. Not found is the normalized empty string.
-# Only TheRock's ROCm distribution is supported; classic /opt/rocm layouts
-# fail at configure.
+# Accepts TheRock, classic ROCm (bitcode under amdgcn/bitcode) and ROCm
+# 7.2+ (bitcode in the clang resource directory); upstream's
+# -DROCM_DEVICE_LIBS_PATH overrides the bitcode probe.
 
 include_guard(GLOBAL)
 include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/hip-layout.cmake)
 
 # hip-config.cmake otherwise runs hipconfig --platform, which answers nvidia
 # on a machine with CUDA and no AMD runtime, and hip::host then carries no
@@ -25,15 +27,20 @@ find_package(hip CONFIG QUIET)
 if(hip_FOUND)
   set(ACPP_DISCOVERED_HIP_FOUND ON)
 
-  # Device bitcode: TheRock's layout places it under lib/llvm/amdgcn/bitcode.
+  # Device bitcode: probed across every layout this discovery accepts.
   # HIP_PACKAGE_PREFIX_DIR is a search hint here, not an asserted prefix -
   # the common ancestor below is what the prefix actually becomes.
-  set(_acpp_hip_bitcode_dir "${HIP_PACKAGE_PREFIX_DIR}/lib/llvm/amdgcn/bitcode")
-  if(NOT EXISTS "${_acpp_hip_bitcode_dir}/ockl.bc")
+  acpp_hip_probe_bitcode(_acpp_hip_bitcode_dir "${HIP_PACKAGE_PREFIX_DIR}")
+  if("${_acpp_hip_bitcode_dir}" STREQUAL "")
+    list(JOIN _acpp_hip_bitcode_dir_TRIED ", " _acpp_hip_bitcode_tried_joined)
     message(FATAL_ERROR
-      "This is not a TheRock distribution: ${_acpp_hip_bitcode_dir}/ockl.bc "
-      "does not exist. Classic ROCm layouts are not supported.")
+      "HIP was found at ${HIP_PACKAGE_PREFIX_DIR} but no device bitcode "
+      "(ockl.bc) was found. Tried: ${_acpp_hip_bitcode_tried_joined}. Point "
+      "-DROCM_DEVICE_LIBS_PATH at the directory holding ockl.bc.")
   endif()
+
+  # rocm_sysdeps: only TheRock ships it.
+  acpp_hip_probe_sysdeps(_acpp_hip_sysdeps_dir "${hip_LIB_INSTALL_DIR}")
 
   # The prefix is derived, not asserted: the common ancestor of every
   # piece discovery actually found.
@@ -48,6 +55,12 @@ if(hip_FOUND)
     "${ACPP_DISCOVERED_HIP_PREFIX}" "${hip_INCLUDE_DIR}")
   file(RELATIVE_PATH ACPP_DISCOVERED_HIP_BITCODE_DIR
     "${ACPP_DISCOVERED_HIP_PREFIX}" "${_acpp_hip_bitcode_dir}")
+  if(NOT "${_acpp_hip_sysdeps_dir}" STREQUAL "")
+    file(RELATIVE_PATH ACPP_DISCOVERED_HIP_SYSDEPS_DIR
+      "${ACPP_DISCOVERED_HIP_PREFIX}" "${_acpp_hip_sysdeps_dir}")
+  else()
+    set(ACPP_DISCOVERED_HIP_SYSDEPS_DIR "")
+  endif()
 
   # Version.
   if(DEFINED hip_VERSION_MAJOR)
@@ -61,8 +74,10 @@ if(hip_FOUND)
     set(ACPP_DISCOVERED_HIP_VERSION_MINOR "")
   endif()
 
-  # hipRTC presence.
-  if(EXISTS "${hip_LIB_INSTALL_DIR}/libhiprtc.so")
+  # hipRTC presence. A classic install may ship only the soname link
+  # (libhiprtc.so.N), not the unversioned one.
+  file(GLOB _acpp_hip_hiprtc "${hip_LIB_INSTALL_DIR}/libhiprtc.so*")
+  if(_acpp_hip_hiprtc)
     set(ACPP_DISCOVERED_HIP_HIPRTC ON)
   else()
     set(ACPP_DISCOVERED_HIP_HIPRTC OFF)
@@ -73,6 +88,7 @@ else()
   set(ACPP_DISCOVERED_HIP_LIBDIR "")
   set(ACPP_DISCOVERED_HIP_INCDIR "")
   set(ACPP_DISCOVERED_HIP_BITCODE_DIR "")
+  set(ACPP_DISCOVERED_HIP_SYSDEPS_DIR "")
   set(ACPP_DISCOVERED_HIP_VERSION_MAJOR "")
   set(ACPP_DISCOVERED_HIP_VERSION_MINOR "")
   set(ACPP_DISCOVERED_HIP_HIPRTC OFF)

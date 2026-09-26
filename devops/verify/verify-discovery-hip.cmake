@@ -14,7 +14,7 @@ endif()
 include(${ACPP_REPO_ROOT}/cmake/discovery/hip.cmake)
 
 if(NOT ACPP_DISCOVERED_HIP_FOUND)
-  message(STATUS "SKIP: no TheRock ROCm distribution found (set ROCM_PATH or hip_ROOT)")
+  message(STATUS "SKIP: no ROCm distribution found (set ROCM_PATH or hip_ROOT)")
   return()
 endif()
 
