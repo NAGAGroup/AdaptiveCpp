@@ -377,22 +377,33 @@ class deployment_engine:
       self._deploy(f, manifest[f], target_path)
 
 class config_db:
-  # Scans the provided directory for json files
-  def __init__(self, config_file_dirs):
+  # Loads the single installed toolchain config (etc/AdaptiveCpp/
+  # acpp-toolchain.json), if present in any of the given directories - a
+  # missing file behaves like an absent directory did before: an empty db.
+  # Each entry is {"value": "...", "envvar": "..."} (envvar is unused here,
+  # kept only for documentation - the driver's own option/flag definitions
+  # already name the environment variable independently); only "value" is
+  # kept.
+  _TEMPLATE_KEY_RE = re.compile(r'{{\s*([A-Za-z0-9_-]+)\s*}}')
 
-    self._data = {}
-    self._locations = {}
+  def __init__(self, config_file_dirs, acpp_root):
+    self._raw = {}
+    self._resolved = {}
+    self._resolving = set()
     self._config_dirs = config_file_dirs
+    self._acpp_root = acpp_root
+    self._is_loaded = False
 
     for current_dir in config_file_dirs:
-      files = os.listdir(current_dir)
-      for f in files:
-        if f.lower().endswith(".json"):
-          with open(os.path.join(current_dir, f), 'r') as config_file:
-            data = json.load(config_file)
-            for d in data:
-              self._data[d] = data[d]
-            self._is_loaded = True
+      config_path = os.path.join(current_dir, "acpp-toolchain.json")
+      if not os.path.isfile(config_path):
+        continue
+      with open(config_path, 'r') as config_file:
+        data = json.load(config_file)
+      for key in data:
+        entry = data[key]
+        self._raw[key] = entry["value"] if isinstance(entry, dict) else entry
+      self._is_loaded = True
 
   @property
   def is_loaded(self):
@@ -404,26 +415,70 @@ class config_db:
 
   @property
   def keys(self):
-    return self._data.keys()
+    return self._raw.keys()
+
+  # Resolves one key's {{ }} references, recursively: a referenced key is
+  # substituted with ITS resolved value (not its raw text), so a key's own
+  # resolution is already a fixed point once computed - a chain of any
+  # length resolves in one top-level call. "acpp-root" is the driver's own
+  # installation path, supplied by the caller, not an entry in the config;
+  # "acpp-runtime-root" is left as a literal {{ }} token - only the deploy
+  # engine (5b) knows it.
+  def _resolve(self, key):
+    if key in self._resolved:
+      return self._resolved[key]
+    if key in self._resolving:
+      raise RuntimeError(
+        "Cycle detected while resolving '{{{{ {} }}}}' in the installed toolchain config".format(key))
+    if key == "acpp-root":
+      value = self._acpp_root
+    elif key not in self._raw:
+      raise RuntimeError(
+        "Unknown key '{{{{ {} }}}}' referenced in the installed toolchain config".format(key))
+    else:
+      self._resolving.add(key)
+      try:
+        value = self._substitute(self._raw[key])
+      finally:
+        self._resolving.discard(key)
+    self._resolved[key] = value
+    return value
+
+  def _substitute(self, text):
+    if not isinstance(text, str) or "{{" not in text:
+      return text
+    def _repl(m):
+      name = m.group(1)
+      if name == "acpp-runtime-root":
+        return m.group(0)
+      return self._resolve(name)
+    return self._TEMPLATE_KEY_RE.sub(_repl, text)
 
   def contains_key(self, key):
-    if not key in self._data:
+    if key == "acpp-root":
+      return bool(self._acpp_root)
+    if key not in self._raw:
       return False
-    if isinstance(self._data[key], str):
-      if(self._data[key].endswith("-NOTFOUND") or
-        self._data[key] == ""):
-        return False
+    value = self._resolve(key)
+    if isinstance(value, str) and (value.endswith("-NOTFOUND") or value == ""):
+      return False
     return True
 
   def get(self, key):
-    if not self.contains_key(key):
+    if key == "acpp-root":
+      if not self._acpp_root:
+        raise RuntimeError("Accessed missing key in config files: acpp-root")
+      return self._acpp_root
+    if key not in self._raw:
       raise RuntimeError("Accessed missing key in config files: "+key)
-
-    return self._data[key]
+    value = self._resolve(key)
+    if isinstance(value, str) and (value.endswith("-NOTFOUND") or value == ""):
+      raise RuntimeError("Accessed missing key in config files: "+key)
+    return value
 
   def get_or_default(self, key, default_value):
     if self.contains_key(key):
-      return self._data[key]
+      return self.get(key)
     return default_value
 
 class option:
@@ -463,16 +518,16 @@ class acpp_config:
     * rocm: Target AMD GPUs running on the ROCm platform
     * cpu: Target only CPUs"""),
 
-      'clang': option("--acpp-clang", "ACPP_CLANG", "default-clang",
+      'clang': option("--acpp-clang", "ACPP_CLANG", "device-clang-cmplr",
 """  The path to the clang executable that should be used for compilation
     (Note: *must* be compatible with the clang version that the
      AdaptiveCpp clang plugin was compiled against!)"""),
 
-      'nvcxx': option("--acpp-nvcxx", "ACPP_NVCXX", "default-nvcxx",
+      'nvcxx': option("--acpp-nvcxx", "ACPP_NVCXX", "nvcxx",
 """  The path to the nvc++ executable that should be used for compilation
     with the cuda-nvcxx backend."""),
 
-      'cuda-path': option("--acpp-cuda-path", "ACPP_CUDA_PATH", "default-cuda-path",
+      'cuda-path': option("--acpp-cuda-path", "ACPP_CUDA_PATH", "cuda-install-root",
 """  The path to the CUDA toolkit installation directory"""),
 
       'cuda-lib-path': option("--acpp-cuda-lib-path", "ACPP_CUDA_LIB_PATH", "default-cuda-lib-path",
@@ -481,7 +536,7 @@ class acpp_config:
     directory, which is where a CUDA installer places them. Distributions that
     lay the toolkit out differently need to set this."""),
 
-      'rocm-path': option("--acpp-rocm-path", "ACPP_ROCM_PATH", "default-rocm-path",
+      'rocm-path': option("--acpp-rocm-path", "ACPP_ROCM_PATH", "hip-install-root",
 """  The path to the ROCm installation directory"""),
 
       'rocm-lib-path': option("--acpp-rocm-lib-path", "ACPP_ROCM_LIB_PATH", "default-rocm-lib-path",
@@ -494,41 +549,41 @@ class acpp_config:
     For CUDA, the architecture has the form sm_XX, e.g. sm_60 for Pascal.
     For ROCm, the architecture has the form gfxYYY, e.g. gfx900 for Vega 10, gfx906 for Vega 20."""),
 
-      'cpu-compiler': option("--acpp-cpu-cxx", "ACPP_CPU_CXX", "default-cpu-cxx",
+      'cpu-compiler': option("--acpp-cpu-cxx", "ACPP_CPU_CXX", "cpu-cxx",
 """  The compiler that should be used when targeting only CPUs."""),
 
-      'clang-include-path' : option("--acpp-clang-include-path", "ACPP_CLANG_INCLUDE_PATH", "default-clang-include-path",
+      'clang-include-path' : option("--acpp-clang-include-path", "ACPP_CLANG_INCLUDE_PATH", "clang-include-path",
 """  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
 
-      'sequential-link-line' : option("--acpp-sequential-link-line", "ACPP_SEQUENTIAL_LINK_LINE", "default-sequential-link-line",
+      'sequential-link-line' : option("--acpp-sequential-link-line", "ACPP_SEQUENTIAL_LINK_LINE", "sequential-link-line",
 """ The arguments passed to the linker for the sequential backend"""),
 
-      'sequential-cxx-flags' : option("--acpp-sequential-cxx-flags", "ACPP_SEQUENTIAL_CXX_FLAGS", "default-sequential-cxx-flags",
+      'sequential-cxx-flags' : option("--acpp-sequential-cxx-flags", "ACPP_SEQUENTIAL_CXX_FLAGS", "sequential-cxx-flags",
 """ The arguments passed to the compiler to compile for the sequential backend"""),
 
-      'omp-link-line' : option("--acpp-omp-link-line", "ACPP_OMP_LINK_LINE", "default-omp-link-line",
+      'omp-link-line' : option("--acpp-omp-link-line", "ACPP_OMP_LINK_LINE", "omp-link-line",
 """ The arguments passed to the linker for the OpenMP backend."""),
 
-      'omp-cxx-flags' : option("--acpp-omp-cxx-flags", "ACPP_OMP_CXX_FLAGS", "default-omp-cxx-flags",
+      'omp-cxx-flags' : option("--acpp-omp-cxx-flags", "ACPP_OMP_CXX_FLAGS", "omp-cxx-flags",
 """ The arguments passed to the compiler to compile for the OpenMP backend"""),
 
-      'rocm-link-line' : option("--acpp-rocm-link-line", "ACPP_ROCM_LINK_LINE", "default-rocm-link-line",
+      'rocm-link-line' : option("--acpp-rocm-link-line", "ACPP_ROCM_LINK_LINE", "hip-link-line",
 """ The arguments passed to the linker for the ROCm backend."""),
 
-      'rocm-cxx-flags' : option("--acpp-rocm-cxx-flags", "ACPP_ROCM_CXX_FLAGS", "default-rocm-cxx-flags",
+      'rocm-cxx-flags' : option("--acpp-rocm-cxx-flags", "ACPP_ROCM_CXX_FLAGS", "hip-cxx-flags",
 """ The arguments passed to the compiler to compile for the ROCm backend"""),
 
-      'cuda-link-line' : option("--acpp-cuda-link-line", "ACPP_CUDA_LINK_LINE", "default-cuda-link-line",
+      'cuda-link-line' : option("--acpp-cuda-link-line", "ACPP_CUDA_LINK_LINE", "cuda-link-line",
 """ The arguments passed to the linker for the CUDA backend."""),
 
-      'cuda-cxx-flags' : option("--acpp-cuda-cxx-flags", "ACPP_CUDA_CXX_FLAGS", "default-cuda-cxx-flags",
+      'cuda-cxx-flags' : option("--acpp-cuda-cxx-flags", "ACPP_CUDA_CXX_FLAGS", "cuda-cxx-flags",
 """ The arguments passed to the compiler to compile for the CUDA backend"""),
 
       'config-file-dir' : option("--acpp-config-file-dir", "ACPP_CONFIG_FILE_DIR", "default-config-file-dir",
 """  Select an alternative path for the config files containing the default AdaptiveCpp settings.
     It is normally not necessary for the user to change this setting. """),
 
-      'targets': option("--acpp-targets", "ACPP_TARGETS", "default-targets",
+      'targets': option("--acpp-targets", "ACPP_TARGETS", "targets",
 """  Specify backends and targets to compile for. Example: --acpp-targets='omp;hip:gfx900,gfx906'
     Available backends:
       * omp - OpenMP CPU backend
@@ -586,19 +641,19 @@ class acpp_config:
   Uses continuation-based synchronization to execute all work-items
   of a work-group in a single thread, eliminating scheduling overhead
   and enabling enhanced vectorization opportunities compared to the fiber variant."""),
-      'is-dryrun': option("--acpp-dryrun", "ACPP_DRYRUN", "default-is-dryrun",
+      'is-dryrun': option("--acpp-dryrun", "ACPP_DRYRUN", "is-dryrun",
 """  If set, only shows compilation commands that would be executed,
   but does not actually execute it. """),
       'is-dryrun-only-std-flags': option("--acpp-dryrun-only-std-flags", "ACPP_DRYRUN_ONLYSTDFLAGS", "default-is-dryrun-only-std-flags",
 """  If set, only shows compilation commands that would be executed,
   but does not actually execute it. This version also remove all non standard flags."""),
       'is-explicit-multipass': option("--acpp-explicit-multipass", "ACPP_EXPLICIT_MULTIPASS",
-      "default-is-explicit-multipass",
+      "is-explicit-multipass",
 """  If set, executes device passes as separate compiler invocation and lets AdaptiveCpp control embedding device
   images into the host binary. This allows targeting multiple backends simultaneously that might otherwise be
   incompatible. In this mode, source code level interoperability may not be supported in the host pass.
   For example, you cannot use the CUDA kernel launch syntax[i.e. kernel <<< ... >>> (...)] in this mode. """),
-      'should-save-temps': option("--acpp-save-temps", "ACPP_SAVE_TEMPS", "default-save-temps",
+      'should-save-temps': option("--acpp-save-temps", "ACPP_SAVE_TEMPS", "save-temps",
 """  If set, do not delete temporary files created during compilation."""),
       'stdpar' : option("--acpp-stdpar", "ACPP_STDPAR", "default-is-stdpar",
 """  If set, enables SYCL offloading of C++ standard parallel algorithms."""),
@@ -661,7 +716,7 @@ class acpp_config:
       config_file_directories.append(self._retrieve_option("config-file-dir"))
     elif os.path.exists(install_config_dir):
       config_file_directories.append(install_config_dir)
-    self._config_db = config_db(config_file_directories)
+    self._config_db = config_db(config_file_directories, os.path.abspath(self.acpp_installation_path))
     self._common_compiler_args = self._get_std_compiler_args()
     self._deployment_db = deployment_db(config_file_directories, self)
 
@@ -781,8 +836,14 @@ class acpp_config:
       legacy_compatible_substitution_dict[k] = substitution_dict[k]
       legacy_compatible_substitution_dict[k.replace("ACPP", "HIPSYCL")] = substitution_dict[k]
 
+    # New config values (toolchain config, {{ }}-resolved already) carry no
+    # $VAR placeholders of this ($ACPP_PATH-style) kind, and must never be
+    # mangled - a literal "$ORIGIN" in a link line, say. safe_substitute
+    # leaves any unknown $ token as-is instead of raising; ACPP_PATH and
+    # friends above still substitute exactly as before for users' own
+    # command-line/env values that do use them.
     template = string.Template(template_string)
-    return template.substitute(legacy_compatible_substitution_dict)
+    return template.safe_substitute(legacy_compatible_substitution_dict)
 
   def _substitute_rocm_template_string(self, template_string):
     return self._substitute_template_string(
@@ -1039,6 +1100,14 @@ class acpp_config:
     path = self._retrieve_option("cuda-lib-path", allow_unset=True)
     if path:
       return path
+    # An empty rt-subdir is legitimate (the vendor root itself is the lib
+    # dir) - so presence of the key, not truthiness of its value, decides
+    # whether the config wins over the lib64/lib\x64 guess below.
+    if (self._config_db.contains_key("cuda-install-root") and
+        "cuda-rt-subdir" in self._config_db.keys):
+      install_root = self._config_db.get("cuda-install-root")
+      rt_subdir = self._config_db.get_or_default("cuda-rt-subdir", "")
+      return os.path.join(install_root, rt_subdir) if rt_subdir else install_root
     if sys.platform.startswith("win32"):
       return os.path.join(self.cuda_path, "lib", "x64")
     return os.path.join(self.cuda_path, "lib64")
@@ -1052,6 +1121,13 @@ class acpp_config:
     path = self._retrieve_option("rocm-lib-path", allow_unset=True)
     if path:
       return path
+    # Same reasoning as cuda_lib_path above: an empty rt-subdir is
+    # legitimate (the vendor root itself is the lib dir).
+    if (self._config_db.contains_key("hip-install-root") and
+        "hip-rt-subdir" in self._config_db.keys):
+      install_root = self._config_db.get("hip-install-root")
+      rt_subdir = self._config_db.get_or_default("hip-rt-subdir", "")
+      return os.path.join(install_root, rt_subdir) if rt_subdir else install_root
     return os.path.join(self.rocm_path, "lib")
 
   @property
