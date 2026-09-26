@@ -98,6 +98,38 @@ endif()
 
 message(STATUS "verify-hip-layouts: no layout matches -> empty result, TRIED lists what was tried")
 
+# ---------------------------------------------------------------------------
+# (f) Windows (AMD's HIP SDK): versioned DLL names in bin, an old
+# unversioned name alongside a new versioned one, mixed case, and an
+# unrelated DLL that must not match anything.
+# ---------------------------------------------------------------------------
+file(MAKE_DIRECTORY "${_r}/win/bin")
+file(TOUCH
+  "${_r}/win/bin/amdhip64.dll"
+  "${_r}/win/bin/amdhip64_6.dll"
+  "${_r}/win/bin/AMD_COMGR_2.DLL"
+  "${_r}/win/bin/hiprtc0602.dll"
+  "${_r}/win/bin/hiprtc-builtins0602.dll"
+  "${_r}/win/bin/hipblas.dll")
+
+acpp_hip_probe_windows_dlls("${_r}/win/bin")
+expect_eq(ACPP_DISCOVERED_HIP_AMDHIP_DLL "amdhip64_6")
+expect_eq(ACPP_DISCOVERED_HIP_COMGR_DLL "AMD_COMGR_2")
+expect_eq(ACPP_DISCOVERED_HIP_HIPRTC_DLL "hiprtc0602")
+expect_eq(ACPP_DISCOVERED_HIP_HIPRTC_BUILTINS_DLL "hiprtc-builtins0602")
+
+message(STATUS "verify-hip-layouts: Windows DLLs - newest versioned name wins, case-insensitive match, case preserved")
+
+# An empty bin directory: every result "".
+file(MAKE_DIRECTORY "${_r}/win-empty/bin")
+acpp_hip_probe_windows_dlls("${_r}/win-empty/bin")
+expect_eq(ACPP_DISCOVERED_HIP_AMDHIP_DLL "")
+expect_eq(ACPP_DISCOVERED_HIP_COMGR_DLL "")
+expect_eq(ACPP_DISCOVERED_HIP_HIPRTC_DLL "")
+expect_eq(ACPP_DISCOVERED_HIP_HIPRTC_BUILTINS_DLL "")
+
+message(STATUS "verify-hip-layouts: Windows DLLs - empty bin directory -> every result \"\"")
+
 file(REMOVE_RECURSE "${_r}")
 
 message(STATUS "verify-hip-layouts: OK")

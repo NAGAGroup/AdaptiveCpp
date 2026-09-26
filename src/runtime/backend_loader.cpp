@@ -120,7 +120,7 @@ std::vector<fs::path> get_plugin_search_paths()
   // backend plugin - and the vendor DLLs it transitively loads - is opened
   // below.
   for(const char* setting_name :
-      {"cuda_dll_dir", "ocl_dll_dir", "ze_dll_dir", "libomp_dll_dir"}) {
+      {"cuda_dll_dir", "hip_dll_dir", "ocl_dll_dir", "ze_dll_dir", "libomp_dll_dir"}) {
     std::string dll_dir;
     if(hipsycl::common::settings::try_retrieve_settings_variable(setting_name, dll_dir) &&
        !dll_dir.empty() && fs::is_directory(dll_dir)) {

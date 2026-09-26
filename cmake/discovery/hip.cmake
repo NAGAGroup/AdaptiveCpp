@@ -42,12 +42,33 @@ if(hip_FOUND)
   # rocm_sysdeps: only TheRock ships it.
   acpp_hip_probe_sysdeps(_acpp_hip_sysdeps_dir "${hip_LIB_INSTALL_DIR}")
 
-  # The prefix is derived, not asserted: the common ancestor of every
-  # piece discovery actually found.
-  acpp_common_ancestor(ACPP_DISCOVERED_HIP_PREFIX
+  # Windows (AMD's HIP SDK): the DLLs live in bin, versioned - probed here
+  # and folded into the common ancestor below so ACPP_DISCOVERED_HIP_BINDIR
+  # comes out relative to it, same as every other subdir fact.
+  set(_acpp_hip_ancestor_dirs
     "${hip_LIB_INSTALL_DIR}"
     "${hip_INCLUDE_DIR}"
     "${_acpp_hip_bitcode_dir}")
+  if(WIN32)
+    set(_acpp_hip_bindir "${HIP_PACKAGE_PREFIX_DIR}/bin")
+    acpp_hip_probe_windows_dlls("${_acpp_hip_bindir}")
+    if("${ACPP_DISCOVERED_HIP_AMDHIP_DLL}" STREQUAL "")
+      message(FATAL_ERROR
+        "HIP was found at ${HIP_PACKAGE_PREFIX_DIR} but no amdhip64*.dll "
+        "is in its bin directory.")
+    endif()
+    list(APPEND _acpp_hip_ancestor_dirs "${_acpp_hip_bindir}")
+  else()
+    set(_acpp_hip_bindir "")
+    set(ACPP_DISCOVERED_HIP_AMDHIP_DLL "")
+    set(ACPP_DISCOVERED_HIP_COMGR_DLL "")
+    set(ACPP_DISCOVERED_HIP_HIPRTC_DLL "")
+    set(ACPP_DISCOVERED_HIP_HIPRTC_BUILTINS_DLL "")
+  endif()
+
+  # The prefix is derived, not asserted: the common ancestor of every
+  # piece discovery actually found.
+  acpp_common_ancestor(ACPP_DISCOVERED_HIP_PREFIX ${_acpp_hip_ancestor_dirs})
 
   file(RELATIVE_PATH ACPP_DISCOVERED_HIP_LIBDIR
     "${ACPP_DISCOVERED_HIP_PREFIX}" "${hip_LIB_INSTALL_DIR}")
@@ -60,6 +81,12 @@ if(hip_FOUND)
       "${ACPP_DISCOVERED_HIP_PREFIX}" "${_acpp_hip_sysdeps_dir}")
   else()
     set(ACPP_DISCOVERED_HIP_SYSDEPS_DIR "")
+  endif()
+  if(WIN32)
+    file(RELATIVE_PATH ACPP_DISCOVERED_HIP_BINDIR
+      "${ACPP_DISCOVERED_HIP_PREFIX}" "${_acpp_hip_bindir}")
+  else()
+    set(ACPP_DISCOVERED_HIP_BINDIR "")
   endif()
 
   # Version.
@@ -74,22 +101,37 @@ if(hip_FOUND)
     set(ACPP_DISCOVERED_HIP_VERSION_MINOR "")
   endif()
 
-  # hipRTC presence. A classic install may ship only the soname link
-  # (libhiprtc.so.N), not the unversioned one.
-  file(GLOB _acpp_hip_hiprtc "${hip_LIB_INSTALL_DIR}/libhiprtc.so*")
-  if(_acpp_hip_hiprtc)
-    set(ACPP_DISCOVERED_HIP_HIPRTC ON)
+  # hipRTC presence. Windows: whichever versioned hiprtcXXYY.dll
+  # acpp_hip_probe_windows_dlls found in bin. Elsewhere: a classic install
+  # may ship only the soname link (libhiprtc.so.N), not the unversioned
+  # one.
+  if(WIN32)
+    if("${ACPP_DISCOVERED_HIP_HIPRTC_DLL}" STREQUAL "")
+      set(ACPP_DISCOVERED_HIP_HIPRTC OFF)
+    else()
+      set(ACPP_DISCOVERED_HIP_HIPRTC ON)
+    endif()
   else()
-    set(ACPP_DISCOVERED_HIP_HIPRTC OFF)
+    file(GLOB _acpp_hip_hiprtc "${hip_LIB_INSTALL_DIR}/libhiprtc.so*")
+    if(_acpp_hip_hiprtc)
+      set(ACPP_DISCOVERED_HIP_HIPRTC ON)
+    else()
+      set(ACPP_DISCOVERED_HIP_HIPRTC OFF)
+    endif()
   endif()
 else()
   set(ACPP_DISCOVERED_HIP_FOUND OFF)
   set(ACPP_DISCOVERED_HIP_PREFIX "")
   set(ACPP_DISCOVERED_HIP_LIBDIR "")
   set(ACPP_DISCOVERED_HIP_INCDIR "")
+  set(ACPP_DISCOVERED_HIP_BINDIR "")
   set(ACPP_DISCOVERED_HIP_BITCODE_DIR "")
   set(ACPP_DISCOVERED_HIP_SYSDEPS_DIR "")
   set(ACPP_DISCOVERED_HIP_VERSION_MAJOR "")
   set(ACPP_DISCOVERED_HIP_VERSION_MINOR "")
   set(ACPP_DISCOVERED_HIP_HIPRTC OFF)
+  set(ACPP_DISCOVERED_HIP_AMDHIP_DLL "")
+  set(ACPP_DISCOVERED_HIP_COMGR_DLL "")
+  set(ACPP_DISCOVERED_HIP_HIPRTC_DLL "")
+  set(ACPP_DISCOVERED_HIP_HIPRTC_BUILTINS_DLL "")
 endif()

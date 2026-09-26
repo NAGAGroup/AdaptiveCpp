@@ -1,0 +1,50 @@
+{
+  "hip-subdir": {
+    "value": "@ACPP_HIP_SUBDIR@"
+  },
+  "hip-install-root": {
+    "value": "@ACPP_HIP_INSTALL_ROOT@",
+    "envvar": "ACPP_ROCM_PATH"
+  },
+  "hip-rt-subdir": {
+    "value": "@ACPP_HIP_RT_SUBDIR@"
+  },
+  "hip-include-subdir": {
+    "value": "@ACPP_HIP_INCLUDE_SUBDIR@"
+  },
+  "hip-bitcode-subdir": {
+    "value": "@ACPP_HIP_BITCODE_SUBDIR@"
+  },
+  "hip-bin-subdir": {
+    "value": "@ACPP_HIP_BIN_SUBDIR@"
+  },
+  "hip-amdhip-dll": {
+    "value": "@ACPP_HIP_AMDHIP_DLL@"
+  },
+  "hip-comgr-dll": {
+    "value": "@ACPP_HIP_COMGR_DLL@"
+  },
+  "hip-hiprtc-dll": {
+    "value": "@ACPP_HIP_HIPRTC_DLL@"
+  },
+  "hip-hiprtc-builtins-dll": {
+    "value": "@ACPP_HIP_HIPRTC_BUILTINS_DLL@"
+  },
+  "hip-version-major": {
+    "value": "@ACPP_DISCOVERED_HIP_VERSION_MAJOR@"
+  },
+  "hip-version-minor": {
+    "value": "@ACPP_DISCOVERED_HIP_VERSION_MINOR@"
+  },
+  "hip-hiprtc": {
+    "value": "@ACPP_DISCOVERED_HIP_HIPRTC@"
+  },
+  "hip-link-line": {
+    "value": "@ACPP_HIP_LINK_LINE@",
+    "envvar": "ACPP_ROCM_LINK_LINE"
+  },
+  "hip-cxx-flags": {
+    "value": "@ACPP_HIP_CXX_FLAGS@",
+    "envvar": "ACPP_ROCM_CXX_FLAGS"
+  }
+}

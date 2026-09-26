@@ -42,6 +42,21 @@ set(ACPP_DISCOVERED_CUDA_VERSION_MAJOR "")
 set(ACPP_DISCOVERED_CUDA_VERSION_MINOR "")
 set(ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "")
 
+# HIP: not found.
+set(ACPP_DISCOVERED_HIP_PREFIX "")
+set(ACPP_DISCOVERED_HIP_LIBDIR "")
+set(ACPP_DISCOVERED_HIP_INCDIR "")
+set(ACPP_DISCOVERED_HIP_BINDIR "")
+set(ACPP_DISCOVERED_HIP_BITCODE_DIR "")
+set(ACPP_DISCOVERED_HIP_SYSDEPS_DIR "")
+set(ACPP_DISCOVERED_HIP_VERSION_MAJOR "")
+set(ACPP_DISCOVERED_HIP_VERSION_MINOR "")
+set(ACPP_DISCOVERED_HIP_HIPRTC OFF)
+set(ACPP_DISCOVERED_HIP_AMDHIP_DLL "")
+set(ACPP_DISCOVERED_HIP_COMGR_DLL "")
+set(ACPP_DISCOVERED_HIP_HIPRTC_DLL "")
+set(ACPP_DISCOVERED_HIP_HIPRTC_BUILTINS_DLL "")
+
 # OCL: not found.
 set(ACPP_DISCOVERED_OCL_FOUND OFF)
 set(ACPP_DISCOVERED_OCL_LOADER "")
@@ -71,6 +86,7 @@ set(ACPP_DISCOVERED_CLSPV_BINDIR "")
 # Linux, so the subdir knobs are pre-set here exactly as a Windows configure
 # would resolve them by default - the same override path a packager uses.
 set(ACPP_CUDA_SUBDIR "bin/hipSYCL/ext/cuda")
+set(ACPP_HIP_SUBDIR "bin/hipSYCL/ext/hip")
 set(ACPP_OCL_SUBDIR "bin/hipSYCL/ext/ocl")
 set(ACPP_ZE_SUBDIR "bin/hipSYCL/ext/ze")
 set(ACPP_VK_SUBDIR "bin/hipSYCL/ext/vk")
@@ -78,6 +94,7 @@ set(ACPP_CLSPV_SUBDIR "bin/hipSYCL/ext/clspv")
 
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/core.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/cuda.cmake)
+include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/hip.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ocl.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ze.cmake)
 include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/vk.cmake)
@@ -95,6 +112,20 @@ expect_eq(ACPP_CUDA_LIBDEVICE_SUBDIR "")
 expect_eq(ACPP_APP_CUDA_RT_DIR "")
 expect_eq(ACPP_APP_CUDA_BIN_DIR "")
 message(STATUS "windows/x86_64/cuda.cmake (placeholder): defaults as declared")
+
+# ---- HIP placeholder ----
+
+expect_eq(ACPP_HIP_SUBDIR "bin/hipSYCL/ext/hip")
+expect_eq(ACPP_HIP_INSTALL_ROOT "")
+expect_eq(ACPP_HIP_RT_SUBDIR "")
+expect_eq(ACPP_HIP_INCLUDE_SUBDIR "")
+expect_eq(ACPP_HIP_BIN_SUBDIR "")
+expect_eq(ACPP_HIP_BITCODE_SUBDIR "")
+# Not shipped, and nothing discovered either: empty, not an error.
+expect_eq(ACPP_APP_HIP_RT_DIR "")
+expect_eq(ACPP_APP_HIP_BIN_DIR "")
+expect_eq(ACPP_HIP_AMDHIP_DLL "")
+message(STATUS "windows/x86_64/hip.cmake (placeholder): defaults as declared")
 
 # ---- OCL placeholder ----
 

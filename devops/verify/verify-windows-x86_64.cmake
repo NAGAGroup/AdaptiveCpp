@@ -27,6 +27,7 @@ endfunction()
 set(_win_cmake_files
   ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/core.cmake
   ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/cuda.cmake
+  ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/hip.cmake
   ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ocl.cmake
   ${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/ze.cmake)
 foreach(_f ${_win_cmake_files})
@@ -136,6 +137,46 @@ expect_eq(ACPP_APP_CUDA_BIN_DIR "C:/CUDA/v12.6/bin")
 expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "C:/CUDA/v12.6/nvvm/libdevice")
 expect_eq(ACPP_CUDA_LINK_LINE "-L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
 message(STATUS "windows/x86_64/cuda.cmake: found defaults as declared")
+
+# ---- HIP found ----
+
+# acpp_declare_vendor_subdir's WIN32 branch picks the bindir-rooted default;
+# WIN32 is a real platform macro that is false while this harness runs on
+# Linux, so the subdir knob is pre-set here exactly as a Windows configure
+# would resolve it by default - the same override path a packager uses.
+set(ACPP_HIP_SUBDIR "bin/hipSYCL/ext/hip")
+set(ACPP_DISCOVERED_HIP_PREFIX "C:/Program Files/AMD/ROCm/6.2")
+set(ACPP_DISCOVERED_HIP_LIBDIR "lib")
+set(ACPP_DISCOVERED_HIP_INCDIR "include")
+set(ACPP_DISCOVERED_HIP_BINDIR "bin")
+set(ACPP_DISCOVERED_HIP_BITCODE_DIR "amdgcn/bitcode")
+set(ACPP_DISCOVERED_HIP_SYSDEPS_DIR "")
+set(ACPP_DISCOVERED_HIP_VERSION_MAJOR "6")
+set(ACPP_DISCOVERED_HIP_VERSION_MINOR "2")
+set(ACPP_DISCOVERED_HIP_HIPRTC ON)
+set(ACPP_DISCOVERED_HIP_AMDHIP_DLL "amdhip64_6")
+set(ACPP_DISCOVERED_HIP_COMGR_DLL "amd_comgr_2")
+set(ACPP_DISCOVERED_HIP_HIPRTC_DLL "hiprtc0602")
+set(ACPP_DISCOVERED_HIP_HIPRTC_BUILTINS_DLL "hiprtc-builtins0602")
+
+include(${ACPP_REPO_ROOT}/cmake/options/windows/x86_64/hip.cmake)
+
+expect_eq(ACPP_HIP_SUBDIR "bin/hipSYCL/ext/hip")
+expect_eq(ACPP_HIP_INSTALL_ROOT "C:/Program Files/AMD/ROCm/6.2")
+expect_eq(ACPP_HIP_RT_SUBDIR "lib")
+expect_eq(ACPP_HIP_INCLUDE_SUBDIR "include")
+expect_eq(ACPP_HIP_BIN_SUBDIR "bin")
+expect_eq(ACPP_HIP_BITCODE_SUBDIR "amdgcn/bitcode")
+# Not shipped under managed: a concrete cmake string, the discovered root
+# joined with the subdir fact.
+expect_eq(ACPP_APP_HIP_RT_DIR "C:/Program Files/AMD/ROCm/6.2/lib")
+expect_eq(ACPP_APP_HIP_INCLUDE_DIR "C:/Program Files/AMD/ROCm/6.2/include")
+# BIN doubles as the DLL directory Windows feeds AddDllDirectory through.
+expect_eq(ACPP_APP_HIP_BIN_DIR "C:/Program Files/AMD/ROCm/6.2/bin")
+expect_eq(ACPP_APP_HIP_BITCODE_DIR "C:/Program Files/AMD/ROCm/6.2/amdgcn/bitcode")
+expect_eq(ACPP_HIP_AMDHIP_DLL "amdhip64_6")
+expect_eq(ACPP_HIP_LINK_LINE "-L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")
+message(STATUS "windows/x86_64/hip.cmake: found defaults as declared")
 
 # ---- OCL found ----
 
