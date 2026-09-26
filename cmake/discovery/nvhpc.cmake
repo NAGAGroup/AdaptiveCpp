@@ -12,6 +12,12 @@ include_guard(GLOBAL)
 # Upstream's cache name, so -DNVCXX_COMPILER= works as it did there.
 find_program(NVCXX_COMPILER NAMES nvc++)
 
+# Probing happens first, into locals: found-but-incomplete (nvc++ found but
+# no REDIST runtime) must not FATAL_ERROR now that discovery runs
+# unconditionally - it warns and the export below lands in the same
+# not-found state as nvc++ not being found at all. Explicitly requesting
+# the nvcxx flow still fails, from the root's own check.
+set(_acpp_nvhpc_usable OFF)
 if(NVCXX_COMPILER AND NOT NVCXX_COMPILER MATCHES "-NOTFOUND$")
   # Resolve symlinks so the SDK root derivation sees the real installation.
   get_filename_component(_acpp_nvhpc_real "${NVCXX_COMPILER}" REALPATH)
@@ -20,17 +26,25 @@ if(NVCXX_COMPILER AND NOT NVCXX_COMPILER MATCHES "-NOTFOUND$")
   get_filename_component(_acpp_nvhpc_compilers "${_acpp_nvhpc_bindir}" DIRECTORY)
   get_filename_component(_acpp_nvhpc_root "${_acpp_nvhpc_compilers}" DIRECTORY)
 
+  set(_acpp_nvhpc_prefix "${_acpp_nvhpc_root}/REDIST")
+  set(_acpp_nvhpc_libdir "compilers/lib")
+
+  if(IS_DIRECTORY "${_acpp_nvhpc_prefix}/${_acpp_nvhpc_libdir}")
+    set(_acpp_nvhpc_usable ON)
+  else()
+    message(WARNING
+      "nvc++ was found at ${_acpp_nvhpc_real} but its redistributable "
+      "runtime (${_acpp_nvhpc_prefix}/${_acpp_nvhpc_libdir}) "
+      "was not. The nvcxx flow cannot be deployed without it. nvhpc "
+      "support is disabled.")
+  endif()
+endif()
+
+if(_acpp_nvhpc_usable)
   set(ACPP_DISCOVERED_NVHPC_FOUND ON)
   set(ACPP_DISCOVERED_NVHPC_NVCXX "${_acpp_nvhpc_real}")
-  set(ACPP_DISCOVERED_NVHPC_PREFIX "${_acpp_nvhpc_root}/REDIST")
-  set(ACPP_DISCOVERED_NVHPC_LIBDIR "compilers/lib")
-
-  if(NOT IS_DIRECTORY "${ACPP_DISCOVERED_NVHPC_PREFIX}/${ACPP_DISCOVERED_NVHPC_LIBDIR}")
-    message(FATAL_ERROR
-      "nvc++ was found at ${_acpp_nvhpc_real} but its redistributable "
-      "runtime (${ACPP_DISCOVERED_NVHPC_PREFIX}/${ACPP_DISCOVERED_NVHPC_LIBDIR}) "
-      "was not. The nvcxx flow cannot be deployed without it.")
-  endif()
+  set(ACPP_DISCOVERED_NVHPC_PREFIX "${_acpp_nvhpc_prefix}")
+  set(ACPP_DISCOVERED_NVHPC_LIBDIR "${_acpp_nvhpc_libdir}")
 
   # Version: parse nvc++ --version output.
   execute_process(

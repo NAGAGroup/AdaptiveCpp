@@ -24,19 +24,24 @@ endif()
 
 find_package(hip CONFIG QUIET)
 
+# Probing happens first, into locals: found-but-incomplete (no bitcode, or
+# on Windows no amdhip64*.dll) must not FATAL_ERROR now that discovery runs
+# unconditionally - it warns and the export below lands in the same
+# not-found state as hip not being found at all. Explicitly requesting the
+# backend still fails, from the root's own WITH_ROCM_BACKEND check.
+set(_acpp_hip_usable OFF)
 if(hip_FOUND)
-  set(ACPP_DISCOVERED_HIP_FOUND ON)
-
   # Device bitcode: probed across every layout this discovery accepts.
   # HIP_PACKAGE_PREFIX_DIR is a search hint here, not an asserted prefix -
   # the common ancestor below is what the prefix actually becomes.
   acpp_hip_probe_bitcode(_acpp_hip_bitcode_dir "${HIP_PACKAGE_PREFIX_DIR}")
   if("${_acpp_hip_bitcode_dir}" STREQUAL "")
     list(JOIN _acpp_hip_bitcode_dir_TRIED ", " _acpp_hip_bitcode_tried_joined)
-    message(FATAL_ERROR
+    message(WARNING
       "HIP was found at ${HIP_PACKAGE_PREFIX_DIR} but no device bitcode "
       "(ockl.bc) was found. Tried: ${_acpp_hip_bitcode_tried_joined}. Point "
-      "-DROCM_DEVICE_LIBS_PATH at the directory holding ockl.bc.")
+      "-DROCM_DEVICE_LIBS_PATH at the directory holding ockl.bc. HIP "
+      "support is disabled.")
   endif()
 
   # rocm_sysdeps: only TheRock ships it.
@@ -53,9 +58,9 @@ if(hip_FOUND)
     set(_acpp_hip_bindir "${HIP_PACKAGE_PREFIX_DIR}/bin")
     acpp_hip_probe_windows_dlls("${_acpp_hip_bindir}")
     if("${ACPP_DISCOVERED_HIP_AMDHIP_DLL}" STREQUAL "")
-      message(FATAL_ERROR
+      message(WARNING
         "HIP was found at ${HIP_PACKAGE_PREFIX_DIR} but no amdhip64*.dll "
-        "is in its bin directory.")
+        "is in its bin directory. HIP support is disabled.")
     endif()
     list(APPEND _acpp_hip_ancestor_dirs "${_acpp_hip_bindir}")
   else()
@@ -65,6 +70,18 @@ if(hip_FOUND)
     set(ACPP_DISCOVERED_HIP_HIPRTC_DLL "")
     set(ACPP_DISCOVERED_HIP_HIPRTC_BUILTINS_DLL "")
   endif()
+
+  set(_acpp_hip_usable ON)
+  if("${_acpp_hip_bitcode_dir}" STREQUAL "")
+    set(_acpp_hip_usable OFF)
+  endif()
+  if(WIN32 AND "${ACPP_DISCOVERED_HIP_AMDHIP_DLL}" STREQUAL "")
+    set(_acpp_hip_usable OFF)
+  endif()
+endif()
+
+if(hip_FOUND AND _acpp_hip_usable)
+  set(ACPP_DISCOVERED_HIP_FOUND ON)
 
   # The prefix is derived, not asserted: the common ancestor of every
   # piece discovery actually found.

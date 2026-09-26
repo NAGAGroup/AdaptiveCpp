@@ -13,22 +13,33 @@ endif()
 
 find_package(CUDAToolkit QUIET)
 
+# Probing happens first, into locals: found-but-incomplete (libdevice
+# missing) must not FATAL_ERROR now that discovery runs unconditionally -
+# it warns and the export below lands in the same not-found state as
+# CUDAToolkit not being found at all. Explicitly requesting the backend
+# still fails, from the root's own WITH_CUDA_BACKEND check.
+set(_acpp_cuda_usable OFF)
 if(CUDAToolkit_FOUND)
-  set(ACPP_DISCOVERED_CUDA_FOUND ON)
-  set(ACPP_DISCOVERED_CUDA_VERSION_MAJOR "${CUDAToolkit_VERSION_MAJOR}")
-  set(ACPP_DISCOVERED_CUDA_VERSION_MINOR "${CUDAToolkit_VERSION_MINOR}")
-
   list(GET CUDAToolkit_INCLUDE_DIRS 0 _acpp_cuda_incdir)
 
   # libdevice: the generic JIT cannot target CUDA without it. The toolkit's
   # own root is a search hint here, not an asserted prefix - the common
   # ancestor below is what the prefix actually becomes.
   set(_acpp_cuda_libdevice_dir "${CUDAToolkit_LIBRARY_ROOT}/nvvm/libdevice")
-  if(NOT EXISTS "${_acpp_cuda_libdevice_dir}/libdevice.10.bc")
-    message(FATAL_ERROR
+  if(EXISTS "${_acpp_cuda_libdevice_dir}/libdevice.10.bc")
+    set(_acpp_cuda_usable ON)
+  else()
+    message(WARNING
       "The generic JIT cannot target CUDA without libdevice. Expected "
-      "${_acpp_cuda_libdevice_dir}/libdevice.10.bc to exist.")
+      "${_acpp_cuda_libdevice_dir}/libdevice.10.bc to exist. CUDA support "
+      "is disabled.")
   endif()
+endif()
+
+if(CUDAToolkit_FOUND AND _acpp_cuda_usable)
+  set(ACPP_DISCOVERED_CUDA_FOUND ON)
+  set(ACPP_DISCOVERED_CUDA_VERSION_MAJOR "${CUDAToolkit_VERSION_MAJOR}")
+  set(ACPP_DISCOVERED_CUDA_VERSION_MINOR "${CUDAToolkit_VERSION_MINOR}")
 
   # The prefix is derived, not asserted: the common ancestor of every
   # piece discovery actually found. A layout that does not match the

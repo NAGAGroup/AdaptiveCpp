@@ -226,7 +226,7 @@ if(WITH_LEVEL_ZERO_BACKEND)
     ze/ze_queue.cpp
     ze/ze_code_object.cpp)
 
-  target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include)
+  target_include_directories(rt-backend-ze PRIVATE ${HIPSYCL_SOURCE_DIR}/include "${ACPP_DISCOVERED_ZE_INCLUDE_DIR}")
   # ACPP_ZE_LOADER_LIBRARY is cmake/discovery/ze.cmake's find_library cache entry.
   target_link_libraries(rt-backend-ze PRIVATE acpp-rt ${ACPP_ZE_LOADER_LIBRARY})
 
