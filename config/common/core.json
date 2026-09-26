@@ -2,6 +2,9 @@
   "acpp-libdir": {
     "value": "@CMAKE_INSTALL_LIBDIR@"
   },
+  "acpp-bindir": {
+    "value": "@CMAKE_INSTALL_BINDIR@"
+  },
   "llvm-libdir": {
     "value": "@ACPP_DISCOVERED_LLVM_LIBDIR@"
   },
