@@ -60,7 +60,7 @@ expect_eq(ACPP_APP_HIP_INCLUDE_DIR "")
 expect_eq(ACPP_APP_HIP_BITCODE_DIR "")
 expect_eq(ACPP_APP_HIP_SYSDEPS_DIR "")
 
-expect_eq(ACPP_HIP_LINK_LINE "-Wl,-rpath={{ hip-install-root }}/{{ hip-rt-subdir }} -L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")
+expect_eq(ACPP_HIP_LINK_LINE "-L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")
 expect_eq(ACPP_HIP_CXX_FLAGS "-isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike -isystem {{ clang-include-path }} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -I{{ hip-install-root }}/{{ hip-include-subdir }} --rocm-device-lib-path={{ hip-install-root }}/{{ hip-bitcode-subdir }} --rocm-path={{ hip-install-root }} -fhip-new-launch-api -mllvm -amdgpu-early-inline-all=true -mllvm -amdgpu-function-calls=false -D__HIP_ROCclr__")
 
 message(STATUS "hip.cmake (placeholder): parses clean, every default as declared")

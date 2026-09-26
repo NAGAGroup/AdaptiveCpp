@@ -65,6 +65,6 @@ expect_eq(ACPP_APP_NVHPC_RT_DIR "/opt/nvidia/hpc_sdk/Linux_x86_64/25.5/REDIST/co
 
 # Driver-only: nvc++ found -> discovered path.
 expect_eq(ACPP_NVCXX "/opt/nvidia/hpc_sdk/Linux_x86_64/25.5/compilers/bin/nvc++")
-expect_eq(ACPP_NVCXX_LINK_LINE "-Mnorpath -Wl,-rpath={{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }} -Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }}")
+expect_eq(ACPP_NVCXX_LINK_LINE "")
 
 message(STATUS "nvhpc.cmake: parses clean, every default as declared")

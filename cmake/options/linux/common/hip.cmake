@@ -43,9 +43,14 @@ acpp_declare_vendor_app_dir(HIP hip SYSDEPS)
 # ---------------------------------------------------------------------------
 # Driver-only
 # ---------------------------------------------------------------------------
+#
+# No -Wl,-rpath here: the CLI driver never adds rpaths by itself (doc/
+# design-walkthrough-2026-09-25.md, "Driving") - an app builder driving
+# the multipass flow by hand owns its own link, and a CMake app gets its
+# rpath from add_sycl_to_target (Commit 6, ACPP_APP_INSTALL_RPATH).
 
 if(NOT DEFINED ACPP_HIP_LINK_LINE)
-  set(ACPP_HIP_LINK_LINE "-Wl,-rpath={{ hip-install-root }}/{{ hip-rt-subdir }} -L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")
+  set(ACPP_HIP_LINK_LINE "-L{{ hip-install-root }}/{{ hip-rt-subdir }} -lamdhip64")
 endif()
 
 if(NOT DEFINED ACPP_HIP_CXX_FLAGS)

@@ -42,9 +42,14 @@ acpp_declare_vendor_app_dir(CUDA cuda LIBDEVICE)
 # neither needs to branch on strategy in cmake, because cuda-install-root's
 # own value already carries the branch (see acpp_declare_vendor_root).
 # libcuda is the driver's, reached separately.
+#
+# No -Wl,-rpath here: the CLI driver never adds rpaths by itself (doc/
+# design-walkthrough-2026-09-25.md, "Driving") - an app builder driving
+# the multipass flow by hand owns its own link, and a CMake app gets its
+# rpath from add_sycl_to_target (Commit 6, ACPP_APP_INSTALL_RPATH).
 
 if(NOT DEFINED ACPP_CUDA_LINK_LINE)
-  set(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }} -L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
+  set(ACPP_CUDA_LINK_LINE "-L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
 endif()
 if(NOT DEFINED ACPP_CUDA_CXX_FLAGS)
   set(ACPP_CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike")

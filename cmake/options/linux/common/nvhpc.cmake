@@ -46,14 +46,13 @@ else()
   set(ACPP_NVCXX "nvc++")
 endif()
 
-# -Mnorpath suppresses the RPATH nvc++ would stamp into the application,
-# which names the SDK on the building machine; ours names the unit, which
-# travels. nvc++ links cudart from the CUDA bundled inside the SDK, but at
-# run time the application resolves the soname through our RUNPATH to the
-# toolkit unit's copy, the one rt-backend-cuda was built against; the
-# toolkit unit is always present for this flow because the backend is built
-# against it, and when only the SDK is installed the toolkit unit simply is
-# the SDK's bundled CUDA, pointed at through CUDAToolkit_ROOT.
+# No rpath here, and no -Mnorpath either: the CLI driver never adds
+# rpaths by itself (doc/design-walkthrough-2026-09-25.md, "Driving") - an
+# app builder driving the nvcxx flow by hand owns its own link, same as
+# nvc++'s own default behaviour, so nothing here interferes with it
+# either. A CMake app gets its rpath from add_sycl_to_target instead
+# (Commit 6, ACPP_APP_INSTALL_RPATH), which already covers the nvhpc rt
+# subdir under full - see acpp_app_install_rpath's own NVHPC:RT entry.
 if(NOT DEFINED ACPP_NVCXX_LINK_LINE)
-  set(ACPP_NVCXX_LINK_LINE "-Mnorpath -Wl,-rpath={{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }} -Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }}")
+  set(ACPP_NVCXX_LINK_LINE "")
 endif()

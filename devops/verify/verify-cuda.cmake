@@ -69,7 +69,7 @@ expect_eq(ACPP_APP_CUDA_BIN_DIR "/usr/local/cuda-12.9/bin")
 expect_eq(ACPP_APP_CUDA_LIBDEVICE_DIR "/usr/local/cuda-12.9/nvvm/libdevice")
 
 # Driver-only: link line and flags.
-expect_eq(ACPP_CUDA_LINK_LINE "-Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }} -L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
+expect_eq(ACPP_CUDA_LINK_LINE "-L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
 expect_eq(ACPP_CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike")
 
 message(STATUS "cuda.cmake: parses clean, every default as declared")

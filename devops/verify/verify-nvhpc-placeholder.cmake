@@ -61,6 +61,6 @@ expect_eq(ACPP_APP_NVHPC_RT_DIR "")
 
 # nvc++ not found -> bare name.
 expect_eq(ACPP_NVCXX "nvc++")
-expect_eq(ACPP_NVCXX_LINK_LINE "-Mnorpath -Wl,-rpath={{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }} -Wl,-rpath={{ cuda-install-root }}/{{ cuda-rt-subdir }}")
+expect_eq(ACPP_NVCXX_LINK_LINE "")
 
 message(STATUS "nvhpc.cmake (placeholder): parses clean, every default as declared")
