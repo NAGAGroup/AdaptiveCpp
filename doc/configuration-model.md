@@ -127,7 +127,7 @@ A vendor unit is steered by a small set of knobs:
    spellings: `CUDAToolkit_ROOT`/`CUDA_TOOLKIT_ROOT_DIR`,
    `hip_ROOT`/`ROCM_PATH`, `ROCM_DEVICE_LIBS_PATH` (bitcode),
    `NVCXX_COMPILER`, `OpenCL_LIBRARY`, `LLVM_DIR`,
-   `CLANG_EXECUTABLE_PATH`. `WITH_<X>_BACKEND` defaults from what
+   `CLANG_EXECUTABLE_PATH`, `CLANG_INCLUDE_PATH`. `WITH_<X>_BACKEND` defaults from what
    discovery found (OpenCL and Level Zero only with the SSCP compiler,
    Level Zero `ON` when its loader is found, Vulkan and Metal `OFF`
    unless requested); an explicit `OFF` skips that backend's discovery

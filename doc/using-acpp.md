@@ -147,7 +147,7 @@ Options are:
   [can also be set with environment variable: ACPP_CLANG_INCLUDE_PATH=<value>]
   [default value provided by field 'clang-include-path' in the installed toolchain config (etc/AdaptiveCpp/acpp-toolchain.json).]
   [current value: NOT SET]
-  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm.
+  The path to clang's resource directory (the parent of its internal include directory, e.g. $PREFIX/lib/clang/<version>). The hip flow passes it with -isystem. Only required by ROCm.
 
 --acpp-sequential-link-line=<value>
   [can also be set with environment variable: ACPP_SEQUENTIAL_LINK_LINE=<value>]

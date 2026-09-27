@@ -89,7 +89,7 @@ If AdaptiveCpp does not select the right clang++ or include directories, use the
 
 
 * `-DCLANG_EXECUTABLE_PATH=/path/to/clang++` must be pointed to the `clang++` executable from this LLVM installation.
-* clang's internal header directory is found from the LLVM installation automatically; if it lives elsewhere, set the `ACPP_CLANG_INCLUDE_PATH` environment variable (or `--acpp-clang-include-path`) when using acpp.
+* `-DCLANG_INCLUDE_PATH=/path/to/lib/clang/<version>` if clang's resource directory is not found automatically. This is the directory containing clang's internal `include` directory; the hip flow passes it with `-isystem`. It can also be overridden when using acpp with `ACPP_CLANG_INCLUDE_PATH` or `--acpp-clang-include-path`.
 
 ## If clang/LLVM does not find C++ standard library headers
 

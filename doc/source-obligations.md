@@ -24,10 +24,6 @@ the tree, read today, still shows as unfinished or unconfirmed.
 - HIP layouts are harness-checked against fake trees only: classic ROCm,
   ROCm 7.2+ and the Windows HIP SDK (whether it ships `lib/cmake/hip`,
   its DLL names) still need a real install in acpp-toolchain CI.
-- Upstream's `-DCLANG_INCLUDE_PATH` is not read by discovery - discovery
-  finds clang's resource directory itself; the escape hatch for a layout
-  discovery gets wrong is the `ACPP_CLANG_INCLUDE_PATH` environment
-  variable, read at use time.
 - Nothing compiles the C++ changes locally
   (`backend_loader.cpp`/`filesystem.cpp`/`config.hpp.in`) or the root
   `CMakeLists.txt` restructuring; their first compile is acpp-toolchain
@@ -35,6 +31,10 @@ the tree, read today, still shows as unfinished or unconfirmed.
 
 ## Closed 2026-09-26
 
+- Upstream's `-DCLANG_INCLUDE_PATH` is honoured again, and
+  clang-include-path is clang's resource directory (the parent of its
+  include dir) in both modes, as upstream's plugin mode had it
+  (185335ac).
 - `get_lib_directory()`'s `/lib` fallback (2f37ccea): now empty - the
   runtime finds its install root by walking `ACPP_LIBDIR_TO_PREFIX`
   instead, and the working-directory plugin fallback this used to feed
