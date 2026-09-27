@@ -44,7 +44,11 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   acpp_declare_owned_resource(OPT "${CMAKE_INSTALL_BINDIR}/opt.exe")
   # The host JIT links COFF with lld-link.
   acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/lld-link.exe")
-  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include")
+  # clang's resource directory, as LLVM installs it
+  # (lib${LLVM_LIBDIR_SUFFIX}/clang/<ver>, which need not be
+  # CMAKE_INSTALL_LIBDIR): the hip flow passes it with -isystem.
+  acpp_require_discovered(ACPP_DISCOVERED_CLANG_RESOURCE_REL)
+  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "${ACPP_DISCOVERED_CLANG_RESOURCE_REL}")
 else()
   acpp_declare_machine_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
   acpp_declare_machine_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc.exe")

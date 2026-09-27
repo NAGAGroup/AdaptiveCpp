@@ -596,7 +596,7 @@ class acpp_config:
 """  The compiler that should be used when targeting only CPUs."""),
 
       'clang-include-path' : option("--acpp-clang-include-path", "ACPP_CLANG_INCLUDE_PATH", "clang-include-path",
-"""  The path to clang's internal include headers. Typically of the form $PREFIX/include/clang/<version>/include. Only required by ROCm."""),
+"""  The path to clang's resource directory (the parent of its internal include directory, e.g. $PREFIX/lib/clang/<version>). The hip flow passes it with -isystem. Only required by ROCm."""),
 
       'sequential-link-line' : option("--acpp-sequential-link-line", "ACPP_SEQUENTIAL_LINK_LINE", "sequential-link-line",
 """ The arguments passed to the linker for the sequential backend"""),

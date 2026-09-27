@@ -39,11 +39,11 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   acpp_declare_owned_resource(OPT "${CMAKE_INSTALL_BINDIR}/opt")
   # The host JIT links Mach-O with ld64.lld.
   acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/ld64.lld")
-  # clang's resource include directory. The JIT's HIP compilation needs it,
-  # so it has two sides like the compiler itself. Concrete now, not a {{ }}
-  # template: acpp_declare_owned_resource's application side is written by
-  # configure_file, which resolves nothing.
-  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "${CMAKE_INSTALL_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include")
+  # clang's resource directory, as LLVM installs it
+  # (lib${LLVM_LIBDIR_SUFFIX}/clang/<ver>, which need not be
+  # CMAKE_INSTALL_LIBDIR): the hip flow passes it with -isystem.
+  acpp_require_discovered(ACPP_DISCOVERED_CLANG_RESOURCE_REL)
+  acpp_declare_owned_resource(CLANG_INCLUDE_PATH "${ACPP_DISCOVERED_CLANG_RESOURCE_REL}")
 else()
   acpp_declare_machine_resource(DEVICE_CMPLR ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_CLANG}")
   acpp_declare_machine_resource(LLC ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/llc")

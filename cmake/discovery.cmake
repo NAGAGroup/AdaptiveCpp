@@ -65,12 +65,11 @@ if(ACPP_LLVM_COMPONENT)
   # still read correctly in the entries that reference it.
   set(ACPP_DISCOVERED_LLVM_LIBDIR "lib${LLVM_LIBDIR_SUFFIX}")
   set(ACPP_DISCOVERED_CLANG "${ACPP_DISCOVERED_LLVM_BINDIR}/clang++")
-  # clang's resource directory, from LLVM's own module - it honours a
-  # builder's CLANG_RESOURCE_DIR override, which the stock formula does not.
+  # clang's resource directory (the parent of its include dir) - the value
+  # the hip flow passes to -isystem.
   include(GetClangResourceDir)
-  get_clang_resource_dir(_acpp_clang_resource_dir
-    PREFIX "${ACPP_DISCOVERED_LLVM_PREFIX}" SUBDIR include)
-  set(ACPP_DISCOVERED_CLANG_INCLUDE "${_acpp_clang_resource_dir}")
+  get_clang_resource_dir(ACPP_DISCOVERED_CLANG_RESOURCE_REL)
+  set(ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_DISCOVERED_LLVM_PREFIX}/${ACPP_DISCOVERED_CLANG_RESOURCE_REL}")
 
   # The parent builds libomp with the toolchain (LLVM_ENABLE_PROJECTS
   # includes openmp) and installs it into the prefix's library directory.
@@ -113,6 +112,7 @@ else()
     set(ACPP_DISCOVERED_LLVM_LIBDIR "")
     set(ACPP_DISCOVERED_CLANG "")
     set(ACPP_DISCOVERED_CLANG_INCLUDE "")
+    set(ACPP_DISCOVERED_CLANG_RESOURCE_REL "")
   else()
     set(_acpp_llvm_dir_old "${LLVM_DIR}")
     find_package(LLVM CONFIG REQUIRED)
@@ -173,22 +173,29 @@ else()
     endif()
 
     set(ACPP_DISCOVERED_CLANG "${CLANG_EXECUTABLE_PATH}")
+    set(ACPP_DISCOVERED_CLANG_RESOURCE_REL "")
 
-    # clang's resource directory - the JIT's HIP compilation reads it. An
-    # installed LLVM that placed it elsewhere (CLANG_RESOURCE_DIR at its
-    # build) is not discoverable from its cmake exports; the escape hatch is
-    # the clang-include-path environment variable.
-    find_path(ACPP_DISCOVERED_CLANG_INCLUDE __clang_cuda_runtime_wrapper.h
-      HINTS
-        ${ACPP_DISCOVERED_LLVM_PREFIX}/${ACPP_DISCOVERED_LLVM_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include
-        ${ACPP_DISCOVERED_LLVM_PREFIX}/lib64/clang/${LLVM_VERSION_MAJOR}/include
-        ${ACPP_DISCOVERED_LLVM_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include)
-    if(NOT ACPP_DISCOVERED_CLANG_INCLUDE)
-      message(SEND_ERROR
-        "clang's resource include directory was not found under the LLVM "
-        "prefix ${ACPP_DISCOVERED_LLVM_PREFIX}. The JIT's HIP compilation "
-        "needs it; install clang's resource files or point discovery at an "
-        "LLVM that carries them.")
+    # clang's resource directory (lib/clang/<ver>, the parent of its internal
+    # include directory): the hip flow passes it with -isystem. Upstream's
+    # -DCLANG_INCLUDE_PATH is honoured verbatim. Otherwise the directory holding
+    # __clang_cuda_runtime_wrapper.h is found and its parent taken - upstream's
+    # own plugin-mode value, and hipcc's (ROCm/hip #1917): on clang 11+ passing
+    # the include directory itself would put clang's builtin headers ahead of
+    # the C++ standard library's.
+    if(DEFINED CLANG_INCLUDE_PATH AND NOT "${CLANG_INCLUDE_PATH}" STREQUAL "")
+      set(ACPP_DISCOVERED_CLANG_INCLUDE "${CLANG_INCLUDE_PATH}")
+    else()
+      find_path(_acpp_clang_builtin_include __clang_cuda_runtime_wrapper.h
+        HINTS
+          ${ACPP_DISCOVERED_LLVM_PREFIX}/${ACPP_DISCOVERED_LLVM_LIBDIR}/clang/${LLVM_VERSION_MAJOR}/include
+          ${ACPP_DISCOVERED_LLVM_PREFIX}/lib64/clang/${LLVM_VERSION_MAJOR}/include
+          ${ACPP_DISCOVERED_LLVM_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include)
+      if(_acpp_clang_builtin_include AND NOT _acpp_clang_builtin_include MATCHES "-NOTFOUND$")
+        get_filename_component(ACPP_DISCOVERED_CLANG_INCLUDE "${_acpp_clang_builtin_include}" DIRECTORY)
+      else()
+        set(ACPP_DISCOVERED_CLANG_INCLUDE "")
+        message(SEND_ERROR "clang's resource directory was not found under the LLVM prefix ${ACPP_DISCOVERED_LLVM_PREFIX}. The hip flow needs it; install clang's resource files or point -DCLANG_INCLUDE_PATH at clang's resource directory (lib/clang/<version>).")
+      endif()
     endif()
   endif()
 

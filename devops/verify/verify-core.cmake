@@ -41,7 +41,8 @@ set(ACPP_DISCOVERED_LLVM_PREFIX "/usr/lib/llvm-21")
 set(ACPP_DISCOVERED_LLVM_BINDIR "/usr/lib/llvm-21/bin")
 set(ACPP_DISCOVERED_LLVM_LIBDIR "lib")
 set(ACPP_DISCOVERED_CLANG "/usr/lib/llvm-21/bin/clang++")
-set(ACPP_DISCOVERED_CLANG_INCLUDE "/usr/lib/llvm-21/lib/clang/21/include")
+set(ACPP_DISCOVERED_CLANG_INCLUDE "/usr/lib/llvm-21/lib/clang/21")
+set(ACPP_DISCOVERED_CLANG_RESOURCE_REL "lib/clang/21")
 set(ACPP_DISCOVERED_LIBOMP_DIR "/usr/lib/llvm-21/lib")
 set(ACPP_DISCOVERED_LIBNUMA_DIR "")
 set(ACPP_DISCOVERED_SLEEF_DIR "")
@@ -150,8 +151,8 @@ expect_eq(ACPP_APP_LLD "\$ACPP_RT_LIB_DIR/../bin/ld.lld")
 # resolver's job, so it stays in the toolchain-side text.
 expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/lib/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RT_LIB_DIR/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
-expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "{{ acpp-root }}/lib/clang/21/include")
-expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "\$ACPP_RT_LIB_DIR/clang/21/include")
+expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "{{ acpp-root }}/lib/clang/21")
+expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "\$ACPP_RT_LIB_DIR/clang/21")
 
 # Vector math: vendor units, permissive, unaffected by ownership - not
 # shipped under managed, so the discovered absolute path however it came

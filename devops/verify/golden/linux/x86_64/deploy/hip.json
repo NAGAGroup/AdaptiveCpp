@@ -58,7 +58,7 @@
       "build-mode" : "toolchain",
       "dest" : "{{ acpp-runtime-root }}/{{ acpp-libdir }}/clang/{{ llvm-version-major }}/include",
       "files" : [ "*" ],
-      "src" : "{{ clang-include-path }}",
+      "src" : "{{ clang-include-path }}/include",
       "unless" : "hiprtc-link"
     }
   ]

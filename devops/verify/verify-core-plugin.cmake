@@ -21,7 +21,8 @@ set(ACPP_DISCOVERED_LLVM_PREFIX "/usr/lib/llvm-21")
 set(ACPP_DISCOVERED_LLVM_BINDIR "/usr/lib/llvm-21/bin")
 set(ACPP_DISCOVERED_LLVM_LIBDIR "lib")
 set(ACPP_DISCOVERED_CLANG "/usr/lib/llvm-21/bin/clang++")
-set(ACPP_DISCOVERED_CLANG_INCLUDE "/usr/lib/llvm-21/lib/clang/21/include")
+set(ACPP_DISCOVERED_CLANG_INCLUDE "/usr/lib/llvm-21/lib/clang/21")
+set(ACPP_DISCOVERED_CLANG_RESOURCE_REL "lib/clang/21")
 set(ACPP_DISCOVERED_LIBOMP_DIR "/usr/lib/llvm-21/lib")
 set(ACPP_DISCOVERED_LIBNUMA_DIR "")
 set(ACPP_DISCOVERED_SLEEF_DIR "")
@@ -95,8 +96,8 @@ expect_eq(ACPP_APP_LLD "/usr/lib/llvm-21/bin/ld.lld")
 # here too, unaffected by what discovery found for the plugin.
 expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/lib/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 expect_eq(ACPP_APP_LLVMSPIRV "\$ACPP_RT_LIB_DIR/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
-expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
-expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21/include")
+expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21")
+expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "/usr/lib/llvm-21/lib/clang/21")
 
 # cpu-cxx is the machine's build compiler (rule 2), upstream's exact
 # formula: CMAKE_CXX_COMPILER, absolute, unconditional.
