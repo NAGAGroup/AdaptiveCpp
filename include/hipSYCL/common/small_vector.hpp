@@ -12,13 +12,25 @@
 #define HIPSYCL_COMMON_SMALL_VECTOR_HPP
 
 #include <memory>
+#include <vector>
+#include <cstddef>
 #include "sbo/small_vector.hpp"
 
 namespace hipsycl {
 namespace common {
 
+#ifdef _LIBCPP_VERSION
+// libc++: sbo's allocator keeps its small buffer inside the allocator object,
+// which breaks the Allocator requirements (copies cannot free each other's
+// memory, and a == a can be false). Under libc++ that freed another object's
+// inline buffer at runtime teardown on macOS ("pointer being freed was not
+// allocated" in dag::~dag). Use a plain std::vector there.
+template <class T, std::size_t N>
+using small_vector = std::vector<T>;
+#else
 template<class T, int N, class Allocator = std::allocator<T>>
 using small_vector = sbo::small_vector<T, N>;
+#endif
 
 template <class T, class Allocator = std::allocator<T>>
 using auto_small_vector =
