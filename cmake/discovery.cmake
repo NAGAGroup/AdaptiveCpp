@@ -36,10 +36,10 @@ include_guard(GLOBAL)
 # LLVM build. A component build that does not link the plugin into the tools
 # is a third shape - a separately loaded plugin inside an LLVM we also build
 # - which nothing qualifies and nothing here pretends to describe.
-if(ACPP_LLVM_COMPONENT AND NOT LLVM_ADAPTIVECPP_LINK_IN_TOOLS)
+if(ACPP_LLVM_COMPONENT AND NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   message(FATAL_ERROR
     "Building AdaptiveCpp as an LLVM component without "
-    "LLVM_ADAPTIVECPP_LINK_IN_TOOLS is not supported. The linked build is "
+    "LLVM_ADAPTIVECPP_LINK_INTO_TOOLS is not supported. The linked build is "
     "one toolchain with one clang; a separately loaded plugin inside an LLVM "
     "we also build is a different toolchain, and this tree does not qualify "
     "it.")

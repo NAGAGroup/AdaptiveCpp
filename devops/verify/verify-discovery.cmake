@@ -32,7 +32,7 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_SRC_DIR}/cmake/Modules")
 
 # Stand-ins for the parent LLVM build.
 set(ACPP_LLVM_COMPONENT ON)
-set(LLVM_ADAPTIVECPP_LINK_IN_TOOLS ON)
+set(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS ON)
 set(CMAKE_INSTALL_PREFIX "/opt/acpp-toolchain")
 set(LLVM_VERSION_MAJOR 21)
 set(CLANG_VERSION_MAJOR 21)
@@ -68,26 +68,24 @@ endforeach()
 set(CMAKE_INSTALL_LIBDIR "lib")
 set(CMAKE_INSTALL_BINDIR "bin")
 
-# Chain: the options file must take the discovered branch against these
-# values - same process, the include order the root will use. This harness
-# never sets LLVM_ADAPTIVECPP_LINK_INTO_TOOLS (a different flag from
-# discovery's own LLVM_ADAPTIVECPP_LINK_IN_TOOLS above), so core.cmake takes
-# the plugin/machine branch throughout: LLVM is never bundled (rule 2), and
-# has no owned-provenance entry left to have at all. libomp is a vendor unit
-# (rule 4) whose install root is the discovered absolute path, since nothing
-# here ships it (the managed default, implicit since this harness never
-# sets ACPP_DEPLOYMENT_STRATEGY).
+# Chain: the options file must take the toolchain branch against these
+# values - same process, the include order the root will use, with the same
+# flag the root reads. What the toolchain builds follows the install
+# directories as {{ acpp-root }} placeholders; the discovered prefix only
+# feeds libomp's discovered root.
+set(ACPP_LIBOMP_SOURCE_DIR "/opt/acpp-toolchain/lib")
 include(${ACPP_REPO_ROOT}/cmake/options/linux/x86_64/core.cmake)
 
-expect_eq(ACPP_LIBOMP_INSTALL_ROOT "/opt/acpp-toolchain/lib")
-expect_eq(ACPP_TOOLCHAIN_DEVICE_CMPLR "/opt/acpp-toolchain/bin/clang++")
-expect_eq(ACPP_APP_DEVICE_CMPLR "/opt/acpp-toolchain/bin/clang++")
-expect_eq(ACPP_TOOLCHAIN_LLC "/opt/acpp-toolchain/bin/llc")
-expect_eq(ACPP_APP_LLC "/opt/acpp-toolchain/bin/llc")
-expect_eq(ACPP_TOOLCHAIN_OPT "/opt/acpp-toolchain/bin/opt")
-expect_eq(ACPP_TOOLCHAIN_LLD "/opt/acpp-toolchain/bin/ld.lld")
-expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "/opt/acpp-toolchain/bin/llvm-spirv")
-expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "/opt/acpp-toolchain/lib/clang/21")
-expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "/opt/acpp-toolchain/lib/clang/21")
+expect_eq(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
+expect_eq(ACPP_LIBOMP_DISCOVERED_ROOT "/opt/acpp-toolchain/lib")
+expect_eq(ACPP_TOOLCHAIN_DEVICE_CMPLR "{{ acpp-root }}/bin/clang++")
+expect_eq(ACPP_APP_DEVICE_CMPLR "$ACPP_RT_LIB_DIR/../bin/clang++")
+expect_eq(ACPP_TOOLCHAIN_LLC "{{ acpp-root }}/bin/llc")
+expect_eq(ACPP_APP_LLC "$ACPP_RT_LIB_DIR/../bin/llc")
+expect_eq(ACPP_TOOLCHAIN_OPT "{{ acpp-root }}/bin/opt")
+expect_eq(ACPP_TOOLCHAIN_LLD "{{ acpp-root }}/bin/ld.lld")
+expect_eq(ACPP_TOOLCHAIN_LLVMSPIRV "{{ acpp-root }}/lib/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+expect_eq(ACPP_TOOLCHAIN_CLANG_INCLUDE_PATH "{{ acpp-root }}/lib/clang/21")
+expect_eq(ACPP_APP_CLANG_INCLUDE_PATH "$ACPP_RT_LIB_DIR/clang/21")
 
-message(STATUS "discovery (linked mode): derives clean, core takes the discovered branch")
+message(STATUS "discovery (toolchain mode): derives clean, core takes the toolchain branch")
