@@ -208,7 +208,14 @@ if(WITH_SSCP_COMPILER)
       set(LLVMSPIRV_GIT_TAG origin/${LLVMSPIRV_BRANCH})
       set(LLVMSPIRV_GIT_SHALLOW ON)
     endif()
-    set(LLVMSPIRV_RELATIVE_INSTALLDIR ${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv)
+    # Windows: executables and the DLLs they load live under bindir, and the
+    # runtime's own directory ($ACPP_RT_LIB_DIR) IS bindir there, which is
+    # where cmake/options/windows/common/core.cmake declares llvm-spirv.
+    if(WIN32)
+      set(LLVMSPIRV_RELATIVE_INSTALLDIR ${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/llvm-spirv)
+    else()
+      set(LLVMSPIRV_RELATIVE_INSTALLDIR ${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv)
+    endif()
     set(LLVMSPIRV_INSTALLDIR ${CMAKE_INSTALL_PREFIX}/${LLVMSPIRV_RELATIVE_INSTALLDIR})
     set(LLVMSPIRV_PATH ${LLVMSPIRV_INSTALLDIR}/bin/llvm-spirv)
     if(WIN32)

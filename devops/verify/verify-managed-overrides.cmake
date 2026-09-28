@@ -130,6 +130,105 @@ expect_eq(ACPP_APP_FOOD_INSTALL_ROOT "\$ACPP_RT_LIB_DIR")
 message(STATUS "verify-managed-overrides: FOOD (root-level relative override) - ./ and trailing / stripped")
 
 # ---------------------------------------------------------------------------
+# Conda-layout cases: what ACPP_<STEM>_ROOT="." actually produces for a
+# real multi-subdir vendor (CUDA: RT + BITCODE) and a single-subdir one
+# (OCL/ZE: BIN) on both platform shapes, plus LIBOMP's own single-root
+# form on each. WIN32 is simulated the same way verify-app-rpath.cmake and
+# verify-vendor-rpath.cmake simulate a platform: set(WIN32 TRUE)/unset(WIN32)
+# around acpp_relative_from_rt_libdir's own WIN32 branch (core.cmake:108-121),
+# which is what picks CMAKE_INSTALL_BINDIR over CMAKE_INSTALL_LIBDIR as
+# $ACPP_RT_LIB_DIR's anchor.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# CUDAA: Linux-shaped conda CUDA. Discovered prefix /p, RT subdir
+# "targets/x86_64-linux/lib" (conda's runtime split), BITCODE subdir
+# "nvvm/libdevice". ACPP_CUDA_ROOT="." is root-level-relative: one level up
+# from $ACPP_RT_LIB_DIR (lib), the same shape as FOOD's "./lib/" but
+# starting from "." itself.
+# ---------------------------------------------------------------------------
+set(ACPP_DISCOVERED_CUDAA_PREFIX "/p")
+set(ACPP_CUDAA_ROOT ".")
+acpp_declare_vendor(CUDAA cudaa permissive)
+acpp_declare_vendor_root(CUDAA cudaa ACPP_DISCOVERED_CUDAA_PREFIX "${ACPP_DISCOVERED_CUDAA_PREFIX}")
+set(ACPP_DISCOVERED_CUDAA_RT "targets/x86_64-linux/lib")
+set(ACPP_DISCOVERED_CUDAA_BITCODE "nvvm/libdevice")
+acpp_declare_vendor_subdir_fact(CUDAA RT ACPP_DISCOVERED_CUDAA_RT "targets/x86_64-linux/lib")
+acpp_declare_vendor_subdir_fact(CUDAA BITCODE ACPP_DISCOVERED_CUDAA_BITCODE "nvvm/libdevice")
+acpp_declare_vendor_app_dir(CUDAA cudaa RT)
+acpp_declare_vendor_app_dir(CUDAA cudaa BITCODE)
+expect_eq(ACPP_APP_CUDAA_BITCODE_DIR "\$ACPP_RT_LIB_DIR/../nvvm/libdevice")
+message(STATUS "verify-managed-overrides: CUDAA (linux-shaped conda CUDA, ROOT=.) - libdevice at \$ACPP_RT_LIB_DIR/../nvvm/libdevice, RT at ${ACPP_APP_CUDAA_RT_DIR}")
+
+# ---------------------------------------------------------------------------
+# CUDAB: Windows-shaped conda CUDA. WIN32 -> $ACPP_RT_LIB_DIR anchors on
+# CMAKE_INSTALL_BINDIR (bin). Discovered prefix /p/Library, RT subdir "bin"
+# (the DLL's own directory), BITCODE subdir "nvvm/libdevice". Same
+# ACPP_CUDA_ROOT="." override.
+# ---------------------------------------------------------------------------
+set(WIN32 TRUE)
+set(ACPP_DISCOVERED_CUDAB_PREFIX "/p/Library")
+set(ACPP_CUDAB_ROOT ".")
+acpp_declare_vendor(CUDAB cudab permissive)
+acpp_declare_vendor_root(CUDAB cudab ACPP_DISCOVERED_CUDAB_PREFIX "${ACPP_DISCOVERED_CUDAB_PREFIX}")
+set(ACPP_DISCOVERED_CUDAB_RT "bin")
+set(ACPP_DISCOVERED_CUDAB_BITCODE "nvvm/libdevice")
+acpp_declare_vendor_subdir_fact(CUDAB RT ACPP_DISCOVERED_CUDAB_RT "bin")
+acpp_declare_vendor_subdir_fact(CUDAB BITCODE ACPP_DISCOVERED_CUDAB_BITCODE "nvvm/libdevice")
+acpp_declare_vendor_app_dir(CUDAB cudab RT)
+acpp_declare_vendor_app_dir(CUDAB cudab BITCODE)
+expect_eq(ACPP_APP_CUDAB_BITCODE_DIR "\$ACPP_RT_LIB_DIR/../nvvm/libdevice")
+# The DLL dir round-trips through the runtime bindir itself
+# ($ACPP_RT_LIB_DIR/../bin == $ACPP_RT_LIB_DIR at runtime once resolved) -
+# acpp_join_absolute never collapses ".."; assert what the code actually
+# produces, unsimplified.
+expect_eq(ACPP_APP_CUDAB_RT_DIR "\$ACPP_RT_LIB_DIR/../bin")
+message(STATUS "verify-managed-overrides: CUDAB (windows-shaped conda CUDA, ROOT=.) - libdevice at \$ACPP_RT_LIB_DIR/../nvvm/libdevice, DLL at \$ACPP_RT_LIB_DIR/../bin")
+
+# ---------------------------------------------------------------------------
+# OCLW / ZEW: Windows OpenCL and Level Zero, single BIN subdir "bin",
+# ACPP_<STEM>_ROOT="." - same shape as CUDAB's RT side, no BITCODE.
+# ---------------------------------------------------------------------------
+set(ACPP_DISCOVERED_OCLW_PREFIX "/p/Library")
+set(ACPP_OCLW_ROOT ".")
+acpp_declare_vendor(OCLW oclw permissive)
+acpp_declare_vendor_root(OCLW oclw ACPP_DISCOVERED_OCLW_PREFIX "${ACPP_DISCOVERED_OCLW_PREFIX}")
+set(ACPP_DISCOVERED_OCLW_BIN "bin")
+acpp_declare_vendor_subdir_fact(OCLW BIN ACPP_DISCOVERED_OCLW_BIN "bin")
+acpp_declare_vendor_app_dir(OCLW oclw BIN)
+expect_eq(ACPP_APP_OCLW_BIN_DIR "\$ACPP_RT_LIB_DIR/../bin")
+message(STATUS "verify-managed-overrides: OCLW (windows OpenCL, ROOT=.) - BIN at \$ACPP_RT_LIB_DIR/../bin")
+
+set(ACPP_DISCOVERED_ZEW_PREFIX "/p/Library")
+set(ACPP_ZEW_ROOT ".")
+acpp_declare_vendor(ZEW zew permissive)
+acpp_declare_vendor_root(ZEW zew ACPP_DISCOVERED_ZEW_PREFIX "${ACPP_DISCOVERED_ZEW_PREFIX}")
+set(ACPP_DISCOVERED_ZEW_BIN "bin")
+acpp_declare_vendor_subdir_fact(ZEW BIN ACPP_DISCOVERED_ZEW_BIN "bin")
+acpp_declare_vendor_app_dir(ZEW zew BIN)
+expect_eq(ACPP_APP_ZEW_BIN_DIR "\$ACPP_RT_LIB_DIR/../bin")
+message(STATUS "verify-managed-overrides: ZEW (windows Level Zero, ROOT=.) - BIN at \$ACPP_RT_LIB_DIR/../bin")
+
+unset(WIN32)
+
+# ---------------------------------------------------------------------------
+# LIBOMP: single-root vendor (no subdir breakdown). Windows
+# ACPP_LIBOMP_ROOT="bin" and linux ACPP_LIBOMP_ROOT="lib" both name the
+# runtime libdir itself, so both resolve to exactly $ACPP_RT_LIB_DIR - the
+# same shape as FOOD's "./lib/" case, using run_case directly (it already
+# declares an app_root, which is all a single-root vendor needs).
+# ---------------------------------------------------------------------------
+set(WIN32 TRUE)
+run_case(LIBOMPW "bin")
+expect_eq(ACPP_APP_LIBOMPW_INSTALL_ROOT "\$ACPP_RT_LIB_DIR")
+unset(WIN32)
+message(STATUS "verify-managed-overrides: LIBOMPW (windows libomp, ROOT=bin) - \$ACPP_RT_LIB_DIR")
+
+run_case(LIBOMPL "lib")
+expect_eq(ACPP_APP_LIBOMPL_INSTALL_ROOT "\$ACPP_RT_LIB_DIR")
+message(STATUS "verify-managed-overrides: LIBOMPL (linux libomp, ROOT=lib) - \$ACPP_RT_LIB_DIR")
+
+# ---------------------------------------------------------------------------
 # Error case: a SHIPPED vendor (strategy full) rejects any override.
 # ---------------------------------------------------------------------------
 execute_process(
