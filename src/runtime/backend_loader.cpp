@@ -26,6 +26,8 @@
 #endif
 
 #include HIPSYCL_CXX_FILESYSTEM_HEADER
+#include <vector>
+#include <string>
 namespace fs = HIPSYCL_CXX_FILESYSTEM_NAMESPACE;
 
 namespace {

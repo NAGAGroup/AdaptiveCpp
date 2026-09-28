@@ -20,6 +20,8 @@
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include <vector>
+#include <string>
 
 #ifdef __linux__
 #include <link.h>
