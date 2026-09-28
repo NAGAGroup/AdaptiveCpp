@@ -329,7 +329,7 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
   // for when that setting is unset (e.g. no installed toolchain
   // configuration at all).
   std::string LLVMSpirVTranslator;
-  if(!hipsycl::common::try_retrieve_settings_variable("llvmspirv", LLVMSpirVTranslator) ||
+  if(!hipsycl::common::settings::try_retrieve_settings_variable("llvmspirv", LLVMSpirVTranslator) ||
      LLVMSpirVTranslator.empty()) {
     // Prefer the app-local redistributable layout used by deployment manifests.
     // Fall back to the installation layout.

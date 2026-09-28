@@ -50,7 +50,7 @@ std::string getClangPath() {
   // (config/linux/common/app/hip.cfg - HIP's JIT, not core.cfg); the bare
   // name below is only the last-resort fallback, resolved via PATH by
   // whoever execs it.
-  if(!common::try_retrieve_settings_variable("clang", path) || path.empty())
+  if(!common::settings::try_retrieve_settings_variable("clang", path) || path.empty())
     path = "clang++";
 
   return path;
@@ -67,7 +67,7 @@ std::string getLLCPath() {
 
   if(common::filesystem::exists(llc_redistributable_path)) {
     path = llc_redistributable_path;
-  } else if(!common::try_retrieve_settings_variable("llc", path) || path.empty()) {
+  } else if(!common::settings::try_retrieve_settings_variable("llc", path) || path.empty()) {
     // "llc" -> ACPP_LLC in the installed app config; the bare name is only
     // the last-resort fallback, resolved via PATH by whoever execs it.
     path = ACPP_LLC_NAME;
@@ -87,7 +87,7 @@ std::string getLLDPath() {
 
   if(common::filesystem::exists(lld_redistributable_path)) {
     path = lld_redistributable_path;
-  } else if(!common::try_retrieve_settings_variable("lld", path) || path.empty()) {
+  } else if(!common::settings::try_retrieve_settings_variable("lld", path) || path.empty()) {
     // "lld" -> ACPP_LLD in the installed app config; the bare name is only
     // the last-resort fallback, resolved via PATH by whoever execs it.
     path = ACPP_LLD_NAME;
@@ -107,7 +107,7 @@ std::string getOptPath() {
 
   if(common::filesystem::exists(opt_redistributable_path)) {
     path = opt_redistributable_path;
-  } else if(!common::try_retrieve_settings_variable("opt", path) || path.empty()) {
+  } else if(!common::settings::try_retrieve_settings_variable("opt", path) || path.empty()) {
     // "opt" -> ACPP_OPT in the installed app config; the bare name is only
     // the last-resort fallback, resolved via PATH by whoever execs it.
     path = ACPP_OPT_NAME;
@@ -121,7 +121,7 @@ std::string getLibSleefDir() {
   if (!path.empty())
     return path;
 
-  common::try_retrieve_settings_variable("sleef_dir", path);
+  common::settings::try_retrieve_settings_variable("sleef_dir", path);
   return path;
 }
 
@@ -130,7 +130,7 @@ std::string getLibAmathDir() {
   if (!path.empty())
     return path;
 
-  common::try_retrieve_settings_variable("amath_dir", path);
+  common::settings::try_retrieve_settings_variable("amath_dir", path);
   return path;
 }
 
@@ -139,7 +139,7 @@ std::string getLibSvmlDir() {
   if (!path.empty())
     return path;
 
-  common::try_retrieve_settings_variable("svml_dir", path);
+  common::settings::try_retrieve_settings_variable("svml_dir", path);
   return path;
 }
 

@@ -301,7 +301,7 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
   }
 
   std::string CLSPV;
-  common::try_retrieve_settings_variable("clspv", CLSPV);
+  common::settings::try_retrieve_settings_variable("clspv", CLSPV);
   if(CLSPV.empty()) {
     registerError("LLVMToCLSPV: clspv is not configured (ACPP_CLSPV)");
     return false;

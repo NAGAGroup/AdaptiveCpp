@@ -128,7 +128,7 @@ public:
     if(!Path.empty())
       return Path;
 
-    common::try_retrieve_settings_variable("hip_device_libs_dir", Path);
+    common::settings::try_retrieve_settings_variable("hip_device_libs_dir", Path);
     return Path;
   }
 

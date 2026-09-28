@@ -52,7 +52,7 @@ std::string getDeviceLibPath() {
   }
 
   std::string dir;
-  common::try_retrieve_settings_variable("cuda_libdevice_dir", dir);
+  common::settings::try_retrieve_settings_variable("cuda_libdevice_dir", dir);
   if (!dir.empty())
     Path = common::filesystem::join_path(dir, "libdevice.10.bc");
 
