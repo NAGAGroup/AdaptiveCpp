@@ -169,6 +169,10 @@ if(WITH_SSCP_COMPILER)
   target_link_libraries(llvm-to-backend PUBLIC
     acpp-common
   )
+  # getLibMvecDir() (Utils.cpp, linux only) asks the loader via dlopen/dlinfo.
+  # Before glibc 2.34 those live in libdl, not libc, and acpp-common's own
+  # dl link is PRIVATE, so it does not carry over. Empty where libc has them.
+  target_link_libraries(llvm-to-backend PRIVATE ${CMAKE_DL_LIBS})
 
   if(WITH_LLVM_TO_SPIRV)
     add_hipsycl_llvm_backend(
