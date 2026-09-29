@@ -28,6 +28,12 @@ the tree, read today, still shows as unfinished or unconfirmed.
   (`backend_loader.cpp`/`filesystem.cpp`/`config.hpp.in`) or the root
   `CMakeLists.txt` restructuring; their first compile is acpp-toolchain
   CI.
+- `cuda_queue`/`hip_queue::needs_completed_requirements` now also defer a
+  requirement not issued to a backend queue (an async_host node), matching
+  `inorder_executor::submit_inline`'s external test. This runtime fix is
+  unbuilt and unverified: no harness covers it. Verifying it needs a CUDA
+  build plus a program where a kernel depends on a still-running async_host
+  task on the same CUDA device.
 
 ## Closed 2026-09-26
 

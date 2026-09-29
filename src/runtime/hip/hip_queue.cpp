@@ -441,7 +441,8 @@ result hip_queue::submit_queue_wait_for(const dag_node_ptr& node) {
 
 bool hip_queue::needs_completed_requirements(operation &op,
                                              const node_list_t &reqs) const {
-  // Any operation with an incomplete requirement from another backend is
+  // Any operation with an incomplete requirement from another backend, or one
+  // not issued to a backend queue (such as an async_host operation), is
   // submitted only once that requirement has completed.
   //
   // Two reasons, either sufficient. hipMemcpyAsync may stage a pageable host
@@ -452,8 +453,16 @@ bool hip_queue::needs_completed_requirements(operation &op,
   // not perform synchronization with any operation that may depend on other
   // processing execution but is not enqueued to run earlier in the stream".
   for(const auto &req : reqs) {
-    if(!req->is_known_complete() && req->get_assigned_device().get_backend() !=
-                                        _dev.get_backend())
+    if(req->is_known_complete())
+      continue;
+    // A requirement not issued to a backend queue (an async_host node) is
+    // external whichever device it was assigned, the same test submit_inline
+    // uses; it must be deferred, never expressed in the stream.
+    auto *req_executor = req->get_assigned_executor();
+    bool req_is_external =
+        req_executor && !req_executor->is_backend_queue();
+    if(req_is_external ||
+       req->get_assigned_device().get_backend() != _dev.get_backend())
       return true;
   }
   return false;
