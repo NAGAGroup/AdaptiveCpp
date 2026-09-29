@@ -17,6 +17,10 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <mutex>
 
 namespace hipsycl {
 namespace rt {
