@@ -25,6 +25,16 @@
 
 #include "sycl_test_suite.hpp"
 #include <boost/test/tools/old/interface.hpp>
+
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
+#include <future>
+#include <iostream>
+#include <optional>
+#include <string>
+#include <thread>
+#include <vector>
 #ifdef LIB_NUMA_AVAILABLE
 #include <numa.h>
 #endif
@@ -743,6 +753,143 @@ BOOST_AUTO_TEST_CASE(async_host) {
 
   sycl::free(shared_mem, q);
 }
+
+namespace async_host_regression {
+
+// The first device of one of the given backends, if the machine has one.
+inline std::optional<sycl::device> find_device(sycl::backend b1,
+                                               sycl::backend b2) {
+  for(const auto& dev : sycl::device::get_devices()) {
+    if(dev.get_backend() == b1 || dev.get_backend() == b2)
+      return dev;
+  }
+  return std::nullopt;
+}
+
+inline std::optional<sycl::device> find_accelerator() {
+  return find_device(sycl::backend::cuda, sycl::backend::hip);
+}
+
+inline std::optional<sycl::device> find_omp_device() {
+  return find_device(sycl::backend::omp, sycl::backend::omp);
+}
+
+// Runs the test body on another thread. A thread stuck in the driver cannot be
+// cancelled, so a body that does not finish in time ends the process.
+template <class F>
+void run_with_watchdog(const char* test_name, F&& body) {
+  auto fut = std::async(std::launch::async, std::forward<F>(body));
+  if(fut.wait_for(std::chrono::seconds(60)) != std::future_status::ready) {
+    std::string msg = std::string{test_name} + " did not finish within 60 s";
+    BOOST_ERROR(msg);
+    std::cerr << msg << std::endl;
+    std::_Exit(1);
+  }
+  fut.get();
+}
+
+} // namespace async_host_regression
+
+// Hangs before b04d8349: a sycl::free inside an async_host task deadlocks on
+// CUDA/HIP when the queue holds back the operations that depend on it.
+BOOST_AUTO_TEST_CASE(async_host_free_deadlock) {
+  auto accelerator = async_host_regression::find_accelerator();
+  if(!accelerator) {
+    BOOST_TEST_MESSAGE("async_host_free_deadlock: no CUDA or HIP device, skipped");
+    return;
+  }
+
+  async_host_regression::run_with_watchdog("async_host_free_deadlock", [&]() {
+    sycl::queue q{*accelerator,
+                  sycl::property_list{sycl::property::queue::in_order{}}};
+    if(!q.get_device().has(sycl::aspect::usm_shared_allocations))
+      return;
+
+    std::size_t test_size = 1024;
+    sycl::context ctx = q.get_context();
+    int *X = sycl::malloc_device<int>(test_size, q);
+    int *Y = sycl::malloc_shared<int>(test_size, q);
+
+    q.parallel_for<class async_host_free_kernel_a>(
+        sycl::range<1>{test_size}, [=](sycl::id<1> idx) { X[idx.get(0)] = 1; });
+
+    q.async_host([=]() {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      sycl::free(X, ctx);
+    });
+
+    q.parallel_for<class async_host_free_kernel_b>(
+        sycl::range<1>{test_size},
+        [=](sycl::id<1> idx) { Y[idx.get(0)] = static_cast<int>(idx.get(0)); });
+
+    q.wait();
+
+    for(std::size_t i = 0; i < test_size; ++i)
+      BOOST_TEST(Y[i] == static_cast<int>(i));
+
+    sycl::free(Y, q);
+  });
+}
+
+#ifdef ACPP_EXT_CG_PROPERTY_RETARGET
+// Aborts on b04d8349 ("provides no deferred event"): work on the OpenMP device
+// depends on a CUDA/HIP kernel that is held back behind an async_host node.
+BOOST_AUTO_TEST_CASE(async_host_retarget_no_abort) {
+  auto accelerator = async_host_regression::find_accelerator();
+  auto host_device = async_host_regression::find_omp_device();
+  if(!accelerator || !host_device) {
+    BOOST_TEST_MESSAGE("async_host_retarget_no_abort: needs a CUDA or HIP "
+                       "device and the OpenMP device, skipped");
+    return;
+  }
+
+  async_host_regression::run_with_watchdog(
+      "async_host_retarget_no_abort", [&]() {
+    sycl::queue q{
+        *accelerator,
+        sycl::property_list{sycl::property::queue::in_order{},
+                            sycl::property::queue::AdaptiveCpp_retargetable{}}};
+    if(!q.get_device().has(sycl::aspect::usm_shared_allocations))
+      return;
+
+    std::size_t test_size = 1024;
+    int *P = sycl::malloc_shared<int>(test_size, q);
+
+    for(int iteration = 0; iteration < 5; ++iteration) {
+      std::atomic<bool> flag{false};
+
+      q.parallel_for<class async_host_retarget_kernel_0>(
+          sycl::range<1>{test_size}, [=](sycl::id<1> idx) { P[idx.get(0)] = 0; });
+
+      q.async_host([&flag]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        flag = true;
+      });
+
+      q.parallel_for<class async_host_retarget_kernel_1>(
+          sycl::range<1>{test_size}, [=](sycl::id<1> idx) {
+            P[idx.get(0)] = static_cast<int>(idx.get(0)) + iteration;
+          });
+
+      q.submit({sycl::property::command_group::AdaptiveCpp_retarget{*host_device}},
+               [&](sycl::handler& cgh) {
+                 cgh.parallel_for<class async_host_retarget_host_kernel>(
+                     sycl::range<1>{test_size}, [=](sycl::id<1> idx) {
+                       P[idx.get(0)] = P[idx.get(0)] * 2;
+                     });
+               });
+
+      q.wait_and_throw();
+
+      for(std::size_t i = 0; i < test_size; ++i)
+        BOOST_TEST(P[i] == 2 * (static_cast<int>(i) + iteration));
+      BOOST_TEST(flag.load());
+    }
+
+    sycl::free(P, q);
+  });
+}
+#endif
 #endif
 #ifdef ACPP_EXT_BUFFER_USM_INTEROP
 BOOST_AUTO_TEST_CASE(buffer_introspection) {

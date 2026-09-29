@@ -34,6 +34,21 @@ the tree, read today, still shows as unfinished or unconfirmed.
   unbuilt and unverified: no harness covers it. Verifying it needs a CUDA
   build plus a program where a kernel depends on a still-running async_host
   task on the same CUDA device.
+- `inorder_executor::submit_directly`'s "must follow unsubmitted" path (a
+  pending submission, or a requirement whose event exists but is not yet
+  submitted) called `submit_deferred` on every queue. Only `cuda_queue` and
+  `hip_queue` return an event from `create_deferred_event`, so on any other
+  queue (the OpenMP device retargeted onto work that depends on a held-back
+  CUDA kernel) it aborted with "Backend requires a deferred submission but
+  provides no deferred event". `inorder_queue::supports_deferred_submission()`
+  (false by default, true in `cuda_queue` and `hip_queue`) now gates that
+  path; a queue that cannot defer submits inline, where its wait on another
+  queue's work is a host-side wait that outlasts the unsubmitted requirement's
+  submission and completion. The `needs_completed_requirements` path asserts
+  the queue can defer. This change is unbuilt and unverified. Both this entry
+  and the one above are verified by the tests `async_host_free_deadlock` and
+  `async_host_retarget_no_abort` (`tests/sycl/extensions.cpp`) on a CUDA build
+  that Jack runs; HIP is covered by review only, unless a HIP machine runs them.
 
 ## Closed 2026-09-26
 
