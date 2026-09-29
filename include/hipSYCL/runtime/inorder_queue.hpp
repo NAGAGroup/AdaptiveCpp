@@ -72,6 +72,11 @@ public:
     return false;
   }
 
+  /// Whether this queue can hold back a submission until it may be issued
+  /// (create_deferred_event / stamp_deferred_event). Queues that cannot wait
+  /// on the host for unsubmitted requirements instead.
+  virtual bool supports_deferred_submission() const { return false; }
+
   /// An event standing in for an operation that has been accepted but not yet
   /// issued. Backends that never defer a submission do not need one.
   virtual std::shared_ptr<dag_node_event> create_deferred_event() {

@@ -208,6 +208,8 @@ void inorder_executor::submit_directly(const dag_node_ptr& node, operation *op,
   // against its requirements by anything submitted to the queue, so it is
   // issued from another thread once they have completed.
   if(_q->needs_completed_requirements(*op, reqs)) {
+    // A queue that needs completed requirements must be able to defer.
+    assert(_q->supports_deferred_submission());
     submit_deferred(node, op, reqs, true);
     return;
   }
@@ -224,7 +226,10 @@ void inorder_executor::submit_directly(const dag_node_ptr& node, operation *op,
       }
     }
   }
-  if(must_follow_unsubmitted) {
+  // A queue that cannot defer submits inline: its waits on other queues' work
+  // are host-side, and wait for an unsubmitted requirement to be submitted,
+  // then completed.
+  if(must_follow_unsubmitted && _q->supports_deferred_submission()) {
     submit_deferred(node, op, reqs, false);
     return;
   }
