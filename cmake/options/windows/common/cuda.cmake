@@ -43,6 +43,7 @@ acpp_declare_vendor_app_dir(CUDA cuda LIBDEVICE)
 if(NOT DEFINED ACPP_CUDA_LINK_LINE)
   set(ACPP_CUDA_LINK_LINE "-L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")
 endif()
+# The toolkit headers, by their discovered subdir: clang's own --cuda-path detection only looks in <root>/include, which conda's Linux layout (targets/<arch>-linux/include) does not populate. Same shape as HIP's -I{{ hip-install-root }}/{{ hip-include-subdir }}.
 if(NOT DEFINED ACPP_CUDA_CXX_FLAGS)
-  set(ACPP_CUDA_CXX_FLAGS "-U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike")
+  set(ACPP_CUDA_CXX_FLAGS "-isystem {{ cuda-install-root }}/{{ cuda-include-subdir }} -U__FLOAT128__ -U__SIZEOF_FLOAT128__ -isystem {{ acpp-root }}/include/AdaptiveCpp/hipSYCL/std/hiplike")
 endif()
