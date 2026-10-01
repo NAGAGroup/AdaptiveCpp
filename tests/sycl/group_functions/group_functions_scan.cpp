@@ -982,6 +982,84 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_max, T, test_types) {
   }
 }
 
+// Guards the min/max identities of exclusive_scan_over_group WITHOUT init: element 0 of
+// each group is the identity, -inf for maximum and +inf for minimum. The max identity
+// used to be numeric_limits<T>::min() (smallest positive float), wrong for all-negative
+// data. The existing cases pass an explicit init and use small positive integers.
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_max_no_init_negative, T, test_types) {
+  if constexpr (std::is_floating_point_v<T>) {
+    const size_t elements_per_thread = 1;
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < global_size; ++i)
+        v[i] = -(T(1) / T(3)) * T(i % local_size + 1) - T(0.1);
+    };
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::exclusive_scan_over_group(g, local_value, sycl::maximum<T>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T running = sycl::known_identity_v<sycl::maximum<T>, T>;
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(running, computed),
+                     detail::type_to_string(computed) << " at position " << j
+                     << " instead of " << detail::type_to_string(running) << " for group " << i);
+          if (!detail::compare_type(running, computed))
+            break;
+          T cur = vOrig[i * local_size + j];
+          running = running > cur ? running : cur;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_exclusive_scan_max_no_init_negative for non-floating-point type");
+  }
+}
+
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_min_no_init_positive, T, test_types) {
+  if constexpr (std::is_floating_point_v<T>) {
+    const size_t elements_per_thread = 1;
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < global_size; ++i)
+        v[i] = (T(1) / T(3)) * T(local_size - (i % local_size)) + T(0.1);
+    };
+    const auto tested_function = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                    auto g, T local_value) {
+      acc[global_linear_id] = sycl::exclusive_scan_over_group(g, local_value, sycl::minimum<T>());
+    };
+    const auto validation_function = [](const std::vector<T> &vIn,
+                                        const std::vector<T> &vOrig, size_t, size_t local_size,
+                                        size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T running = sycl::known_identity_v<sycl::minimum<T>, T>;
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(running, computed),
+                     detail::type_to_string(computed) << " at position " << j
+                     << " instead of " << detail::type_to_string(running) << " for group " << i);
+          if (!detail::compare_type(running, computed))
+            break;
+          T cur = vOrig[i * local_size + j];
+          running = running < cur ? running : cur;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                           tested_function, validation_function);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_exclusive_scan_min_no_init_positive for non-floating-point type");
+  }
+}
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_exclusive_scan_bit_and, T, test_types) {
   if (sycl::device{}.get_backend() == sycl::backend::vk &&
       !std::is_scalar_v<T>) {

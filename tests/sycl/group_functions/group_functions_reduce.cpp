@@ -391,6 +391,76 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_max, T, test_types) {
   }
 }
 
+// Guards the wg_reduce result broadcast (low mantissa bits were dropped) and negative
+// data: the other min/max cases use small integers 1..local_size, whose low mantissa
+// bits are zero. Here the data is negative with non-zero low mantissa bits, and the
+// comparison is exact.
+BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_min_max_fractional, T, test_types) {
+  const size_t elements_per_thread = 1;
+  if constexpr (std::is_floating_point_v<T>) {
+    const auto data_generator = [](std::vector<T> &v, size_t local_size, size_t global_size) {
+      for (size_t i = 0; i < v.size(); ++i)
+        v[i] = -(T(1) / T(3)) * T(i % local_size + 1) - T(0.1);
+    };
+    const auto tested_function_min = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                        auto g, T local_value) {
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, sycl::minimum<T>());
+    };
+    const auto tested_function_max = [](auto acc, size_t global_linear_id, sycl::sub_group sg,
+                                        auto g, T local_value) {
+      acc[global_linear_id] = sycl::reduce_over_group(g, local_value, sycl::maximum<T>());
+    };
+    const auto validation_min = [](const std::vector<T> &vIn,
+                                   const std::vector<T> &vOrig, size_t, size_t local_size,
+                                   size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T expected = vOrig[i * local_size];
+        for (size_t j = 1; j < local_size; ++j)
+          expected = sycl::minimum<T>{}(expected, vOrig[i * local_size + j]);
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                      detail::type_to_string(computed) << " at position " << j
+                      << " instead of " << detail::type_to_string(expected)
+                      << " for group " << i << " local_size " << local_size
+                      << " and case: min");
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      }
+    };
+    const auto validation_max = [](const std::vector<T> &vIn,
+                                   const std::vector<T> &vOrig, size_t, size_t local_size,
+                                   size_t global_size) {
+      for (size_t i = 0; i < global_size / local_size; ++i) {
+        T expected = vOrig[i * local_size];
+        for (size_t j = 1; j < local_size; ++j)
+          expected = sycl::maximum<T>{}(expected, vOrig[i * local_size + j]);
+        for (size_t j = 0; j < local_size; ++j) {
+          T computed = vIn[i * local_size + j];
+          BOOST_TEST(detail::compare_type(expected, computed),
+                      detail::type_to_string(computed) << " at position " << j
+                      << " instead of " << detail::type_to_string(expected)
+                      << " for group " << i << " local_size " << local_size
+                      << " and case: max");
+          if (!detail::compare_type(expected, computed))
+            break;
+        }
+      }
+    };
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function_min, validation_min);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function_min, validation_min);
+    test_nd_group_function_1d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function_max, validation_max);
+    test_nd_group_function_2d<__LINE__, T>(elements_per_thread, data_generator,
+                                            tested_function_max, validation_max);
+  } else {
+    BOOST_TEST_MESSAGE("Skipping group_reduce_min_max_fractional for non-floating-point type");
+  }
+}
+
 BOOST_AUTO_TEST_CASE_TEMPLATE(group_reduce_bit_and, T, test_types) {
   if (sycl::device{}.get_backend() == sycl::backend::vk &&
       !std::is_scalar_v<T>) {
