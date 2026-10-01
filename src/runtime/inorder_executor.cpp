@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <future>
+#include <vector>
 
 #include "hipSYCL/runtime/inorder_executor.hpp"
 #include "hipSYCL/runtime/inorder_queue.hpp"
@@ -349,7 +351,34 @@ bool inorder_executor::is_submitted_by_me(const dag_node_ptr& node) const {
 }
 
 result inorder_executor::wait() {
+  // A deferred submission has not reached the queue yet, so waiting for the
+  // queue alone can return before it has even been issued. Wait until every
+  // deferred submission has been issued, then for the queue. A submission
+  // issued while we wait may defer again, so drain until none are left.
+  for(;;) {
+    std::vector<std::future<void>> issuing;
+    {
+      std::lock_guard<std::mutex> lock{_deferred_submissions_mutex};
+      issuing.swap(_deferred_submissions);
+    }
+    if(issuing.empty())
+      break;
+    for(auto &f : issuing)
+      f.wait();
+  }
   return _q->wait();
+}
+
+std::shared_ptr<dag_node_event> inorder_executor::get_ordering_event() {
+  // An operation accepted but not yet issued would complete after an event
+  // recorded in the queue now. Its own event waits for it to be issued and
+  // then to complete, and everything before it precedes it in the queue.
+  {
+    std::lock_guard<std::mutex> lock{_pending_submission_mutex};
+    if(_pending_submission && !_pending_submission->is_submitted())
+      return _pending_submission;
+  }
+  return _q->insert_event();
 }
 
 }

@@ -50,7 +50,14 @@ public:
   bool can_execute_on_device(const device_id& dev) const override;
   bool is_submitted_by_me(const dag_node_ptr& node) const override;
 
+  /// Waits until every operation submitted to this executor has completed,
+  /// including deferred submissions that have not reached the queue yet.
   result wait();
+
+  /// An event that completes once everything submitted to this executor so
+  /// far has completed. Unlike an event recorded in the queue, it also covers
+  /// a deferred submission that has not reached the queue yet.
+  std::shared_ptr<dag_node_event> get_ordering_event();
 private:
   /// Issue the operation on the calling thread. Requirements must already
   /// allow this.

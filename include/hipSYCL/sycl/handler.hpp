@@ -729,14 +729,15 @@ public:
     auto op = rt::make_operation<rt::async_host_operation>(std::move(f));
 
     // An in-order queue orders its operations through its backend queue, which
-    // this operation does not run on, so mark the work already submitted there.
+    // this operation does not run on, so it waits for everything submitted
+    // there so far, including submissions deferred and not yet issued.
     if(_execution_hints.has_hint<rt::hints::prefer_executor>()) {
       rt::backend_executor *executor =
           _execution_hints.get_hint<rt::hints::prefer_executor>()->get_executor();
       if(executor && executor->is_inorder_queue()) {
         auto *inorder = static_cast<rt::inorder_executor *>(executor);
         static_cast<rt::async_host_operation *>(op.get())->set_preceding_event(
-            inorder->get_queue()->insert_event());
+            inorder->get_ordering_event());
       }
     }
 

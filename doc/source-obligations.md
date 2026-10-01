@@ -34,6 +34,17 @@ the tree, read today, still shows as unfinished or unconfirmed.
   unbuilt and unverified: no harness covers it. Verifying it needs a CUDA
   build plus a program where a kernel depends on a still-running async_host
   task on the same CUDA device.
+- CI run 36827137534 (T4) showed the deferral exposed a second bug:
+  `inorder_executor::wait()` waited only for the backend queue, so
+  `queue::wait()` returned before a deferred submission had been issued
+  (async_host tests read 2 instead of 3; a kernel then ran on memory the test
+  had already freed, CUDA:700). `wait()` now drains deferred submissions
+  first, and `handler::async_host` orders the host task after a pending
+  deferred submission via `inorder_executor::get_ordering_event()` rather
+  than an event recorded in the queue. Unverified until the next CUDA CI run.
+- The SPIR-V backend now declares OpenCL C 2.0 (`opencl.ocl.version`), so
+  OpenCL runtimes read generic atomics with 2.0 builtins. Unverified on Intel
+  CPU OpenCL until the next CI run.
 - `inorder_executor::submit_directly`'s "must follow unsubmitted" path (a
   pending submission, or a requirement whose event exists but is not yet
   submitted) called `submit_deferred` on every queue. Only `cuda_queue` and
