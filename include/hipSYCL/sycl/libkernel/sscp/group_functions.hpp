@@ -503,6 +503,20 @@ inline constexpr __acpp_sscp_algorithm_op sscp_binary_operation_v =
 template<class T, __acpp_sscp_algorithm_op Sscp_op>
 struct sscp_binary_operation_identity {};
 
+// Identities of min/max, matching sycl::known_identity (libkernel/functional.hpp):
+// +/-infinity where the type has one, else max()/lowest(). Inlined here rather
+// than delegating to known_identity.
+template <class T> constexpr T sscp_min_identity() {
+  return std::numeric_limits<T>::has_infinity
+             ? std::numeric_limits<T>::infinity()
+             : std::numeric_limits<T>::max();
+}
+template <class T> constexpr T sscp_max_identity() {
+  return std::numeric_limits<T>::has_infinity
+             ? -std::numeric_limits<T>::infinity()
+             : std::numeric_limits<T>::lowest();
+}
+
 #define HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(SSCPOp, Identity)               \
   template <class T> struct sscp_binary_operation_identity<T, SSCPOp> {        \
     static auto get() { return Identity; }                                     \
@@ -518,10 +532,8 @@ struct sscp_binary_operation_identity {};
 
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::plus, T{0})
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::multiply, T{1})
-// TODO This is not really correct for floating point - those should use infinity. But then, what about
-// compilation with -ffast-math?
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min, T{std::numeric_limits<T>::max()})
-HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max, T{std::numeric_limits<T>::min()})
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::min, sscp_min_identity<T>())
+HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::max, sscp_max_identity<T>())
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_and, ~T{0})
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_or, T{0})
 HIPSYCL_SSCP_MAP_GROUP_BINARY_IDENTITY(__acpp_sscp_algorithm_op::bit_xor, T{0})
