@@ -53,6 +53,7 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
   const __acpp_uint32 wg_size = __acpp_sscp_typed_get_local_size<3, int>();
   const __acpp_uint32 max_sg_size = __acpp_sscp_get_subgroup_max_size();
   const __acpp_int32 sg_size = __acpp_sscp_get_subgroup_size();
+  // The int32 sub-group size is exact through any MemoryType for sizes <= 64.
   const __acpp_int32 first_sg_size = wg_broadcast(0, sg_size, &shrd_mem[0]);
 
   const __acpp_uint32 num_subgroups = (wg_size + max_sg_size - 1) / max_sg_size;
@@ -96,11 +97,12 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
   }
 
   // Do a final broadcast
-  using internal_type = typename integer_type<OutType>::type;
-  static_assert(sizeof(internal_type) == sizeof(OutType));
-  local_reduce_result = __builtin_bit_cast(
-      OutType,
-      wg_broadcast(0, __builtin_bit_cast(internal_type, local_reduce_result), &shrd_mem[0]));
+  // shrd_mem is MemoryType == OutType on every backend (host, ptx, amdgpu,
+  // spirv, clspv, metal). Broadcasting the integer bit pattern through
+  // float-typed memory value-converted it (int -> float -> int) and dropped
+  // the low mantissa bits (~7 for f32, ~8 for f64), so broadcast the value
+  // itself, which is a plain copy.
+  local_reduce_result = wg_broadcast(0, local_reduce_result, &shrd_mem[0]);
   return local_reduce_result;
 }
 
