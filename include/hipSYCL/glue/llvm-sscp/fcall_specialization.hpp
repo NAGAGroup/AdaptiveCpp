@@ -12,6 +12,8 @@
 #ifndef ACPP_GLUE_FCALL_SPECIALIZATION_HPP
 #define ACPP_GLUE_FCALL_SPECIALIZATION_HPP
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -23,9 +25,20 @@ struct __acpp_sscp_emit_param_type_annotation_fcall_specialized_config {
   T value;
 };
 
+// One function call specialization: calls to `function` are replaced by calls to
+// `replacements` (a single function, or a call sequence if there are several).
+struct fcall_specialization_entry {
+  std::string function;
+  std::vector<std::string> replacements;
+  // -1: a plain call sequence. Otherwise the position (counting from 0, without
+  // any this pointer) of an integer argument of `function` that, in an indexed
+  // call sequence, is replaced by the constant k in the call to replacement k.
+  int index_param = -1;
+};
+
 struct fcall_specialized_config {
   std::size_t unique_hash = 0;
-  std::vector<std::pair<std::string, std::vector<std::string>>> function_call_map;
+  std::vector<fcall_specialization_entry> function_call_map;
 };
 
 using fcall_config_kernel_property_t =

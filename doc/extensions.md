@@ -379,6 +379,31 @@ public:
   define_as_call_sequence(dynamic_function_id func,
                           const std::vector<dynamic_function_id> &definitions) 
 
+  // Like `define_as_call_sequence`, but the call to definition k (counting from 0) receives
+  // all arguments of the original call, except that the argument at position `index_param`
+  // (counting from 0) is replaced by the integer constant k. This allows e.g. one
+  // definition to be shared by several stages that need to know their position.
+  // The function must have void return type, and its argument at `index_param`
+  // must have an integer type that can hold the number of definitions. In contrast to
+  // `define_as_call_sequence`, a sequence wrapper is also built for a single definition.
+  // The definitions may live in other translation units (they must then be
+  // declared SYCL_EXTERNAL there).
+  template <typename... Args>
+  void define_as_indexed_call_sequence(
+      void (*func)(Args...),
+      const std::vector<dynamic_function_definition<void, Args...>> &definitions,
+      int index_param);
+
+  template <typename... Args>
+  void define_as_indexed_call_sequence(
+      dynamic_function<void, Args...> call,
+      const std::vector<dynamic_function_definition<void, Args...>> &definitions,
+      int index_param);
+
+  void define_as_indexed_call_sequence(
+      dynamic_function_id func,
+      const std::vector<dynamic_function_id> &definitions, int index_param);
+
   // Returns a kernel object that has this configuration applied. The resulting object
   // can then be passed e.g. to parallel_for().
   template<class Kernel>

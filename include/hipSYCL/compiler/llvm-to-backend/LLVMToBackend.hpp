@@ -24,6 +24,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <typeinfo>
 #include <functional>
@@ -59,9 +60,16 @@ public:
   void setNoAliasIfNoIndirectAccessKernelParam(const std::string &KernelName, int ParamIndex);
   void specializeKernelArgument(const std::string &KernelName, int ParamIndex,
                                 const void *ValueBuffer);
+  // Replaces calls to FuncName by calls to ReplacementCalls. If there are several
+  // replacements, they are called in sequence with the arguments of the original call.
+  // If IndexParam >= 0, the sequence is an indexed call sequence: argument IndexParam
+  // (counting from 0) of the original function must have an integer type, and in
+  // the call to replacement k, it is replaced by the constant k. In that case, a
+  // sequence wrapper is also built for a single replacement.
   void specializeFunctionCalls(const std::string &FuncName,
                              const std::vector<std::string> &ReplacementCalls,
-                             bool OverrideOnlyUndefined=true);
+                             bool OverrideOnlyUndefined=true,
+                             int IndexParam=-1);
 
   void setKnownPtrParamAlignment(const std::string &FunctionName, int ParamIndex, int Alignment);
 
@@ -241,6 +249,10 @@ private:
   // function call specializations might result in additional outlining entrypoints
   // that we need to consider early on
   std::vector<std::string> FunctionCallSpecializationOutliningEntrypoints;
+  // (function, replacements) of every function call specialization. Replacements
+  // may be defined in other translation units, and need a declaration in the module
+  // so that resolveExternalSymbols links them.
+  std::vector<std::pair<std::string, std::vector<std::string>>> FunctionCallSpecializationTargets;
   std::vector<std::string> Kernels;
 
   std::vector<std::string> Errors;

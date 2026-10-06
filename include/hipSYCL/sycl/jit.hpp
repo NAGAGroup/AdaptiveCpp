@@ -25,6 +25,11 @@
 #include "hipSYCL/common/unordered_dense.hpp"
 #include "exception.hpp"
 
+#include <cstddef>
+#include <string>
+#include <type_traits>
+#include <vector>
+
 // Meaning: The calling function has a dynamic function as argument 0 (excluding this pointer)
 extern "C" void __acpp_function_annotation_dynamic_function();
 
@@ -219,6 +224,76 @@ public:
     define_as_call_sequence(pointer_to_dynamic_function_id(call), definition_ids);
   }
 
+  // Like define_as_call_sequence, but definition k (counting from 0) is called with
+  // all of the arguments of `call`, except that the argument at position index_param
+  // (counting from 0) is replaced by the integer constant k. The function must return
+  // void, and the argument at index_param must have an integer type that can hold
+  // the number of definitions. The wrapper is also built for a single definition.
+  void define_as_indexed_call_sequence(
+      dynamic_function_id call,
+      const std::vector<dynamic_function_id> &definitions, int index_param) {
+    _is_ready = false;
+
+    const char* function_name = reinterpret_cast<const char*>(call.get_handle());
+    if(!function_name)
+      throw sycl::exception{make_error_code(errc::invalid),
+                            "dynamic_function_config: Invalid dynamic_function_id"};
+
+    if(index_param < 0)
+      throw sycl::exception{make_error_code(errc::invalid),
+                            "dynamic_function_config: index_param of an indexed call "
+                            "sequence must not be negative"};
+
+    std::vector<std::string> definition_names;
+    for(auto r : definitions) {
+      const char* definition_name = reinterpret_cast<const char*>(r.get_handle());
+
+      if(!definition_name) {
+        throw sycl::exception{make_error_code(errc::invalid),
+                              "dynamic_function_config: Invalid "
+                              "dynamic_function_id for definition"};
+      }
+      definition_names.emplace_back(std::string{definition_name});
+    }
+
+    set_entry(function_name, definition_names, index_param);
+  }
+
+  template <typename... Args>
+  void define_as_indexed_call_sequence(
+      dynamic_function<void, Args...> call,
+      const std::vector<dynamic_function_definition<void, Args...>>
+          &definitions, int index_param) {
+    check_index_param<Args...>(index_param);
+
+    std::vector<dynamic_function_id> definition_ids;
+    definition_ids.reserve(definitions.size());
+    for(const auto& d : definitions)
+      definition_ids.push_back(d.id());
+
+    define_as_indexed_call_sequence(call.id(), definition_ids, index_param);
+  }
+
+  template <typename... Args>
+  [[clang::noinline]]
+  void define_as_indexed_call_sequence(
+      void (*call)(Args...),
+      const std::vector<dynamic_function_definition<void, Args...>>
+          &definitions, int index_param) {
+    __acpp_function_annotation_dynamic_function();
+    __acpp_function_annotation_needs_function_ptr_argument_reflection();
+
+    check_index_param<Args...>(index_param);
+
+    std::vector<dynamic_function_id> definition_ids;
+    definition_ids.reserve(definitions.size());
+    for(const auto& d : definitions)
+      definition_ids.push_back(d.id());
+
+    define_as_indexed_call_sequence(pointer_to_dynamic_function_id(call),
+                                    definition_ids, index_param);
+  }
+
   template<class Kernel>
   auto apply(Kernel k) {
     if(!_is_ready)
@@ -238,8 +313,24 @@ public:
 
 private:
 
-  void set_entry(const char* function_name, const std::vector<std::string>& data) {
-    _entries[function_name] = data;
+  void set_entry(const char* function_name, const std::vector<std::string>& data,
+                 int index_param = -1) {
+    _entries[function_name] = entry_data{data, index_param};
+  }
+
+  // Host-side check that index_param names an integer (non-bool) argument
+  template <typename... Args>
+  static void check_index_param(int index_param) {
+    // A leading entry keeps the array non-empty for functions without arguments
+    constexpr bool is_integer_arg[] = {
+        false,
+        (std::is_integral_v<std::remove_cv_t<std::remove_reference_t<Args>>> &&
+         !std::is_same_v<std::remove_cv_t<std::remove_reference_t<Args>>, bool>)...};
+    if(index_param < 0 || static_cast<std::size_t>(index_param) >= sizeof...(Args) ||
+       !is_integer_arg[index_param + 1])
+      throw sycl::exception{make_error_code(errc::invalid),
+                            "dynamic_function_config: index_param of an indexed call "
+                            "sequence must name an integer argument of the function"};
   }
 
   template<class Ret, typename... Args>
@@ -258,9 +349,12 @@ private:
     _config.unique_hash = 0;
     for(auto& entry : _config.function_call_map) {
       common::stable_running_hash hash;
-      hash(entry.first.data(), entry.first.size());
-      for(const auto& s : entry.second)
+      hash(entry.function.data(), entry.function.size());
+      for(const auto& s : entry.replacements)
         hash(s.data(), s.size());
+      // The index position is part of the configuration: two configurations that
+      // differ only in it must not share a cache entry.
+      hash(&entry.index_param, sizeof(entry.index_param));
       _config.unique_hash ^= hash.get_current_hash();
     }
   }
@@ -268,15 +362,24 @@ private:
   void prepare_for_submission() {
     _config.function_call_map.clear();
     for(const auto& entry : _entries) {
-      _config.function_call_map.push_back(entry);
+      glue::sscp::fcall_specialization_entry e;
+      e.function = std::string{entry.first};
+      e.replacements = entry.second.definitions;
+      e.index_param = entry.second.index_param;
+      _config.function_call_map.push_back(std::move(e));
     }
     autogenerate_fcall_id();
     _is_ready = true;
   }
 
   bool _is_ready = false;
+  struct entry_data {
+    std::vector<std::string> definitions;
+    int index_param = -1; // -1: not an indexed call sequence
+  };
+
   glue::sscp::fcall_specialized_config _config;
-  ankerl::unordered_dense::map<const char*, std::vector<std::string>> _entries;
+  ankerl::unordered_dense::map<const char*, entry_data> _entries;
 };
 
 }

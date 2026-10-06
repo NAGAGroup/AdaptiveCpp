@@ -236,7 +236,24 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
                           std::string &output) {
 
   assert(translator);
-  runtime_linker configure_linker {translator, imported_symbol_names};
+
+  // The functions that function call specializations replace calls with may be
+  // defined in another translation unit. They are named only in the configuration,
+  // not in the kernel image's imported symbols, so import them too; resolution can
+  // then find them among the symbols exported by the other translation units.
+  symbol_list_t all_imported_symbol_names = imported_symbol_names;
+  for(const auto& entry : config.function_call_specialization_config()) {
+    for(const auto& call_specialization : entry.value->function_call_map) {
+      for(const auto& replacement : call_specialization.replacements) {
+        if(std::find(all_imported_symbol_names.begin(),
+                     all_imported_symbol_names.end(),
+                     replacement) == all_imported_symbol_names.end())
+          all_imported_symbol_names.push_back(replacement);
+      }
+    }
+  }
+
+  runtime_linker configure_linker {translator, all_imported_symbol_names};
 
   // Apply configuration
   if(translator->getKernels().size() == 1) {
@@ -276,9 +293,10 @@ inline rt::result compile(compiler::LLVMToBackendTranslator *translator,
     auto& config = entry.value->function_call_map;
     for(const auto& call_specialization : config) {
       HIPSYCL_DEBUG_INFO << "jit: Specializing function call to "
-                         << call_specialization.first << std::endl;
-      translator->specializeFunctionCalls(call_specialization.first,
-                                          call_specialization.second, false);
+                         << call_specialization.function << std::endl;
+      translator->specializeFunctionCalls(call_specialization.function,
+                                          call_specialization.replacements, false,
+                                          call_specialization.index_param);
     }
   }
 

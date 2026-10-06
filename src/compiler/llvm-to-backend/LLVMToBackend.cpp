@@ -31,6 +31,7 @@
 #include <llvm/Transforms/IPO/AlwaysInliner.h>
 #include <llvm/ADT/APFloat.h>
 #include <llvm/IR/Attributes.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/DiagnosticInfo.h>
 #include <llvm/IR/DiagnosticPrinter.h>
@@ -609,11 +610,12 @@ void LLVMToBackendTranslator::specializeKernelArgument(const std::string &Kernel
 
 void LLVMToBackendTranslator::specializeFunctionCalls(
     const std::string &FuncName, const std::vector<std::string> &ReplacementCalls,
-    bool OverrideOnlyUndefined) {
+    bool OverrideOnlyUndefined, int IndexParam) {
 
   for(const auto& FName : ReplacementCalls) {
     this->FunctionCallSpecializationOutliningEntrypoints.push_back(FName);
   }
+  this->FunctionCallSpecializationTargets.emplace_back(FuncName, ReplacementCalls);
 
   std::string Id = "__specialized_function_call_"+FuncName;
   SpecializationApplicators[Id] = [=](llvm::Module &M) {
@@ -623,11 +625,13 @@ void LLVMToBackendTranslator::specializeFunctionCalls(
     if(auto* F = M.getFunction(FuncName)) {
       if((!OverrideOnlyUndefined || F->isDeclaration()) && !ReplacementCalls.empty()) {
         llvm::Value* ReplacementValue;
-        if(ReplacementCalls.size() == 1){
+        if(ReplacementCalls.size() == 1 && IndexParam < 0){
           llvm::Function* ReplacementF = M.getFunction(ReplacementCalls[0]);
           ReplacementValue = ReplacementF;
 
-          if(!ReplacementValue) {
+          // A declaration is what resolveExternalSymbols leaves behind if no
+          // other translation unit defined the function.
+          if(!ReplacementValue || ReplacementF->isDeclaration()) {
             registerError("LLVMToBackend: Could not find function call specialization target " +
                         ReplacementCalls[0] + ", was the function emitted to device code?");
             return;
@@ -648,7 +652,7 @@ void LLVMToBackendTranslator::specializeFunctionCalls(
           }
           for(const auto& FName : ReplacementCalls) {
             auto* RetrievedF = M.getFunction(FName);
-            if(!RetrievedF) {
+            if(!RetrievedF || RetrievedF->isDeclaration()) {
               registerError("LLVMToBackend: Could not find function call specialization target " +
                             FName + ", was the function emitted to device code?");
               return;
@@ -660,19 +664,50 @@ void LLVMToBackendTranslator::specializeFunctionCalls(
             }
             ReplacementFs.push_back(RetrievedF);
           }
+
+          llvm::Type* IndexParamType = nullptr;
+          if(IndexParam >= 0) {
+            if(static_cast<unsigned>(IndexParam) >= F->getFunctionType()->getNumParams()) {
+              registerError("LLVMToBackend: Index parameter " + std::to_string(IndexParam) +
+                            " of indexed call sequence is out of range for " + FuncName);
+              return;
+            }
+            IndexParamType = F->getFunctionType()->getParamType(IndexParam);
+            if(!IndexParamType->isIntegerTy()) {
+              registerError("LLVMToBackend: Index parameter " + std::to_string(IndexParam) +
+                            " of indexed call sequence must have integer type in " + FuncName);
+              return;
+            }
+            unsigned IndexBits = IndexParamType->getIntegerBitWidth();
+            // The largest index, size-1, must be representable
+            if(IndexBits < 64 && (ReplacementFs.size() - 1) >> IndexBits != 0) {
+              registerError("LLVMToBackend: Index parameter " + std::to_string(IndexParam) +
+                            " of " + FuncName + " is too narrow to hold the " +
+                            std::to_string(ReplacementFs.size()) +
+                            " indices of the call sequence");
+              return;
+            }
+          }
+
           auto ReplacementWrapperFuncCallee = M.getOrInsertFunction(Id, F->getFunctionType(), F->getAttributes());
           if (auto *ReplacementWrapperF =
                   static_cast<llvm::Function *>(ReplacementWrapperFuncCallee.getCallee())) {
             auto BB = llvm::BasicBlock::Create(M.getContext(), "entry",
                                                ReplacementWrapperF);
-            for(auto* F : ReplacementFs) {
+            uint64_t CallIndex = 0;
+            for(auto* Callee : ReplacementFs) {
               llvm::SmallVector<llvm::Value*> Args;
-              for(int i = 0; i < F->getFunctionType()->getNumParams(); ++i)
-                Args.push_back(ReplacementWrapperF->getArg(i));
+              for(int i = 0; i < Callee->getFunctionType()->getNumParams(); ++i) {
+                if(i == IndexParam)
+                  Args.push_back(llvm::ConstantInt::get(IndexParamType, CallIndex));
+                else
+                  Args.push_back(ReplacementWrapperF->getArg(i));
+              }
 
-              llvm::CallInst::Create(llvm::FunctionCallee{F},
+              llvm::CallInst::Create(llvm::FunctionCallee{Callee},
                                      llvm::ArrayRef<llvm::Value *>{Args}, "", BB);
-            }                                            
+              ++CallIndex;
+            }
             llvm::ReturnInst::Create(M.getContext(), BB);
           }
           ReplacementValue  = ReplacementWrapperFuncCallee.getCallee();
@@ -709,6 +744,25 @@ void LLVMToBackendTranslator::resolveExternalSymbols(llvm::Module& M) {
     // we may have to do it again.
     llvm::SmallSet<std::string, 32> AllAttemptedSymbolResolutions;
     llvm::SmallSet<std::string, 16> UnresolvedSymbolsSet;
+
+    // The replacements of function call specializations may be defined in other
+    // translation units, in which case the module neither defines nor necessarily
+    // declares them: they are named only in the specialization. Since we only link
+    // symbols that the module declares, declare the missing ones, with the type
+    // of the function they replace, so that they can be resolved like imported symbols.
+    for(const auto& Specialization : FunctionCallSpecializationTargets) {
+      llvm::Function* Original = M.getFunction(Specialization.first);
+      if(!Original)
+        continue;
+      for(const auto& Replacement : Specialization.second) {
+        if(!M.getFunction(Replacement)) {
+          HIPSYCL_DEBUG_INFO << "LLVMToBackend: Declaring function call specialization target "
+                             << Replacement << "\n";
+          llvm::Function::Create(Original->getFunctionType(),
+                                 llvm::GlobalValue::ExternalLinkage, Replacement, &M);
+        }
+      }
+    }
 
     // Find out which unresolved symbols are in this IR
     for(auto SymbolName : SymbolResolver.getImportedSymbols()) {
