@@ -84,7 +84,13 @@ OutType wg_reduce(OutType x, BinaryOperation op, MemoryType *shrd_mem) {
   // reaches every barrier.
   __acpp_uint32 elements_in_shmem =
       num_subgroups < shmem_array_length ? num_subgroups : shmem_array_length;
-  while (elements_in_shmem > static_cast<__acpp_uint32>(first_sg_size)) {
+  // Bound of at least 1: with a bound of 0 (a bogus sub-group size) the halving would never
+  // reach it, since half stays 1 for one element, and the loop would not terminate. With
+  // stop == 1 the loop ends with the combined partial in shrd_mem[0], and the first sub-group
+  // below then reduces exactly that single element.
+  const __acpp_uint32 stop =
+      first_sg_size > 1 ? static_cast<__acpp_uint32>(first_sg_size) : 1;
+  while (elements_in_shmem > stop) {
     const __acpp_uint32 half = (elements_in_shmem + 1) / 2;
     if (wg_lid < elements_in_shmem - half) {
       shrd_mem[wg_lid] = op(shrd_mem[wg_lid + half], shrd_mem[wg_lid]);

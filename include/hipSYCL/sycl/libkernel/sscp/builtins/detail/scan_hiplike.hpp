@@ -21,6 +21,12 @@
 
 namespace hipsycl::libkernel::sscp {
 
+// Work-group scan for hip-like backends (at most one sub-group of sub-group totals).
+//
+// Every item computes the INCLUSIVE scan of its sub-group, also for exclusive scans: applying init
+// inside every sub-group would count it once per sub-group. Sub-group 0 then scans the sub-group
+// totals, each item combines the total of the earlier sub-groups, and exclusive scans finally shift
+// the inclusive result by one work item and apply init once.
 template <int SharedMemorySize, bool ExclusiveScan, typename OutType, typename MemoryType,
           typename BinaryOperation>
 OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutType init = 0) {
@@ -31,28 +37,37 @@ OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
   const __acpp_uint32 subgroup_id = __acpp_sscp_get_subgroup_id();
 
   const bool last_item_in_sg = sg_lid == static_cast<__acpp_uint32>(sg_size - 1);
-  OutType sg_scan_result;
-  if constexpr (ExclusiveScan) {
-    sg_scan_result = sg_exclusive_scan(x, op, init);
-  } else {
-    sg_scan_result = sg_inclusive_scan(x, op);
-  }
+  OutType sg_scan_result = sg_inclusive_scan(x, op);
 
   if (last_item_in_sg) {
-    if constexpr (ExclusiveScan) {
-      shrd_mem[subgroup_id] = op(sg_scan_result, x);
-    } else {
-      shrd_mem[subgroup_id] = sg_scan_result;
-    }
+    shrd_mem[subgroup_id] = sg_scan_result;
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
                                  __acpp_sscp_memory_order::acq_rel);
   if (subgroup_id == 0) {
+    // Each lane reads and writes only its own slot, so there is no cross-item race here.
     shrd_mem[sg_lid] = sg_inclusive_scan(shrd_mem[sg_lid], op);
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
                                  __acpp_sscp_memory_order::acq_rel);
-  return subgroup_id > 0 ? op(shrd_mem[subgroup_id - 1], sg_scan_result) : sg_scan_result;
+
+  // Total of all earlier sub-groups (valid for subgroup_id > 0).
+  OutType prefix{};
+  if (subgroup_id > 0)
+    prefix = shrd_mem[subgroup_id - 1];
+  const OutType inclusive = subgroup_id > 0 ? op(prefix, sg_scan_result) : sg_scan_result;
+
+  if constexpr (ExclusiveScan) {
+    // Shift by one work item: a sub-group collective, executed by every lane.
+    const OutType prev_in_sg = __builtin_bit_cast(
+        OutType, sg_shift_right(__builtin_bit_cast(typename integer_type<OutType>::type, inclusive), 1));
+    if (subgroup_id == 0 && sg_lid == 0)
+      return init;
+    const OutType prev = sg_lid == 0 ? prefix : prev_in_sg;
+    return op(init, prev);
+  } else {
+    return inclusive;
+  }
 }
 
 } // namespace hipsycl::libkernel::sscp
