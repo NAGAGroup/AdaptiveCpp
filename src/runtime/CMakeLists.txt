@@ -388,10 +388,25 @@ if(WITH_CPU_BACKEND)
     #    alone is copied into a private include directory of this target, and only that
     #    directory is put on the include path (only omp.h is needed: omp_hardware_manager.cpp
     #    and omp_queue.cpp, and the installed headers, include nothing else of libomp);
-    #  - libomp lands in LLVM_LIBRARY_OUTPUT_INTDIR (add_llvm_library; with
-    #    LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF): libomp.so / libomp.dylib, and on Windows the
-    #    import library libomp.lib (the DLL goes to the runtime output dir, bin/).
+    #  - libomp is NOT written to LLVM_LIBRARY_OUTPUT_INTDIR: openmp/runtime/src/CMakeLists.txt:186
+    #    creates `omp` with a plain add_library() and no output directory (add_llvm_library is
+    #    only used for the profiling variant), so it lands in the runtimes sub-build's own
+    #    binary directory (ld: `cannot find -lomp`, run 38577744298). On unix that is libomp.so /
+    #    libomp.dylib; on Windows the DLL and the by-name import library libomp.lib (target
+    #    `ompimp`, openmp/runtime/src/CMakeLists.txt:367-389; OPENMP_MSVC_NAME_SCHEME=OFF makes
+    #    LIBOMP_IMP_LIB_FILE libomp.lib) are in the same directory.
     add_dependencies(rt-backend-omp openmp)
+
+    # llvm/runtimes builds the sub-build with llvm_ExternalProject_Add(runtimes ...), whose
+    # BINARY_DIR is <name>-bins (LLVMExternalProjectUtils.cmake:189) below the outer build's
+    # runtimes/ directory, and libomp's output directory is that sub-build's
+    # CMAKE_CURRENT_BINARY_DIR for openmp/runtime/src (openmp/runtime/src/CMakeLists.txt:255-261).
+    # Per-target runtimes builds use runtimes-<target>-bins instead and are not supported here.
+    if(LLVM_RUNTIME_TARGETS)
+      message(FATAL_ERROR "rt-backend-omp links the libomp of the default runtimes build "
+        "(runtimes-bins); LLVM_RUNTIME_TARGETS (runtimes-<target>-bins) is not supported")
+    endif()
+    set(ACPP_BUILDTREE_LIBOMP_DIR "${LLVM_BINARY_DIR}/runtimes/runtimes-bins/openmp/runtime/src")
 
     include(GetClangResourceDir)
     get_clang_resource_dir(ACPP_BUILDTREE_CLANG_INCLUDE PREFIX "${LLVM_BINARY_DIR}" SUBDIR include)
@@ -406,10 +421,11 @@ if(WITH_CPU_BACKEND)
     add_dependencies(rt-backend-omp acpp-libomp-headers)
 
     if(WIN32)
-      set(ACPP_BUILDTREE_LIBOMP "${LLVM_LIBRARY_OUTPUT_INTDIR}/libomp${CMAKE_STATIC_LIBRARY_SUFFIX}")
+      # the by-name import library of target `ompimp`, next to the DLL
+      set(ACPP_BUILDTREE_LIBOMP "${ACPP_BUILDTREE_LIBOMP_DIR}/libomp${CMAKE_STATIC_LIBRARY_SUFFIX}")
     else()
       set(ACPP_BUILDTREE_LIBOMP
-        "${LLVM_LIBRARY_OUTPUT_INTDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}omp${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        "${ACPP_BUILDTREE_LIBOMP_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}omp${CMAKE_SHARED_LIBRARY_SUFFIX}")
     endif()
 
     # The OpenMP flag is a COMPILE option only. It is deliberately not put on the link line:
@@ -426,12 +442,12 @@ if(WITH_CPU_BACKEND)
     # missing input; the add_dependencies above provides the ordering. `-lomp` cannot be spelled
     # as plain `omp` either, should an `omp` target ever exist in this build.
     if(MSVC)
-      target_link_options(rt-backend-omp PRIVATE "/LIBPATH:${LLVM_LIBRARY_OUTPUT_INTDIR}")
+      target_link_options(rt-backend-omp PRIVATE "/LIBPATH:${ACPP_BUILDTREE_LIBOMP_DIR}")
       target_link_libraries(rt-backend-omp PRIVATE libomp.lib)
     else()
-      target_link_directories(rt-backend-omp PRIVATE "${LLVM_LIBRARY_OUTPUT_INTDIR}")
+      target_link_directories(rt-backend-omp PRIVATE "${ACPP_BUILDTREE_LIBOMP_DIR}")
       target_link_libraries(rt-backend-omp PRIVATE -lomp)
-      set_property(TARGET rt-backend-omp APPEND PROPERTY BUILD_RPATH "${LLVM_LIBRARY_OUTPUT_INTDIR}")
+      set_property(TARGET rt-backend-omp APPEND PROPERTY BUILD_RPATH "${ACPP_BUILDTREE_LIBOMP_DIR}")
     endif()
 
     set(OMP_TARGET)
