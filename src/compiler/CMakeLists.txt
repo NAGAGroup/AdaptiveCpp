@@ -200,6 +200,16 @@ else()
     SUBPROJECT AdaptiveCpp
     ${COMPILER_LIBRARY_SOURCES}
   )
+  # add_llvm_pass_plugin puts LLVM_<NAME>_LINK_INTO_TOOLS on `${name}` (AddLLVM.cmake:1328). For
+  # an OBJECT llvm library that target is only the static wrapper (AddLLVM.cmake:646-732); the
+  # sources compile in `obj.${name}`, so the macro never reached AdaptiveCppLlvmPasses.cpp. As a
+  # result the Windows dllexport of getAdaptiveCppPluginInfo never applied (run 38577744298:
+  # opt.exe still undefined on win-64 and win-arm64), and the
+  # `#ifndef LLVM_ADAPTIVECPP_LINK_INTO_TOOLS` llvmGetPassPluginInfo was wrongly compiled into LLVM
+  # itself.
+  if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+    target_compile_definitions(obj.${COMPILER_LIBRARY_NAME} PRIVATE LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
+  endif()
 endif()
 
 function(configure_target)
