@@ -9,6 +9,8 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/compiler/sscp/HcfRegistrationPass.hpp"
 
 
@@ -93,8 +95,8 @@ static void modifyGlobalList(llvm::Module &M, const std::string &ListName, llvm:
 
   auto &C = M.getContext();
   llvm::Type *Int32Ty = llvm::Type::getInt32Ty(C);
-  llvm::PointerType *FuncPtrTy = llvm::PointerType::getUnqual(F->getFunctionType());
-  llvm::PointerType *Int8PtrTy = llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(C));
+  llvm::PointerType *FuncPtrTy = hipsycl::llvmutils::getPointerTo(F->getFunctionType());
+  llvm::PointerType *Int8PtrTy = hipsycl::llvmutils::getPointerTo(llvm::Type::getInt8Ty(C));
 
   // The standard LLVM struct type for ctors/dtors: { i32, ptr, ptr }
   // If the global variable already exists, we extract its exact struct type

@@ -75,13 +75,13 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
       llvm::StructType::get(llvm::ArrayType::get(SizeT, 3),                 // # groups
                             llvm::ArrayType::get(SizeT, 3),                 // group id
                             llvm::ArrayType::get(SizeT, 3),                 // local size
-                            llvm::PointerType::getUnqual(Bld.getInt8Ty()), // local memory ptr
-                            llvm::PointerType::getUnqual(Bld.getInt8Ty())); // internal local memory ptr
-  auto VoidPtrT = llvm::PointerType::getUnqual(Bld.getInt8Ty());
-  auto UserArgsT = llvm::PointerType::getUnqual(VoidPtrT);
+                            hipsycl::llvmutils::getPointerTo(Bld.getInt8Ty()), // local memory ptr
+                            hipsycl::llvmutils::getPointerTo(Bld.getInt8Ty())); // internal local memory ptr
+  auto VoidPtrT = hipsycl::llvmutils::getPointerTo(Bld.getInt8Ty());
+  auto UserArgsT = hipsycl::llvmutils::getPointerTo(VoidPtrT);
 
   llvm::SmallVector<llvm::Type *> ArgTypes;
-  ArgTypes.push_back(llvm::PointerType::getUnqual(WorkGroupInfoT));
+  ArgTypes.push_back(hipsycl::llvmutils::getPointerTo(WorkGroupInfoT));
   ArgTypes.push_back(UserArgsT);
 
   std::string FName = F.getName().str();
@@ -157,7 +157,7 @@ llvm::Function *makeWrapperFunction(llvm::Function &F, std::int64_t DynamicLocal
                                        llvm::ArrayRef<llvm::Value *>{Bld.getInt32(I)});
 #pragma GCC diagnostic pop
       auto CastedPtr = Bld.CreatePointerCast(Bld.CreateLoad(VoidPtrT, GEP),
-                                             llvm::PointerType::getUnqual(F.getArg(I)->getType()));
+                                             hipsycl::llvmutils::getPointerTo(F.getArg(I)->getType()));
       Args.push_back(Bld.CreateLoad(F.getArg(I)->getType(), CastedPtr));
 #endif
     }

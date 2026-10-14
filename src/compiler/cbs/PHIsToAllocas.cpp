@@ -21,6 +21,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/compiler/cbs/PHIsToAllocas.hpp"
 
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
@@ -61,7 +63,7 @@ llvm::Instruction *breakPHIToAllocas(llvm::PHINode *Phi) {
     Builder.SetInsertPoint(IncomingBB->getTerminator());
     Builder.CreateStore(V, Alloca);
   }
-  Builder.SetInsertPoint(Phi->getParent()->getFirstNonPHI());
+  Builder.SetInsertPoint(hipsycl::llvmutils::getFirstNonPHI(Phi->getParent()));
 
   llvm::Instruction *LoadedValue = Builder.CreateLoad(Alloca->getAllocatedType(), Alloca);
   Phi->replaceAllUsesWith(LoadedValue);

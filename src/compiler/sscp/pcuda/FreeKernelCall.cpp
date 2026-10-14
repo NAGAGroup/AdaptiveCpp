@@ -9,6 +9,8 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include <optional>
 
 #include "hipSYCL/compiler/sscp/pcuda/FreeKernelCall.hpp"
@@ -180,7 +182,7 @@ llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
   llvm::BasicBlock* ElseBranch = llvm::BasicBlock::Create(NewF->getContext(), "", NewF);
   llvm::BasicBlock* EndBlock = llvm::BasicBlock::Create(NewF->getContext(), "", NewF);
 
-  llvm::BranchInst::Create(IfBranch, ElseBranch, Icmp, EntryBlock);
+  hipsycl::llvmutils::createCondBr(Icmp, IfBranch, ElseBranch, EntryBlock);
 
   // If Branch
   {
@@ -189,7 +191,7 @@ llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
       Args.push_back(NewF->getArg(i));
     llvm::CallInst::Create(llvm::FunctionCallee(KernelF), llvm::ArrayRef<llvm::Value *>{Args}, "",
                            IfBranch);
-    llvm::BranchInst::Create(EndBlock, IfBranch);
+    hipsycl::llvmutils::createBr(EndBlock, IfBranch);
   }
   // Else Branch
   {
@@ -260,7 +262,7 @@ llvm::Function* generateKernelWrapper(llvm::Function* KernelF) {
     llvm::CallInst::Create(llvm::FunctionCallee{KLF->getFunctionType(), KLF},
                            llvm::ArrayRef<llvm::Value *>{KLFArgs}, "", ElseBranch);
 
-    llvm::BranchInst::Create(EndBlock, ElseBranch);
+    hipsycl::llvmutils::createBr(EndBlock, ElseBranch);
   }
 
   llvm::ReturnInst::Create(NewF->getContext(), EndBlock);

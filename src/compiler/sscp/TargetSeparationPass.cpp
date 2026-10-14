@@ -308,7 +308,7 @@ std::unique_ptr<llvm::Module> generateDeviceIR(llvm::Module &M,
   // Because global inline assembly does not make sense in device code (there are
   // multiple JIT targets, each with their own inline assembly syntax), such code
   // cannot be relevant to device code and we can safely strip it from device code.
-  DeviceModule->setModuleInlineAsm("");
+  hipsycl::llvmutils::clearModuleInlineAsm(*DeviceModule);
 
   // Fix std:: math function calls to point to our builtins.
   // This is required such that e.g. std::sin() can be called in kernels.

@@ -23,6 +23,7 @@
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Analysis/DomTreeUpdater.h>
 #include <llvm/Analysis/DominanceFrontier.h>
 #include <llvm/Analysis/IteratedDominanceFrontier.h>
 #include <llvm/Analysis/PostDominators.h>
@@ -95,7 +96,7 @@ llvm::LoadInst *mergeGVLoadsInEntry(llvm::Function &F, llvm::StringRef VarName) 
   }
 
   if (FirstLoad) {
-    FirstLoad->moveBefore(&F.getEntryBlock().front());
+    hipsycl::llvmutils::moveBefore(FirstLoad, &F.getEntryBlock().front());
     for (auto *LI : Loads) {
       LI->replaceAllUsesWith(FirstLoad);
       LI->eraseFromParent();
@@ -259,7 +260,7 @@ llvm::SmallVector<llvm::Value *, 3> getLocalSizeValues(llvm::Function &F, int Di
     llvm::SmallVector<llvm::Value *, 3> LocalSize(Dim);
     for (int I = 0; I < Dim; ++I) {
       auto Load = getLoadForGlobalVariable(F, LocalSizeGlobalNames[Dim - I - 1]);
-      Load->moveBefore(F.getEntryBlock().getTerminator());
+      hipsycl::llvmutils::moveBefore(Load, F.getEntryBlock().getTerminator());
       LocalSize[I] = Load;
     }
     return LocalSize;
@@ -886,7 +887,7 @@ void SubCFG::loadUniformAndRecalcContValues(
     HIPSYCL_DEBUG_INFO << "[SubCFG] Clone cont instruction and operands of: " << *I << " to "
                        << LoadTerm->getParent()->getName() << "\n";
     auto *IClone = I->clone();
-    IClone->insertBefore(LoadTerm);
+    hipsycl::llvmutils::insertBefore(IClone, LoadTerm);
     InstsToRemap.insert(IClone);
     UniVMap[I] = IClone;
     if (VMap.count(I) == 0)
@@ -1430,7 +1431,7 @@ void moveAllocasToEntry(llvm::Function &F, llvm::ArrayRef<llvm::BasicBlock *> Bl
       if (auto *AllocaInst = llvm::dyn_cast<llvm::AllocaInst>(&I))
         AllocaWL.push_back(AllocaInst);
   for (auto *I : AllocaWL)
-    I->moveBefore(F.getEntryBlock().getTerminator());
+    hipsycl::llvmutils::moveBefore(I, F.getEntryBlock().getTerminator());
 }
 
 llvm::DenseMap<llvm::BasicBlock *, size_t>
@@ -1462,7 +1463,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   auto *Entry = &F.getEntryBlock();
   for (auto LocalSizeV : LocalSize) {
     if (auto I = llvm::dyn_cast<llvm::Instruction>(LocalSizeV))
-      I->moveBefore(Entry->getTerminator());
+      hipsycl::llvmutils::moveBefore(I, Entry->getTerminator());
   }
 
   llvm::IRBuilder Builder{Entry->getTerminator()};
@@ -1499,7 +1500,7 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
   Builder.SetInsertPoint(F.getEntryBlock().getTerminator());
   auto *IndVarT = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType();
   llvm::Instruction *IndVar =
-      Builder.CreateLoad(IndVarT, llvm::UndefValue::get(llvm::PointerType::get(IndVarT, 0)));
+      Builder.CreateLoad(IndVarT, llvm::UndefValue::get(hipsycl::llvmutils::getPointerTo(IndVarT, 0)));
   // kept for simple reenabling of more advanced uniformity analysis
   VecInfo.setPinnedShape(*IndVar, hipsycl::compiler::VectorShape::cont());
 
@@ -1560,8 +1561,23 @@ void formSubCfgs(llvm::Function &F, llvm::LoopInfo &LI, llvm::DominatorTree &DT,
 void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::LoopInfo &LI,
                              llvm::PostDominatorTree &PDT, bool IsSscp) {
 
-  auto *Body = llvm::SplitBlock(&F.getEntryBlock(), &*F.getEntryBlock().getFirstInsertionPt(), &DT,
-                                &LI, nullptr, "wibody", true);
+  llvm::BasicBlock *Body = nullptr;
+#if LLVM_VERSION_MAJOR >= 23
+  // LLVM 23 removed SplitBlock's trailing `bool Before`. SplitBlock(..., Before=true) forwarded to
+  // splitBlockBefore() with a function-local lazy DomTreeUpdater wrapping DT (SplitBlockImpl in
+  // LLVM 21), so we do exactly that: splitBlockBefore() keeps the old "before" behaviour (the
+  // instructions before the split point move into the new block, the old entry becomes the body),
+  // whereas the 6-arg SplitBlock() only ever splits after the split point. The DTU is scoped so
+  // that DT is flushed before the next use, as the old local DTU was on return.
+  {
+    llvm::DomTreeUpdater LocalDTU(&DT, llvm::DomTreeUpdater::UpdateStrategy::Lazy);
+    Body = llvm::splitBlockBefore(&F.getEntryBlock(), F.getEntryBlock().getFirstInsertionPt(),
+                                  &LocalDTU, &LI, nullptr, "wibody");
+  }
+#else
+  Body = llvm::SplitBlock(&F.getEntryBlock(), &*F.getEntryBlock().getFirstInsertionPt(), &DT,
+                          &LI, nullptr, "wibody", true);
+#endif
   HIPSYCL_DEBUG_EXECUTE_VERBOSE(F.viewCFG());
 
   Body = Body->getSingleSuccessor();
@@ -1592,7 +1608,7 @@ void createLoopsAroundKernel(llvm::Function &F, llvm::DominatorTree &DT, llvm::L
   llvm::IRBuilder Builder{F.getEntryBlock().getTerminator()};
   auto *IndVarT = getLoadForGlobalVariable(F, LocalIdGlobalNames[Dim - 1])->getType();
   llvm::Value *Idx =
-      Builder.CreateLoad(IndVarT, llvm::UndefValue::get(llvm::PointerType::get(IndVarT, 0)));
+      Builder.CreateLoad(IndVarT, llvm::UndefValue::get(hipsycl::llvmutils::getPointerTo(IndVarT, 0)));
 
   auto LocalSize = getLocalSizeValues(F, Dim, IsSscp);
 

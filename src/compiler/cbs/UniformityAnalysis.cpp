@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+
+#include "hipSYCL/compiler/utils/LLVMUtils.hpp"
 #include "hipSYCL/compiler/cbs/UniformityAnalysis.hpp"
 #include "hipSYCL/compiler/cbs/VectorShapeTransformer.hpp"
 #include "hipSYCL/compiler/cbs/VectorizationInfo.hpp"
@@ -73,9 +75,9 @@ bool VectorizationAnalysis::updateTerminator(const Instruction &Term) const {
     return false;
   if (vecInfo.getVectorShape(Term).isVarying())
     return false;
-  if (auto *BranchTerm = dyn_cast<BranchInst>(&Term)) {
-    assert(BranchTerm->isConditional());
-    return !getShape(*BranchTerm->getCondition()).isUniform();
+  // Terminators with more than one successor that are branches are conditional branches.
+  if (auto *BranchCond = hipsycl::llvmutils::getBranchCondition(&Term)) {
+    return !getShape(*BranchCond).isUniform();
   }
   if (auto *SwitchTerm = dyn_cast<SwitchInst>(&Term)) {
     return !getShape(*SwitchTerm->getCondition()).isUniform();

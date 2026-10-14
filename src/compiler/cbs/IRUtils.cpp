@@ -71,7 +71,7 @@ bool blockHasBarrier(const llvm::BasicBlock *BB,
 // that is, contains a branch instruction after possible PHI nodes.
 bool startsWithBarrier(const llvm::BasicBlock *BB,
                        const hipsycl::compiler::SplitterAnnotationInfo &SAA) {
-  return isBarrier(BB->getFirstNonPHI(), SAA);
+  return isBarrier(hipsycl::llvmutils::getFirstNonPHI(BB), SAA);
 }
 
 // Returns true in case the given basic block ends with a barrier,
@@ -347,13 +347,12 @@ void promoteAllocas(llvm::BasicBlock *EntryBlock, llvm::DominatorTree &DT,
 }
 
 llvm::Instruction *getBrCmp(const llvm::BasicBlock &BB) {
-  if (auto *BI = llvm::dyn_cast_or_null<llvm::BranchInst>(BB.getTerminator()))
-    if (BI->isConditional()) {
-      if (auto *CmpI = llvm::dyn_cast<llvm::ICmpInst>(BI->getCondition()))
-        return CmpI;
-      if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(BI->getCondition()))
-        return SelectI;
-    }
+  if (auto *Cond = hipsycl::llvmutils::getBranchCondition(BB.getTerminator())) {
+    if (auto *CmpI = llvm::dyn_cast<llvm::ICmpInst>(Cond))
+      return CmpI;
+    if (auto *SelectI = llvm::dyn_cast<llvm::SelectInst>(Cond))
+      return SelectI;
+  }
   return nullptr;
 }
 
@@ -454,7 +453,7 @@ llvm::AllocaInst *arrayifyInstruction(llvm::Instruction *IPAllocas, llvm::Instru
                                       llvm::MDTuple *MDAlloca) {
   llvm::Instruction *InsertionPoint = &*(++ToArrayify->getIterator());
   if (llvm::isa<llvm::PHINode>(ToArrayify))
-    InsertionPoint = ToArrayify->getParent()->getFirstNonPHI();
+    InsertionPoint = hipsycl::llvmutils::getFirstNonPHI(ToArrayify->getParent());
 
   return arrayifyValue(IPAllocas, ToArrayify, InsertionPoint, Idx, NumElements, MDAlloca);
 }
