@@ -371,7 +371,57 @@ if(WITH_CPU_BACKEND)
     omp/omp_queue.cpp
     omp/omp_phys_mem.cpp)
 
-  if(TARGET omp AND ACPP_LLVM_COMPONENT) # ACPP_LLVM_COMPONENT with openmp active
+  if(ACPP_LLVM_COMPONENT AND "openmp" IN_LIST LLVM_ENABLE_RUNTIMES)
+    # Bootstrapping LLVM build with openmp as a RUNTIME (LLVM_ENABLE_RUNTIMES, the only way to
+    # build it since LLVM 22/23): libomp is not a target of this build tree but of the runtimes
+    # sub-build, so find_package(OpenMP) must not be used - it would pick up gcc's libgomp or
+    # whatever the host provides, and link a different runtime than the one acpp ships and
+    # defaults to. Instead build against the libomp this very build produces:
+    #  - the outer-build target `omp` (llvm/runtimes: one forwarding target per runtime, named
+    #    after the runtime) builds libomp and omp.h in the runtimes sub-build;
+    #  - omp.h lands in the clang resource dir of the build tree (LIBOMP_HEADERS_INTDIR =
+    #    ${LLVM_BINARY_DIR}/lib/clang/<major>/include);
+    #  - libomp lands in LLVM_LIBRARY_OUTPUT_INTDIR (add_llvm_library; with
+    #    LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF): libomp.so / libomp.dylib, and on Windows the
+    #    import library libomp.lib (the DLL goes to the runtime output dir, bin/).
+    add_dependencies(rt-backend-omp omp)
+
+    include(GetClangResourceDir)
+    get_clang_resource_dir(OMP_INCLUDE_DIR PREFIX "${LLVM_BINARY_DIR}" SUBDIR include)
+
+    if(WIN32)
+      set(ACPP_BUILDTREE_LIBOMP "${LLVM_LIBRARY_OUTPUT_INTDIR}/libomp${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    else()
+      set(ACPP_BUILDTREE_LIBOMP
+        "${LLVM_LIBRARY_OUTPUT_INTDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}omp${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    endif()
+
+    # The OpenMP flag is a COMPILE option only. It is deliberately not put on the link line:
+    # for gcc it would add -lgomp next to our libomp.
+    if(MSVC OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+      # clang-cl and Apple clang only accept the flag through the frontend.
+      set(OMP_COMPILE_FLAGS -Xclang -fopenmp)
+    else()
+      set(OMP_COMPILE_FLAGS -fopenmp)
+    endif()
+
+    # Linked by directory + name, not by full path: the file does not exist at configure time
+    # and has no build rule in this build tree, so a full path would make ninja complain about a
+    # missing input; the add_dependencies above provides the ordering. `-lomp` cannot be spelled
+    # as plain `omp` either, that would name the (utility) target `omp`.
+    if(MSVC)
+      target_link_options(rt-backend-omp PRIVATE "/LIBPATH:${LLVM_LIBRARY_OUTPUT_INTDIR}")
+      target_link_libraries(rt-backend-omp PRIVATE libomp.lib)
+    else()
+      target_link_directories(rt-backend-omp PRIVATE "${LLVM_LIBRARY_OUTPUT_INTDIR}")
+      target_link_libraries(rt-backend-omp PRIVATE -lomp)
+      set_property(TARGET rt-backend-omp APPEND PROPERTY BUILD_RPATH "${LLVM_LIBRARY_OUTPUT_INTDIR}")
+    endif()
+
+    set(OMP_TARGET)
+    set(hipSYCL_OpenMP_CXX_LIBRARIES "${ACPP_BUILDTREE_LIBOMP}")
+    set(hipSYCL_OpenMP_CXX_LIBRARIES "${hipSYCL_OpenMP_CXX_LIBRARIES}" PARENT_SCOPE)
+  elseif(TARGET omp AND ACPP_LLVM_COMPONENT) # openmp built as an LLVM *project* (older LLVM)
     set(OpenMP_CXX_INCLUDE_DIRS ${CMAKE_INSTALL_FULL_INCLUDEDIR})
     get_target_property(hipSYCL_OpenMP_CXX_LIBRARIES omp LINK_LIBRARIES)
     string(JOIN " " hipSYCL_OpenMP_CXX_LIBRARIES ${hipSYCL_OpenMP_CXX_LIBRARIES})

@@ -71,8 +71,11 @@ if(ACPP_LLVM_COMPONENT)
   get_clang_resource_dir(ACPP_DISCOVERED_CLANG_RESOURCE_REL)
   set(ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_DISCOVERED_LLVM_PREFIX}/${ACPP_DISCOVERED_CLANG_RESOURCE_REL}")
 
-  # The parent builds libomp with the toolchain (LLVM_ENABLE_PROJECTS
-  # includes openmp) and installs it into the prefix's library directory.
+  # The parent builds libomp with the toolchain (openmp in
+  # LLVM_ENABLE_RUNTIMES; as an LLVM project only on older LLVM) and
+  # installs it into the prefix's library directory (the DLL into bindir on
+  # Windows). rt-backend-omp is built against that very libomp, see
+  # src/runtime/CMakeLists.txt.
   set(ACPP_DISCOVERED_LIBOMP_DIR
     "${ACPP_DISCOVERED_LLVM_PREFIX}/${ACPP_DISCOVERED_LLVM_LIBDIR}")
 else()
