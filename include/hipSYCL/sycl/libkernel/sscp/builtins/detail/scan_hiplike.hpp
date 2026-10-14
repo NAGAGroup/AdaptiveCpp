@@ -25,13 +25,12 @@ template <int SharedMemorySize, bool ExclusiveScan, typename OutType, typename M
           typename BinaryOperation>
 OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutType init = 0) {
 
-  const __acpp_uint32 wg_lid = __acpp_sscp_typed_get_local_linear_id<3, int>();
-  const __acpp_uint32 max_sg_size = __acpp_sscp_get_subgroup_max_size();
+  const __acpp_uint32 sg_lid = __acpp_sscp_get_subgroup_local_id();
   const __acpp_int32 sg_size = __acpp_sscp_get_subgroup_size();
 
-  const __acpp_uint32 subgroup_id = wg_lid / max_sg_size;
+  const __acpp_uint32 subgroup_id = __acpp_sscp_get_subgroup_id();
 
-  const bool last_item_in_sg = (wg_lid % sg_size) == (sg_size - 1);
+  const bool last_item_in_sg = sg_lid == static_cast<__acpp_uint32>(sg_size - 1);
   OutType sg_scan_result;
   if constexpr (ExclusiveScan) {
     sg_scan_result = sg_exclusive_scan(x, op, init);
@@ -49,7 +48,7 @@ OutType wg_hiplike_scan(OutType x, BinaryOperation op, MemoryType shrd_mem, OutT
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
                                  __acpp_sscp_memory_order::acq_rel);
   if (subgroup_id == 0) {
-    shrd_mem[wg_lid] = sg_inclusive_scan(shrd_mem[wg_lid], op);
+    shrd_mem[sg_lid] = sg_inclusive_scan(shrd_mem[sg_lid], op);
   }
   __acpp_sscp_work_group_barrier(__acpp_sscp_memory_scope::work_group,
                                  __acpp_sscp_memory_order::acq_rel);

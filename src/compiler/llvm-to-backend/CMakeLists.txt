@@ -45,10 +45,21 @@ function(create_llvm_based_library)
   elseif(NOT LLVM_BUILD_LLVM_DYLIB AND NOT WIN32)
     message(FATAL_ERROR "LLVM is not configured to build libLLVM.so. Please disable reconfigure with LLVM_BUILD_LLVM_DYLIB and LLVM_LINK_LLVM_DYLIB.")
   endif()
-  if(WIN32)
+  # When LLVM is a DLL (Windows LLVM_LINK_LLVM_DYLIB), link the DLL like
+  # LLVM's own tools do; linking the static component libraries against
+  # headers that declare dllimport broke the llvm-to-*-tool links
+  # (duplicate std::ctype<char>::_Getcat, run 38602918135).
+  if(WIN32 AND NOT LLVM_LINK_LLVM_DYLIB)
     llvm_config(${target} core support irreader passes)
   else()
     llvm_config(${target} USE_SHARED core support irreader passes)
+  endif()
+  # Match how LLVM compiled its DLL (AddLLVM.cmake: /Zc:dllexportInlines- for
+  # clang-cl with LLVM_BUILD_LLVM_DYLIB_VIS), or inline members are imported
+  # from a DLL that does not export them.
+  if(MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang AND LLVM_BUILD_LLVM_DYLIB_VIS
+     AND NOT LLVM_DYLIB_EXPORT_INLINES)
+    target_compile_options(${target} PRIVATE /Zc:dllexportInlines-)
   endif()
   # We need symbolic functions for stdpar
   target_link_libraries(${target} PRIVATE ${HIPSYCL_STDPAR_RT_LINKER_FLAGS})
@@ -107,6 +118,13 @@ function(create_llvm_to_backend_tool)
   set(sources ${CREATE_LLVM_TOOL_SOURCES})
 
   add_executable(${target}-tool ${sources})
+  # Match how LLVM compiled its DLL (AddLLVM.cmake: /Zc:dllexportInlines- for
+  # clang-cl with LLVM_BUILD_LLVM_DYLIB_VIS), or inline members are imported
+  # from a DLL that does not export them.
+  if(MSVC AND CMAKE_CXX_COMPILER_ID MATCHES Clang AND LLVM_BUILD_LLVM_DYLIB_VIS
+     AND NOT LLVM_DYLIB_EXPORT_INLINES)
+    target_compile_options(${target}-tool PRIVATE /Zc:dllexportInlines-)
+  endif()
 
   target_include_directories(${target}-tool PRIVATE
     ${LLVM_TO_BACKEND_INCLUDE_DIRS})
