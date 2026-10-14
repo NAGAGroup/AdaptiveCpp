@@ -219,8 +219,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
       OptPath, {OptPath, PtxTargetArg, "-O3", InputFileName, "-o", OptOutputFileName});
 
   if(OptR != 0) {
-    this->registerError("LLVMToPtx: opt invocation failed with exit code " +
-                        std::to_string(OptR));
+    this->registerError("LLVMToPtx: opt invocation failed " + describeToolExitCode(OptR));
     return false;
   }
 
@@ -258,8 +257,7 @@ bool LLVMToPtxTranslator::translateToBackendFormat(llvm::Module &FlavoredModule,
   int R = executeAndWait(LLCPath, Invocation);
   
   if(R != 0) {
-    this->registerError("LLVMToPtx: llc invocation failed with exit code " +
-                        std::to_string(R));
+    this->registerError("LLVMToPtx: llc invocation failed " + describeToolExitCode(R));
     return false;
   }
   
