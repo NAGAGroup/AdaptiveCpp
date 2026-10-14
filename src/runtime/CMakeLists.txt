@@ -377,14 +377,15 @@ if(WITH_CPU_BACKEND)
     # sub-build, so find_package(OpenMP) must not be used - it would pick up gcc's libgomp or
     # whatever the host provides, and link a different runtime than the one acpp ships and
     # defaults to. Instead build against the libomp this very build produces:
-    #  - the outer-build target `omp` (llvm/runtimes: one forwarding target per runtime, named
-    #    after the runtime) builds libomp and omp.h in the runtimes sub-build;
+    #  - the outer-build target `openmp` (llvm/runtimes: one forwarding target per entry of
+    #    LLVM_ENABLE_RUNTIMES, named after the runtime; the libomp library target `omp` only
+    #    exists inside the runtimes sub-build) builds libomp and omp.h there;
     #  - omp.h lands in the clang resource dir of the build tree (LIBOMP_HEADERS_INTDIR =
     #    ${LLVM_BINARY_DIR}/lib/clang/<major>/include);
     #  - libomp lands in LLVM_LIBRARY_OUTPUT_INTDIR (add_llvm_library; with
     #    LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF): libomp.so / libomp.dylib, and on Windows the
     #    import library libomp.lib (the DLL goes to the runtime output dir, bin/).
-    add_dependencies(rt-backend-omp omp)
+    add_dependencies(rt-backend-omp openmp)
 
     include(GetClangResourceDir)
     get_clang_resource_dir(OMP_INCLUDE_DIR PREFIX "${LLVM_BINARY_DIR}" SUBDIR include)
@@ -408,7 +409,7 @@ if(WITH_CPU_BACKEND)
     # Linked by directory + name, not by full path: the file does not exist at configure time
     # and has no build rule in this build tree, so a full path would make ninja complain about a
     # missing input; the add_dependencies above provides the ordering. `-lomp` cannot be spelled
-    # as plain `omp` either, that would name the (utility) target `omp`.
+    # as plain `omp` either, should an `omp` target ever exist in this build.
     if(MSVC)
       target_link_options(rt-backend-omp PRIVATE "/LIBPATH:${LLVM_LIBRARY_OUTPUT_INTDIR}")
       target_link_libraries(rt-backend-omp PRIVATE libomp.lib)
