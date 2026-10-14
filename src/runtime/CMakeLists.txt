@@ -381,14 +381,29 @@ if(WITH_CPU_BACKEND)
     #    LLVM_ENABLE_RUNTIMES, named after the runtime; the libomp library target `omp` only
     #    exists inside the runtimes sub-build) builds libomp and omp.h there;
     #  - omp.h lands in the clang resource dir of the build tree (LIBOMP_HEADERS_INTDIR =
-    #    ${LLVM_BINARY_DIR}/lib/clang/<major>/include);
+    #    ${LLVM_BINARY_DIR}/lib/clang/<major>/include). That directory also holds clang's
+    #    BUILTIN headers (stddef.h, __stddef_*.h, ...), which a non-clang host compiler must
+    #    never see: with `-I <resource dir>` the conda GCC picked up clang's stddef.h and failed
+    #    (`__stddef_*.h: missing binary operator before token "("`, run 38570967283). So omp.h
+    #    alone is copied into a private include directory of this target, and only that
+    #    directory is put on the include path (only omp.h is needed: omp_hardware_manager.cpp
+    #    and omp_queue.cpp, and the installed headers, include nothing else of libomp);
     #  - libomp lands in LLVM_LIBRARY_OUTPUT_INTDIR (add_llvm_library; with
     #    LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=OFF): libomp.so / libomp.dylib, and on Windows the
     #    import library libomp.lib (the DLL goes to the runtime output dir, bin/).
     add_dependencies(rt-backend-omp openmp)
 
     include(GetClangResourceDir)
-    get_clang_resource_dir(OMP_INCLUDE_DIR PREFIX "${LLVM_BINARY_DIR}" SUBDIR include)
+    get_clang_resource_dir(ACPP_BUILDTREE_CLANG_INCLUDE PREFIX "${LLVM_BINARY_DIR}" SUBDIR include)
+    set(OMP_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/libomp-include")
+    add_custom_target(acpp-libomp-headers
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${OMP_INCLUDE_DIR}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              "${ACPP_BUILDTREE_CLANG_INCLUDE}/omp.h" "${OMP_INCLUDE_DIR}/omp.h"
+      BYPRODUCTS "${OMP_INCLUDE_DIR}/omp.h"
+      COMMENT "Copying omp.h out of the clang resource directory")
+    add_dependencies(acpp-libomp-headers openmp)
+    add_dependencies(rt-backend-omp acpp-libomp-headers)
 
     if(WIN32)
       set(ACPP_BUILDTREE_LIBOMP "${LLVM_LIBRARY_OUTPUT_INTDIR}/libomp${CMAKE_STATIC_LIBRARY_SUFFIX}")
