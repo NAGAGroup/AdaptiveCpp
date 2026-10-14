@@ -234,6 +234,9 @@ if(WITH_SSCP_COMPILER)
       GIT_TAG ${LLVMSPIRV_GIT_TAG}
       GIT_SHALLOW ${LLVMSPIRV_GIT_SHALLOW}
       GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
+      # The translator's test tree has paths beyond MAX_PATH; the win-64 clone hit 17
+      # "Filename too long" checkout errors (runs 38570967283 and 38577744298).
+      GIT_CONFIG core.longpaths=true
       BUILD_ALWAYS OFF
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv
       CMAKE_ARGS
