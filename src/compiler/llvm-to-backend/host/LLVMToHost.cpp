@@ -11,6 +11,7 @@
 #include "hipSYCL/compiler/llvm-to-backend/host/LLVMToHost.hpp"
 
 #include "hipSYCL/common/debug.hpp"
+#include "hipSYCL/common/settings.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/dylib_loader.hpp"
 #include "hipSYCL/compiler/cbs/IRUtils.hpp"
@@ -311,8 +312,15 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
   const std::string LLCPath = getLLCPath();
   const std::string LLDPath = getLLDPath();
 
-  const std::string LlcCpuFlag = ACPP_LLC_HOST_CPU_FLAG;
-  const std::string OptCpuFlag = ACPP_OPT_HOST_CPU_FLAG;
+  // JIT settings, read at run time like the tool paths above (env ACPP_JIT_HOST_*,
+  // beside-exe files, installed acpp-app.cfg). Unset or empty means: do not
+  // push the flag. These strings must outlive the invocation vectors below,
+  // which hold StringRefs into them.
+  std::string LlcCpuFlag, OptCpuFlag, LlcExtra, OptExtra;
+  common::settings::try_retrieve_settings_variable("jit_host_llc_cpu_flag", LlcCpuFlag);
+  common::settings::try_retrieve_settings_variable("jit_host_opt_cpu_flag", OptCpuFlag);
+  common::settings::try_retrieve_settings_variable("jit_host_llc_flags", LlcExtra);
+  common::settings::try_retrieve_settings_variable("jit_host_opt_flags", OptExtra);
 
 
   llvm::SmallVector<llvm::StringRef, 16> OptInvocation{OptPath,
@@ -512,10 +520,9 @@ bool LLVMToHostTranslator::translateToBackendFormat(llvm::Module &FlavoredModule
              "math library.\n";
   }
 
-  const llvm::StringRef AdditionalLlcFlags = ACPP_LLC_ADDITIONAL_FLAGS;
-  const llvm::StringRef AdditionalOptFlags = ACPP_OPT_ADDITIONAL_FLAGS;
-  AdditionalLlcFlags.split(LlcInvocation, ' ', -1, false);
-  AdditionalOptFlags.split(OptInvocation, ' ', -1, false);
+  // Extra flags: split on spaces; the pieces point into LlcExtra/OptExtra above.
+  llvm::StringRef{LlcExtra}.split(LlcInvocation, ' ', -1, false);
+  llvm::StringRef{OptExtra}.split(OptInvocation, ' ', -1, false);
 
   auto getInvocationAsString = [](const auto& I) {
     std::string S;

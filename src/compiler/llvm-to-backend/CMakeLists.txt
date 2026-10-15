@@ -320,24 +320,17 @@ if(WITH_SSCP_COMPILER)
 
 
   if(WITH_LLVM_TO_HOST)
-    # The CPU flags and additional JIT flags are configuration entries. The
-    # default
-    # -mcpu=native is resolved by llc on the machine doing the JIT, so nothing
-    # about the build machine is recorded; pinning a CPU is
-    # -DACPP_LLC_HOST_CPU_FLAG="-mcpu=<cpu>" at configure time, or the entry
-    # at run time.
-    message(STATUS "llvm-to-host: Using llc compilation flag to target native CPU: ${ACPP_LLC_HOST_CPU_FLAG}")
+    # The CPU flags and additional JIT flags are run-time settings read by
+    # LLVMToHost.cpp (jit_host_llc_cpu_flag, jit_host_opt_cpu_flag,
+    # jit_host_llc_flags, jit_host_opt_flags), not compile definitions. Their
+    # defaults (-mcpu=native / --mcpu=native) are the configure-time options
+    # ACPP_JIT_HOST_* (cmake/options/common/core.cmake) written into acpp-app.cfg.
 
     add_hipsycl_llvm_backend(
       BACKEND host
       LIBRARY host/LLVMToHost.cpp host/HostKernelWrapperPass.cpp host/StaticLocalMemoryPass.cpp
       TOOL host/LLVMToHostTool.cpp)
 
-    target_compile_definitions(llvm-to-host PRIVATE
-      -DACPP_LLC_HOST_CPU_FLAG="${ACPP_LLC_HOST_CPU_FLAG}"
-      -DACPP_OPT_HOST_CPU_FLAG="${ACPP_OPT_HOST_CPU_FLAG}"
-      -DACPP_LLC_ADDITIONAL_FLAGS="${ACPP_LLC_ADDITIONAL_FLAGS}"
-      -DACPP_OPT_ADDITIONAL_FLAGS="${ACPP_OPT_ADDITIONAL_FLAGS}")
     target_link_libraries(llvm-to-host PRIVATE acpp-clang-cbs)
   endif()
 
