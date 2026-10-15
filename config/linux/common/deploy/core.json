@@ -62,21 +62,27 @@
     }
   ],
 
-  "external-permissive": [
+  "sleef": [
     {
       "src": "{{ sleef-install-root }}",
       "dest": "{{ acpp-runtime-root }}/{{ sleef-subdir }}",
       "files": [
         "SHARED_LIB:sleefgnuabi"
       ]
-    },
+    }
+  ],
+
+  "amath": [
     {
       "src": "{{ amath-install-root }}",
       "dest": "{{ acpp-runtime-root }}/{{ amath-subdir }}",
       "files": [
         "SHARED_LIB:amath"
       ]
-    },
+    }
+  ],
+
+  "libnuma": [
     {
       "src": "{{ libnuma-install-root }}",
       "dest": "{{ acpp-runtime-root }}/{{ libnuma-subdir }}",
@@ -84,7 +90,5 @@
         "SHARED_LIB:numa"
       ]
     }
-  ],
-
-  "external-nonpermissive": []
+  ]
 }

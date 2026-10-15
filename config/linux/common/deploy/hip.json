@@ -32,7 +32,7 @@
       "files": ["*"]
     }
   ],
-  "external-permissive": [
+  "hip": [
     {
       "src": "{{ hip-install-root }}/{{ hip-rt-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ hip-subdir }}/{{ hip-rt-subdir }}",

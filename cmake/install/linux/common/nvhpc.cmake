@@ -3,7 +3,7 @@
 #
 # See cmake/install/linux/common/cuda.cmake for the shared reasoning. A
 # no-op unless ACPP_NVHPC_SHIPPED. config/linux/common/deploy/nvhpc.json's
-# sole external-nonpermissive row copies the whole RT subdir (files=["*"]):
+# sole nvhpc row copies the whole RT subdir (files=["*"]):
 # ACPP_DISCOVERED_NVHPC_PREFIX is already the SDK's REDIST root, so RT
 # (compilers/lib under it) is the entire redistributable runtime, not a
 # single library - no toolchain-only pieces beyond it (the compiler itself,

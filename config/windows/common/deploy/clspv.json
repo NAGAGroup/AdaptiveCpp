@@ -1,11 +1,10 @@
 {
   "internal": [],
-  "external-permissive": [
+  "clspv": [
     {
       "src": "{{ clspv-install-root }}/{{ clspv-bin-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ clspv-subdir }}/{{ clspv-bin-subdir }}",
       "files": ["clspv.exe"]
     }
-  ],
-  "external-nonpermissive": []
+  ]
 }

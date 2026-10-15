@@ -5,7 +5,7 @@
 # for LIBNUMA/SLEEF/AMATH), not to any WITH_*_BACKEND unit, so the root
 # includes this file unconditionally rather than gating it through
 # ACPP_UNITS. See config/linux/common/deploy/core.json's
-# external-permissive rows for where these names came from - each a
+# per-vendor rows for where these names came from - each a
 # single library with no internal lib/include/bin split, hence no FACT.
 # svml/intlc are x86_64-only and live in cmake/install/linux/x86_64/
 # core.cmake instead (cmake/options/linux/x86_64/core.cmake is where

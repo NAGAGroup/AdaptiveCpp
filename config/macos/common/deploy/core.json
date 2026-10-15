@@ -60,9 +60,5 @@
         "SHARED_LIB:LLVM"
       ]
     }
-  ],
-
-  "external-permissive": [],
-
-  "external-nonpermissive": []
+  ]
 }

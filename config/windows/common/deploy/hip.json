@@ -16,7 +16,7 @@
       "files": ["libkernel-sscp-amdgpu-amdhsa-full.bc"]
     }
   ],
-  "external-permissive": [
+  "hip": [
     {
       "src": "{{ hip-install-root }}/{{ hip-bin-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ hip-subdir }}/{{ hip-bin-subdir }}",

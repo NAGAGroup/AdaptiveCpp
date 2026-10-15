@@ -16,12 +16,11 @@
       "files": ["libkernel-sscp-clspv-full.bc"]
     }
   ],
-  "external-permissive": [
+  "vk": [
     {
       "src": "{{ vk-install-root }}/{{ vk-rt-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ vk-subdir }}/{{ vk-rt-subdir }}",
       "files": ["SHARED_LIB:vulkan"]
     }
-  ],
-  "external-nonpermissive": []
+  ]
 }

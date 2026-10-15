@@ -1,8 +1,7 @@
 {
   "internal": [],
   "llvm": [],
-  "external-permissive": [],
-  "external-nonpermissive": [
+  "svml": [
     {
       "src": "{{ svml-install-root }}",
       "dest": "{{ acpp-runtime-root }}/{{ svml-subdir }}",

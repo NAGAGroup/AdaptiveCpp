@@ -11,7 +11,7 @@
       "files": ["libkernel-sscp-spirv-full.bc"]
     }
   ],
-  "external-permissive": [
+  "ze": [
     {
       "src": "{{ ze-install-root }}/{{ ze-rt-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ ze-subdir }}/{{ ze-rt-subdir }}",

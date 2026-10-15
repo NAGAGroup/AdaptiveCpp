@@ -16,7 +16,7 @@
       "files": ["libkernel-sscp-ptx-full.bc"]
     }
   ],
-  "external-nonpermissive": [
+  "cuda": [
     {
       "src": "{{ cuda-install-root }}/{{ cuda-rt-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ cuda-subdir }}/{{ cuda-rt-subdir }}",

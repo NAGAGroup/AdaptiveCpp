@@ -11,7 +11,7 @@
       "files": ["libkernel-sscp-spirv-full.bc"]
     }
   ],
-  "external-permissive": [
+  "ocl": [
     {
       "src": "{{ ocl-install-root }}/{{ ocl-bin-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ ocl-subdir }}/{{ ocl-bin-subdir }}",

@@ -4,7 +4,7 @@
 # See cmake/install/windows/common/cuda.cmake for the shared reasoning and
 # cmake/acpp-vendor-install.cmake for the helpers. A no-op unless
 # ACPP_HIP_SHIPPED. Rows taken from config/windows/common/deploy/hip.json's
-# external-permissive group (the SDK's DLLs, BITCODE) plus the
+# hip group (the SDK's DLLs, BITCODE) plus the
 # toolchain-only import library and header tree, never deployed with an
 # application.
 #

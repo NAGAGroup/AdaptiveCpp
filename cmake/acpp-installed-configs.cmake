@@ -107,13 +107,19 @@ endfunction()
 
 function(_acpp_filter_deploy_json result_var deploy_json)
   set(_result "${deploy_json}")
-  foreach(_group internal llvm external-permissive external-nonpermissive app-config)
-    string(JSON _arr ERROR_VARIABLE _err GET "${_result}" "${_group}")
-    if(NOT _err)
+  # Every member of the manifest object is a group (internal, llvm,
+  # app-config, or a vendor's lower name). Iterate over the input, not the
+  # result being rewritten.
+  string(JSON _nmembers LENGTH "${deploy_json}")
+  if(_nmembers GREATER 0)
+    math(EXPR _nlast "${_nmembers} - 1")
+    foreach(_gi RANGE 0 ${_nlast})
+      string(JSON _group MEMBER "${deploy_json}" ${_gi})
+      string(JSON _arr GET "${deploy_json}" "${_group}")
       _acpp_filter_deploy_group(_filtered "${_arr}")
       string(JSON _result SET "${_result}" "${_group}" "${_filtered}")
-    endif()
-  endforeach()
+    endforeach()
+  endif()
   set(${result_var} "${_result}" PARENT_SCOPE)
 endfunction()
 

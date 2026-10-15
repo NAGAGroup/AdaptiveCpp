@@ -15,7 +15,5 @@
       "dest": "{{ acpp-runtime-root }}/{{ acpp-libdir }}/hipSYCL/bitcode",
       "files": ["libkernel-sscp-clspv-full.bc"]
     }
-  ],
-  "external-permissive": [],
-  "external-nonpermissive": []
+  ]
 }

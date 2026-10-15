@@ -1,5 +1,5 @@
 {
-  "external-nonpermissive": [
+  "nvhpc": [
     {
       "src": "{{ nvhpc-install-root }}/{{ nvhpc-rt-subdir }}",
       "dest": "{{ acpp-runtime-root }}/{{ nvhpc-subdir }}/{{ nvhpc-rt-subdir }}",
