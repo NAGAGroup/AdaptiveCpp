@@ -14,6 +14,7 @@
 #include <memory>
 #include <string_view>
 
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/pcuda/pcuda_runtime.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
@@ -604,6 +605,7 @@ ACPP_PCUDA_API pcudaError_t pcudaAllocateHost(void** ptr, size_t s) {
 ACPP_PCUDA_API pcudaError_t pcudaAllocateShared(void **ptr, size_t s,
                                                unsigned int flags) {
   return_if_prior_error();
+  HIPSYCL_DEBUG_INFO << "pcudaAllocateShared: entry" << std::endl;
 
   if(!ptr)
     return pcudaErrorInvalidValue;
@@ -611,13 +613,16 @@ ACPP_PCUDA_API pcudaError_t pcudaAllocateShared(void **ptr, size_t s,
   auto* dev = get_current_device_id();
   if(!dev)
     return pcudaErrorNoDevice;
+  HIPSYCL_DEBUG_INFO << "pcudaAllocateShared: device ok" << std::endl;
 
   pcudaError_t lookup_err = pcudaSuccess;
   auto* allocator = get_allocator_checked(*dev, "pcudaAllocateShared", lookup_err);
   if(!allocator)
     return lookup_err;
+  HIPSYCL_DEBUG_INFO << "pcudaAllocateShared: allocator ok" << std::endl;
 
   void* mem = allocate_shared(allocator, s, {});
+  HIPSYCL_DEBUG_INFO << "pcudaAllocateShared: allocated" << std::endl;
   if(!mem)
     return pcudaErrorMemoryAllocation;
   *ptr = mem;
