@@ -533,58 +533,13 @@ set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
 
 set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Which filesystem libraries should be searched for")
 
-# Vector math library discovery. The add_definitions that turn these results
-# into compile definitions remain in src/compiler and read the variables set
-# here. Defaults: x86 Linux uses svml when found, else libmvec; aarch64 Linux
-# uses libmvec; macOS and Windows use none. The user can override with
-# -DACPP_VECTOR_MATH_LIB; sleef and armpl are selectable but never default.
+# Default vector math library for the host JIT. Linux defaults to libmvec, which the JIT finds through the loader at run time; x86 Linux uses SVML instead when it is found. macOS and Windows default to none. -DACPP_VECTOR_MATH_LIB overrides.
 if(APPLE OR WIN32)
   # Windows x86: conda-forge's intel-cmplr-lib-rt ships svml_dispmd.dll without an import library, so the JIT cannot link SVML there.
   message(STATUS "No vector math library by default on this platform")
   set(DEFAULT_VEC_MATH_LIB none)
 else()
-  set(DEFAULT_VEC_MATH_LIB none)
-
-  #LIBMVEC
-  find_library(LIBMVEC NAMES mvec)
-
-  if(LIBMVEC)
-    #Check that libmvec is recent enough
-    include(CheckFunctionExists)
-    set(CMAKE_REQUIRED_LIBRARIES "${LIBMVEC}")
-    if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
-      check_function_exists("_ZGVnN2v_atanhf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
-    else()
-      check_function_exists("_ZGVdN8v_tanf" LIBMVEC_HAS_REQUIRED_SYMBOLS)
-    endif()
-    unset(CMAKE_REQUIRED_LIBRARIES)
-
-    #Check clang support libmvec
-    set(CLANG_SUPPORT_LIBMVEC true)
-    if(${LLVM_VERSION_MAJOR} LESS 21)
-      #Only clang 21+ support libmvec on aarch64
-      if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
-        set(CLANG_SUPPORT_LIBMVEC false)
-      endif()
-    endif()
-  endif()
-
-  if(LIBMVEC AND LIBMVEC_HAS_REQUIRED_SYMBOLS AND CLANG_SUPPORT_LIBMVEC)
-    # find_library's answer is used to DETECT libmvec here and nowhere else.
-    # Its path is deliberately not compiled in: libmvec is part of glibc, so
-    # the only correct copy is the one the dynamic loader resolves in the
-    # process that is JIT-compiling, which is the user's application and not
-    # this build. getLibMvecDir() asks the loader for it at run time.
-    set(DEFAULT_VEC_MATH_LIB libmvec)
-
-    message( STATUS "LIBMVEC found at ${LIBMVEC}")
-  elseif(NOT LIBMVEC)
-    message(STATUS "LIBMVEC was not found")
-  elseif(NOT LIBMVEC_HAS_REQUIRED_SYMBOLS)
-    message(STATUS "LIBMVEC found at ${LIBMVEC}, but does not provide required functions (likely too old)")
-  elseif(NOT CLANG_SUPPORT_LIBMVEC)
-    message(STATUS "LIBMVEC was found at ${LIBMVEC}, but the detected LLVM version (${LLVM_VERSION_MAJOR}) does not support LIBMVEC.")
-  endif()
+  set(DEFAULT_VEC_MATH_LIB libmvec)
 
   #SLEEF
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm|aarch64)")
@@ -801,9 +756,6 @@ endif()
 # runtime compiles MSL through the system Metal framework at run time, so
 # there is nothing to ship), only a deploy manifest fragment
 # (config/macos/common/deploy/metal.json) for the libraries WE build.
-# WITH_METAL_BACKEND is read (src/CMakeLists.txt, src/runtime/CMakeLists.
-# txt) but, like WITH_LEVEL_ZERO_BACKEND, not yet given a discovery-based
-# default here - a later step's job, not this one's.
 if(WITH_METAL_BACKEND)
   list(APPEND ACPP_UNITS metal)
 endif()

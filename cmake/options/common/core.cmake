@@ -433,6 +433,7 @@ acpp_declare_vendor_root(LIBOMP libomp ACPP_LIBOMP_SOURCE_DIR "${ACPP_LIBOMP_SOU
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS AND "${ACPP_LIBOMP_ROOT}" STREQUAL "")
   if(WIN32)
     set(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-bindir }}")
+    set(ACPP_LIBOMP_APP_ROOT "\$ACPP_RT_LIB_DIR")
   else()
     set(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-libdir }}")
   endif()

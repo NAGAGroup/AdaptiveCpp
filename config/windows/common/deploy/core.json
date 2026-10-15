@@ -49,7 +49,8 @@
       "files": [
         "llc.exe",
         "opt.exe",
-        "lld-link.exe"
+        "lld-link.exe",
+        "SHARED_LIB:{{ llvm-dylib-name }}"
       ]
     }
   ]

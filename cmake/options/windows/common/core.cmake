@@ -48,6 +48,7 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # The host JIT links COFF with lld-link.
   acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/lld-link.exe")
   set(ACPP_APP_LLD "")  # empty: resolved at run time from the bundled path
+  set(ACPP_LLVM_DYLIB_NAME "LLVM-${LLVM_VERSION_MAJOR}${LLVM_VERSION_SUFFIX}")
   # clang's resource directory, as LLVM installs it
   # (lib${LLVM_LIBDIR_SUFFIX}/clang/<ver>, which need not be
   # CMAKE_INSTALL_LIBDIR): the hip flow passes it with -isystem.
@@ -59,6 +60,7 @@ else()
   acpp_declare_machine_resource(OPT ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/opt.exe")
   acpp_declare_machine_resource(LLD ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/lld-link.exe")
   acpp_declare_machine_resource(CLANG_INCLUDE_PATH ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_DISCOVERED_CLANG_INCLUDE}")
+  set(ACPP_LLVM_DYLIB_NAME "")
 endif()
 
 # llvm-spirv is not LLVM's: AdaptiveCpp builds its own fork of the

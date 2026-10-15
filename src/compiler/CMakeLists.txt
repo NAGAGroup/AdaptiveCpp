@@ -24,33 +24,7 @@ if(WITH_ACCELERATED_CPU)
   add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)
 endif()
 
-#MATH VECTOR LIBRARY
-# The discovery and the DEFAULT_VEC_MATH_LIB selection live in the root
-# CMakeLists; the variables they set (LIBMVEC and
-# its checks, LIBSLEEF, LIBAMATH, LIBSVML, LIBINTLC, DEFAULT_VEC_MATH_LIB) are
-# inherited here. What remains in this file is the macro side: the compile
-# definitions the compiler sources consume, derived from those results.
-# The vector math libraries have no compile definitions and no availability
-# macros. Every code path compiles unconditionally: the guarded code only ever
-# built a link line, so none of these libraries has to be present to compile
-# the one that uses it. Which library a kernel uses is decided when the
-# application runs, and where it lives is a configuration entry the JIT reads
-# through common::settings - ACPP_SLEEF_DIR, ACPP_AMATH_DIR, ACPP_SVML_DIR.
-#
-# libmvec is the exception and needs no entry either: it is part of glibc, so
-# the only correct copy is the one the dynamic loader resolves for the running
-# process, which getLibMvecDir() asks it for directly.
-#
-# The discovery results (LIBSLEEF, LIBAMATH, LIBSVML, LIBINTLC, LIBMVEC) are
-# still used - by the options that seed those configuration entries, and by
-# the deploy manifests that copy the libraries - but nothing reaches the
-# compiler sources any more.
-
-# No DEFAULT_VEC_MATH_LIB compile definition: which library the JIT uses is
-# read from the application's configuration at run time, and the last-resort
-# default lives in LLVMToHost.hpp. A build machine cannot decide this - it may
-# find several libraries at once, and it is not the machine the application
-# runs on.
+# Vector math libraries need no compile definitions: the JIT reads which one to use and where it lives from the configuration at run time.
 
 if(WITH_ACCELERATED_CPU OR WITH_SSCP_COMPILER)
   set(CBS_PLUGIN cbs/LoopSplitterInlining.cpp
