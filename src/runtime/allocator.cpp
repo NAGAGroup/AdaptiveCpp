@@ -9,7 +9,6 @@
  */
 // SPDX-License-Identifier: BSD-2-Clause
 
-#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/runtime/allocator.hpp"
 #include "hipSYCL/runtime/allocation_tracker.hpp"
 #include "hipSYCL/runtime/application.hpp"
@@ -46,13 +45,11 @@ void *allocate_host(backend_allocator *alloc, size_t min_alignment,
 void *allocate_shared(backend_allocator *alloc, size_t bytes,
                       const allocation_hints &hints) {
   auto* ptr = alloc->raw_allocate_usm(bytes, hints);
-  HIPSYCL_DEBUG_INFO << "allocate_shared: raw_allocate_usm returned " << ptr << std::endl;
   if(ptr) {
     application::event_handler_layer().on_new_allocation(
         ptr, bytes,
         allocation_info{alloc->get_device(),
                         allocation_info::allocation_type::host});
-    HIPSYCL_DEBUG_INFO << "allocate_shared: event handlers notified" << std::endl;
   }
   return ptr;
 }
