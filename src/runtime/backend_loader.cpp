@@ -121,7 +121,7 @@ std::vector<fs::path> get_plugin_search_paths()
   for(const char* setting_name :
       {"cuda_dll_dir", "hip_dll_dir", "ocl_dll_dir", "ze_dll_dir", "libomp_dll_dir"}) {
     std::string dll_dir;
-    if(hipsycl::common::settings::try_retrieve_settings_variable(setting_name, dll_dir) &&
+    if(hipsycl::common::settings::try_resolve_vendor_path(setting_name, dll_dir) &&
        !dll_dir.empty() && fs::is_directory(dll_dir)) {
       AddDllDirectory(fs::path{dll_dir}.c_str());
     }

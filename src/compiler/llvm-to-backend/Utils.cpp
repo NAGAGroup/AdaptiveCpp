@@ -153,7 +153,7 @@ std::string getLibSleefDir() {
   if (!path.empty())
     return path;
 
-  common::settings::try_retrieve_settings_variable("sleef_dir", path);
+  common::settings::try_resolve_vendor_path("sleef_dir", path);
   return path;
 }
 
@@ -162,7 +162,7 @@ std::string getLibAmathDir() {
   if (!path.empty())
     return path;
 
-  common::settings::try_retrieve_settings_variable("amath_dir", path);
+  common::settings::try_resolve_vendor_path("amath_dir", path);
   return path;
 }
 
@@ -171,7 +171,7 @@ std::string getLibSvmlDir() {
   if (!path.empty())
     return path;
 
-  common::settings::try_retrieve_settings_variable("svml_dir", path);
+  common::settings::try_resolve_vendor_path("svml_dir", path);
   return path;
 }
 
