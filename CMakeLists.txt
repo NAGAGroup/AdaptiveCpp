@@ -533,8 +533,8 @@ set(ACPP_CONFIG_FILE_INSTALL_DIR etc/AdaptiveCpp)
 
 set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Which filesystem libraries should be searched for")
 
-# Default vector math library for the host JIT. Linux defaults to libmvec, which the JIT finds through the loader at run time; x86 Linux uses SVML instead when it is found. macOS and Windows default to none. -DACPP_VECTOR_MATH_LIB overrides.
-if(APPLE OR WIN32)
+# Default vector math library for the host JIT. Linux defaults to libmvec, which the JIT finds through the loader at run time; x86 Linux uses SVML instead when it is found. macOS, Windows and Android (bionic has no libmvec) default to none. -DACPP_VECTOR_MATH_LIB overrides.
+if(APPLE OR WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Android")
   # Windows x86: conda-forge's intel-cmplr-lib-rt ships svml_dispmd.dll without an import library, so the JIT cannot link SVML there.
   message(STATUS "No vector math library by default on this platform")
   set(DEFAULT_VEC_MATH_LIB none)
@@ -606,7 +606,8 @@ endif()
 
 include(${ACPP_SOURCE_ROOT}/cmake/discovery.cmake)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+# Android uses the Linux options, config and install trees.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
   set(ACPP_OPTIONS_PLATFORM "linux")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(ACPP_OPTIONS_PLATFORM "macos")
@@ -616,7 +617,7 @@ else()
   message(FATAL_ERROR
     "AdaptiveCpp's options model has no directory for "
     "CMAKE_SYSTEM_NAME='${CMAKE_SYSTEM_NAME}'; supported platforms are "
-    "Linux, Darwin and Windows.")
+    "Linux, Android, Darwin and Windows.")
 endif()
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")

@@ -51,3 +51,7 @@ else()
   endif()
   unset(_acpp_clspv_dir)
 endif()
+# Upstream's -D name for clspv's run-time path (an Android build names the on-device path).
+if(DEFINED ACPP_CLSPV_PATH)
+  set(ACPP_APP_CLSPV "${ACPP_CLSPV_PATH}")
+endif()

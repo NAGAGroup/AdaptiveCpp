@@ -29,7 +29,7 @@
 #endif
 #include <windows.h>
 #endif
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 #include <dlfcn.h>
 #include <link.h>
 #endif
@@ -188,7 +188,7 @@ std::string getLibMvecDir() {
   if (!path.empty())
     return path;
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
   // libmvec is part of glibc, so the only correct copy is the one the dynamic
   // loader resolves for this process: it must match the libc the process is
   // running against. That process is the application being JIT-compiled, not

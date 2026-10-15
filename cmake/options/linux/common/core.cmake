@@ -66,6 +66,14 @@ else()
   acpp_declare_machine_resource(LLD ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_BINDIR}/ld.lld")
   acpp_declare_machine_resource(CLANG_INCLUDE_PATH ACPP_DISCOVERED_CLANG_INCLUDE "${ACPP_DISCOVERED_CLANG_INCLUDE}")
 endif()
+# Upstream's -D names for where the JIT finds llc, opt and ld.lld at run time.
+# A cross build (Android) uses them to name the tools' on-device paths.
+foreach(_acpp_tool LLC OPT LLD)
+  if(DEFINED ACPP_${_acpp_tool}_PATH)
+    set(ACPP_APP_${_acpp_tool} "${ACPP_${_acpp_tool}_PATH}")
+  endif()
+endforeach()
+unset(_acpp_tool)
 
 # llvm-spirv is not LLVM's: AdaptiveCpp builds its own fork of the
 # SPIRV-LLVM-Translator and installs it under its own library directory
