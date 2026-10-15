@@ -13,7 +13,7 @@ include_guard(GLOBAL)
 find_program(NVCXX_COMPILER NAMES nvc++)
 
 # Probing happens first, into locals: found-but-incomplete (nvc++ found but
-# no REDIST runtime) must not FATAL_ERROR now that discovery runs
+# no REDIST runtime) must not FATAL_ERROR, since discovery runs
 # unconditionally - it warns and the export below lands in the same
 # not-found state as nvc++ not being found at all. Explicitly requesting
 # the nvcxx flow still fails, from the root's own check.

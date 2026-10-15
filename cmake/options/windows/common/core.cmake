@@ -7,18 +7,17 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
 #
-# LLVM has no deploy-path knob of its own any more: what toolchain mode
-# builds follows cmake's own install directory under {{ acpp-root }}
-# ({{ acpp-bindir }}) directly. Windows toolchains are linked into LLVM
-# (installing.md); the plugin branches below are kept only for shape,
-# because plugin mode never bundles LLVM (rule 2).
+# LLVM has no deploy-path knob: what toolchain mode builds follows cmake's own
+# install directory under {{ acpp-root }} ({{ acpp-bindir }}) directly.
+# Windows toolchains are linked into LLVM (installing.md); the plugin
+# branches below are kept only for shape, because plugin mode never bundles
+# LLVM.
 #
-# Where libomp.dll lands. libomp is declared unconditionally, in both build
-# modes, by the common file (principle 3: an ordinary vendor unit, not a
-# build-mode branch) - see its "OMP" section - and the application-config
-# declaration this platform keeps regardless: Windows has no RUNPATH, so a
-# deployed app's own AddDllDirectory call still needs to be told where
-# libomp.dll landed.
+# libomp is declared unconditionally, in both build modes, by the common file
+# (an ordinary vendor unit, not a build-mode branch) - see its "OMP" section
+# - and the application-config declaration this platform keeps regardless:
+# Windows has no RUNPATH, so a deployed app's own AddDllDirectory call still
+# needs to be told where libomp.dll landed.
 
 # libomp's own vendor unit is declared unconditionally by the common file,
 # but its application-config root is kept only here: Windows has no
@@ -33,11 +32,11 @@ acpp_declare_vendor_app_root(LIBOMP libomp)
 # The device compiler and the LLVM executables
 # ---------------------------------------------------------------------------
 #
-# Ownership, not deployment strategy, decides which shape these take; see
-# linux/common/core.cmake's comment, unchanged here.
+# Ownership decides which shape these take; see linux/common/core.cmake's
+# comment.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
-  # Concrete now, not a {{ }} template: acpp_declare_owned_resource's
+  # Concrete, not a {{ }} template: acpp_declare_owned_resource's
   # application side is written by configure_file, which resolves nothing.
   acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++.exe")
   set(ACPP_APP_DEVICE_CMPLR "")  # empty: resolved at run time from the bundled path
@@ -66,8 +65,8 @@ endif()
 # llvm-spirv is not LLVM's: AdaptiveCpp builds its own fork of the
 # SPIRV-LLVM-Translator and installs it under its own directory
 # (doc/install-ocl.md), independent of cmake's own LLVM install dirs. Ours
-# in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
-# not - always the deploy-layout placeholder, in every strategy.
+# in BOTH modes - the machine's LLVM never supplies it, plugin or not -
+# always the deploy-layout placeholder.
 acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv.exe")
 set(ACPP_APP_LLVMSPIRV "")  # empty: resolved at run time from hipSYCL/ext/llvm-spirv/bin
 
@@ -78,7 +77,7 @@ set(ACPP_APP_LLVMSPIRV "")  # empty: resolved at run time from hipSYCL/ext/llvm-
 # Driver-only resources
 # ---------------------------------------------------------------------------
 
-# Ownership, not strategy, decides cpu-cxx's shape; see linux's comment.
+# Ownership decides cpu-cxx's shape; see linux's comment.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   set(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++.exe")
 else()

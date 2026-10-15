@@ -27,8 +27,8 @@ acpp_declare_vendor_subdir_fact(CUDA INCLUDE ACPP_DISCOVERED_CUDA_INCDIR "${ACPP
 acpp_declare_vendor_subdir_fact(CUDA BIN ACPP_DISCOVERED_CUDA_BINDIR "${ACPP_DISCOVERED_CUDA_BINDIR}")
 acpp_declare_vendor_subdir_fact(CUDA LIBDEVICE ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR "${ACPP_DISCOVERED_CUDA_LIBDEVICE_DIR}")
 
-# The application's own view of each (D7): the manifest's app-config
-# section embeds these via @VAR@; Piece 3's concern to wire in.
+# The application's own view of each: the manifest's app-config section
+# embeds these via @VAR@.
 acpp_declare_vendor_app_dir(CUDA cuda RT)
 acpp_declare_vendor_app_dir(CUDA cuda INCLUDE)
 acpp_declare_vendor_app_dir(CUDA cuda BIN)
@@ -43,10 +43,9 @@ acpp_declare_vendor_app_dir(CUDA cuda LIBDEVICE)
 # own value already carries the branch (see acpp_declare_vendor_root).
 # libcuda is the driver's, reached separately.
 #
-# No -Wl,-rpath here: the CLI driver never adds rpaths by itself (doc/
-# design-walkthrough-2026-09-25.md, "Driving") - an app builder driving
-# the multipass flow by hand owns its own link, and a CMake app gets its
-# rpath from add_sycl_to_target (Commit 6, ACPP_APP_INSTALL_RPATH).
+# No -Wl,-rpath here: the CLI driver never adds rpaths by itself - an app
+# builder driving the multipass flow by hand owns its own link, and a CMake
+# app gets its rpath from add_sycl_to_target (ACPP_APP_INSTALL_RPATH).
 
 if(NOT DEFINED ACPP_CUDA_LINK_LINE)
   set(ACPP_CUDA_LINK_LINE "-L{{ cuda-install-root }}/{{ cuda-rt-subdir }} -lcudart")

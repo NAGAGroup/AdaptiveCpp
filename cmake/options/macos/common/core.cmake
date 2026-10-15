@@ -7,15 +7,13 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
 #
-# LLVM has no deploy-path knob of its own any more: what toolchain mode
-# builds follows cmake's own install directory under {{ acpp-root }}
-# ({{ acpp-libdir }}) directly. In plugin mode LLVM is the machine's
-# (rule 2): it is never bundled at all.
+# LLVM has no deploy-path knob: what toolchain mode builds follows cmake's own
+# install directory under {{ acpp-root }} ({{ acpp-libdir }}) directly. In
+# plugin mode LLVM is the machine's: it is never bundled at all.
 #
-# Where libomp lands. libomp is declared unconditionally, in both build
-# modes, by the common file (principle 3: an ordinary vendor unit, not a
-# build-mode branch) - see its "OMP" section; see linux/common/core.cmake's
-# comment, unchanged here.
+# libomp is declared unconditionally, in both build modes, by the common file
+# (an ordinary vendor unit, not a build-mode branch) - see its "OMP" section
+# and linux/common/core.cmake's comment.
 
 # No libnuma on macOS.
 
@@ -28,8 +26,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # toolchain while compiling, the JIT invokes it from the deployment while an
 # application runs, and those need not be the same binary.
 #
-# Ownership, not deployment strategy, decides which shape these take; see
-# linux/common/core.cmake's comment, unchanged here.
+# Ownership decides which shape these take; see linux/common/core.cmake's
+# comment.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # Toolchain mode's own LLVM tools live in CMAKE_INSTALL_BINDIR under the
@@ -59,8 +57,8 @@ endif()
 # llvm-spirv is not LLVM's: AdaptiveCpp builds its own fork of the
 # SPIRV-LLVM-Translator and installs it under its own library directory
 # (doc/install-ocl.md), independent of cmake's own LLVM install dirs. Ours
-# in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
-# not - always the deploy-layout placeholder, in every strategy.
+# in BOTH modes - the machine's LLVM never supplies it, plugin or not -
+# always the deploy-layout placeholder.
 acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 set(ACPP_APP_LLVMSPIRV "")  # empty: resolved at run time from hipSYCL/ext/llvm-spirv/bin
 
@@ -71,9 +69,8 @@ set(ACPP_APP_LLVMSPIRV "")  # empty: resolved at run time from hipSYCL/ext/llvm-
 # Driver-only resources
 # ---------------------------------------------------------------------------
 
-# The host C++ compiler the driver invokes for CPU code. Ownership, not
-# strategy, decides its shape; see linux/common/core.cmake's comment,
-# unchanged here.
+# The host C++ compiler the driver invokes for CPU code. Ownership decides
+# its shape; see linux/common/core.cmake's comment.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   set(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++")
 else()
@@ -83,9 +80,7 @@ endif()
 # The compiler plugin, in plugin builds only. Ours, always the
 # deploy-layout placeholder, no override - see linux's comment. When
 # AdaptiveCpp is linked into the LLVM tools there is no plugin file and the
-# driver emits no plugin flags. The driver currently hardcodes "lib" when
-# building this path, which is wrong on any lib64 distribution; this entry
-# is what those sites should read.
+# driver emits no plugin flags.
 if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   set(ACPP_PLUGIN_PATH "{{ acpp-root }}/{{ acpp-libdir }}/libacpp-clang.so")
 endif()
@@ -116,8 +111,8 @@ endif()
 # On macOS clang does not find libomp on its own, so the sequential link
 # line names the directory. {{ libomp-install-root }} is libomp's own
 # vendor-unit value (declared unconditionally by the common file - see its
-# "OMP" section), so this one formula already covers both build modes and
-# every strategy, shipped or not.
+# "OMP" section), so this one formula already covers both build modes,
+# shipped or not.
 if(NOT DEFINED ACPP_SEQUENTIAL_LINK_LINE)
   set(ACPP_SEQUENTIAL_LINK_LINE "-L{{ libomp-install-root }} -l{{ libomp-name }}")
 endif()

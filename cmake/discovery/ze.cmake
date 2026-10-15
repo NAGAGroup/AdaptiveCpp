@@ -13,8 +13,8 @@ find_library(ACPP_ZE_LOADER_LIBRARY NAMES ze_loader)
 find_path(ACPP_ZE_INCLUDE_DIR NAMES level_zero/ze_api.h)
 
 # Probing happens first, into locals: found-but-incomplete (on Windows, the
-# import library found but ze_loader.dll missing) must not FATAL_ERROR now
-# that discovery runs unconditionally - it warns and the export below
+# import library found but ze_loader.dll missing) must not FATAL_ERROR, since
+# discovery runs unconditionally - it warns and the export below
 # lands in the same not-found state as the loader not being found at all.
 # Explicitly requesting the backend still fails, from the root's own check.
 set(_acpp_ze_usable OFF)
@@ -26,8 +26,7 @@ if(ACPP_ZE_LOADER_LIBRARY AND NOT "${ACPP_ZE_LOADER_LIBRARY}" MATCHES "-NOTFOUND
   get_filename_component(_acpp_ze_libdir "${_acpp_ze_real}" DIRECTORY)
 
   # On Windows find_library answers with the import library; the DLL is what
-  # deploys and what the runtime must reach through AddDllDirectory. This
-  # branch is parse-checked on Linux and exercised on Windows only. The
+  # deploys and what the runtime must reach through AddDllDirectory. The
   # search hint is a guess, not an asserted prefix - the common ancestor
   # below settles it regardless of whether the guess was right.
   if(WIN32)

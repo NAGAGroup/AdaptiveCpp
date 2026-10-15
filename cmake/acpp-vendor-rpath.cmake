@@ -1,21 +1,17 @@
-# Backends' rpaths to shipped vendors (doc/design-walkthrough-2026-09-25.md,
-# Commit 3 step 3e). src/CMakeLists.txt sets `base` to $ORIGIN (@loader_path
-# on macOS) and src/runtime/CMakeLists.txt/src/compiler/llvm-to-backend/
-# CMakeLists.txt already set CMAKE_INSTALL_RPATH per directory for what a
-# backend links against ours - this file adds the piece that was missing:
-# reaching a vendor's own runtime libraries, which live under
-# ACPP_<STEM>_SUBDIR (the fixed bundled location), not under any of those
-# fixed relative paths. The relative entry is always produced, bundled or not;
-# for a vendor that is not bundled, the real (absolute) location follows it.
+# Backends' rpaths to shipped vendors. src/CMakeLists.txt sets `base` to
+# $ORIGIN (@loader_path on macOS) and src/runtime/CMakeLists.txt/
+# src/compiler/llvm-to-backend/CMakeLists.txt set CMAKE_INSTALL_RPATH per
+# directory for what a backend links against ours; this file adds the entries
+# that reach a vendor's own runtime libraries, which live under
+# ACPP_<STEM>_SUBDIR (the fixed bundled location). The relative entry is
+# always produced, bundled or not; for a vendor that is not bundled, the real
+# (absolute) location follows it.
 #
-# Included early - before add_subdirectory(src) - unlike
-# cmake/acpp-vendor-install.cmake's own per-unit install files (included
-# after, since those only need to run once at the end): a backend target's
-# INSTALL_RPATH must be appended while src/runtime/CMakeLists.txt and
-# src/compiler/llvm-to-backend/CMakeLists.txt are themselves still running,
-# during add_subdirectory(src). The options files (and hence every
-# ACPP_<STEM>_SHIPPED/ACPP_<STEM>_SUBDIR) are already available by then -
-# they run even earlier, alongside cmake/discovery.cmake.
+# Included before add_subdirectory(src): a backend target's INSTALL_RPATH must
+# be appended while src/runtime/CMakeLists.txt and
+# src/compiler/llvm-to-backend/CMakeLists.txt are themselves running. The
+# options files (and hence every ACPP_<STEM>_SHIPPED/ACPP_<STEM>_SUBDIR) are
+# available by then.
 
 include_guard(GLOBAL)
 include(${CMAKE_CURRENT_LIST_DIR}/acpp-vendor-install.cmake)
@@ -89,7 +85,7 @@ endfunction()
 # the property afterward touches nothing else). A no-op on WIN32: Windows
 # has no RPATH - a deployed application reaches a vendor's DLL
 # directory through the app config's ACPP_<VENDOR>_DLL_DIR/
-# AddDllDirectory instead (doc/configuration-model.md, "Windows").
+# AddDllDirectory instead.
 #
 # After the relative (bundled-location) entry, a vendor that is NOT shipped
 # and has an absolute ACPP_<STEM>_APP_ROOT also gets that absolute path
@@ -149,18 +145,13 @@ endfunction()
 
 # acpp_app_install_rpath(<out_var>)
 #
-# Commit 6 (doc/design-walkthrough-2026-09-25.md, "Resolved opens -> CMake
-# rpaths for apps"): the install rpath add_sycl_to_target gives
-# applications - baked into the installed CMake package as
-# ACPP_APP_INSTALL_RPATH, an overridable cache variable, not computed
-# again at the consuming project's configure time (this function runs
-# once, here, at OUR configure/install time; its result is a plain string
-# by the time it reaches the package). Empty on Windows (no RPATH at all
-# there; a deployed app reaches a vendor's DLL directory through the app
-# config's AddDllDirectory mechanism instead, not an application's own
-# CMake package). Assumes the executable installs
-# to <prefix>/<CMAKE_INSTALL_BINDIR>, since the deploy tree mirrors the
-# install tree (principle 5, "Deploying is driving").
+# The install rpath add_sycl_to_target gives applications - baked into the
+# installed CMake package as ACPP_APP_INSTALL_RPATH, an overridable cache
+# variable, not computed again at the consuming project's configure time.
+# Empty on Windows (no RPATH there; a deployed app reaches a vendor's DLL
+# directory through the app config's AddDllDirectory mechanism instead).
+# Assumes the executable installs to <prefix>/<CMAKE_INSTALL_BINDIR>, since
+# the deploy tree mirrors the install tree.
 #
 # <out_var> := "" on WIN32; otherwise a ;-list whose first entry reaches
 # CMAKE_INSTALL_LIBDIR from CMAKE_INSTALL_BINDIR (normally $ORIGIN/../lib),
@@ -191,7 +182,7 @@ function(acpp_app_install_rpath out_var)
     endif()
 
     # CUDA/NVHPC multipass link OpenMP into an app under the omp.*
-    # flavours too - the same three vendors "Resolved opens" names. Unlike
+    # flavours too. Unlike
     # acpp_add_vendor_rpaths's ENTRIES shorthand (a bare "RT" tag), FACT
     # here is the real subdir *value* (ACPP_<STEM>_RT_SUBDIR, e.g. "lib64")
     # - the same convention every acpp_install_vendor_* call in

@@ -1,7 +1,4 @@
-# The layout probes cmake/discovery/hip.cmake uses, split out into plain
-# functions so a cmake -P harness can exercise them directly, against a fake directory tree, without
-# find_package(hip) - which creates imported targets and so is unavailable
-# in script mode.
+# HIP layout probes, used by cmake/discovery/hip.cmake.
 
 include_guard(GLOBAL)
 

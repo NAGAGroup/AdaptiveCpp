@@ -7,21 +7,20 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # Deploy paths - the publisher's choices
 # ---------------------------------------------------------------------------
 #
-# LLVM has no deploy-path knob of its own any more: what toolchain mode
-# builds follows cmake's own install directories under {{ acpp-root }}
-# directly (the literal "bin" segment, and {{ acpp-libdir }}), the same as
-# everything else we build. In plugin mode LLVM is the machine's (rule 2)
-# and is never bundled at all.
+# LLVM has no deploy-path knob: what toolchain mode builds follows cmake's own
+# install directories under {{ acpp-root }} directly (the literal "bin"
+# segment, and {{ acpp-libdir }}), the same as everything else we build. In
+# plugin mode LLVM is the machine's and is never bundled at all.
 #
-# Where libomp lands. libomp is declared unconditionally, in both build
-# modes, by the common file (principle 3: an ordinary vendor unit, not a
-# build-mode branch) - see its "OMP" section, which owns every {{ }} entry
-# libomp's own link lines and application config now read; a packager
-# using GOMP instead points ACPP_LIBOMP_SOURCE_DIR at it directly.
+# libomp is declared unconditionally, in both build modes, by the common file
+# (an ordinary vendor unit, not a build-mode branch) - see its "OMP" section,
+# which owns every {{ }} entry libomp's own link lines and application config
+# read; a packager using GOMP instead points ACPP_LIBOMP_SOURCE_DIR at it
+# directly.
 
 # libnuma, sleef and amath are ordinary shared libraries with no internal
 # structure to preserve, each its own vendor unit with the same two-knob
-# shape - libnuma is never something we build, all three permissive.
+# shape.
 # libnuma is linked (DT_NEEDED through rt-backend-omp), not consumed, so no
 # application ever reads an install-root value for it - unlike sleef and
 # amath, which the host JIT looks up by directory at run time, libnuma has
@@ -38,12 +37,11 @@ acpp_declare_vendor_root(LIBNUMA libnuma ACPP_DISCOVERED_LIBNUMA_DIR "${ACPP_DIS
 # toolchain while compiling, the JIT invokes it from the deployment while an
 # application runs, and those need not be the same binary.
 #
-# Ownership, not deployment strategy, decides which shape these five take
-# (see "Ownership" in the common file). Toolchain mode builds this LLVM, so
-# it is ours: always the deploy-layout placeholder, in every strategy.
-# Plugin mode's LLVM is the machine's (rule 2): always the discovered
-# absolute path, in every strategy, empty and not an error when discovery
-# found no plugin to build (decision d).
+# Ownership decides which shape these five take (see "Ownership" in the
+# common file). Toolchain mode builds this LLVM, so it is ours: always the
+# deploy-layout placeholder. Plugin mode's LLVM is the machine's: always the
+# discovered absolute path, empty and not an error when discovery found no
+# plugin to build.
 
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # Toolchain mode's own LLVM tools live in CMAKE_INSTALL_BINDIR under the
@@ -72,13 +70,13 @@ endif()
 # llvm-spirv is not LLVM's: AdaptiveCpp builds its own fork of the
 # SPIRV-LLVM-Translator and installs it under its own library directory
 # (doc/install-ocl.md), independent of cmake's own LLVM install dirs. Ours
-# in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
-# not - always the deploy-layout placeholder, in every strategy.
+# in BOTH modes - the machine's LLVM never supplies it, plugin or not -
+# always the deploy-layout placeholder.
 acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
 set(ACPP_APP_LLVMSPIRV "")  # empty: resolved at run time from hipSYCL/ext/llvm-spirv/bin
 
 # The vector math libraries, each its own vendor unit with the same
-# two-knob shape as libnuma above, permissive - directory-valued because
+# two-knob shape as libnuma above - directory-valued because
 # the library's short name is written into the JIT's link invocation.
 # libmvec needs no entry: it is part of glibc, so the only correct copy is
 # the one the loader resolves in the running process. SVML is x86-only and
@@ -87,10 +85,6 @@ acpp_declare_vendor(SLEEF sleef)
 acpp_declare_vendor_root(SLEEF sleef ACPP_DISCOVERED_SLEEF_DIR "${ACPP_DISCOVERED_SLEEF_DIR}")
 acpp_declare_vendor_app_root(SLEEF sleef)
 
-# Nonpermissive: Arm Performance Libraries' math library is redistributed
-# under Arm's End User License Agreement (upstream's doc/deployment.md).
-# SLEEF (above) stays permissive: it ships under the Boost Software
-# License.
 acpp_declare_vendor(AMATH amath "${ACPP_DISCOVERED_AMATH_DIR}")
 acpp_declare_vendor_root(AMATH amath ACPP_DISCOVERED_AMATH_DIR "${ACPP_DISCOVERED_AMATH_DIR}")
 acpp_declare_vendor_app_root(AMATH amath)
@@ -99,13 +93,12 @@ acpp_declare_vendor_app_root(AMATH amath)
 # Driver-only resources
 # ---------------------------------------------------------------------------
 
-# The host C++ compiler the driver invokes for CPU code. Ownership, not
-# strategy, decides its shape: in toolchain mode it is our own clang++,
-# always the deploy-layout placeholder in every strategy (rule 1). In
-# plugin mode it is upstream's HIPSYCL_CPU_CXX exactly: the machine's own
-# build compiler (CMAKE_CXX_COMPILER), the one AdaptiveCpp itself was built
-# with, absolute, in every strategy, overridable only by reconfiguring with
-# a different CMAKE_CXX_COMPILER - not by a strategy choice.
+# The host C++ compiler the driver invokes for CPU code. Ownership decides
+# its shape: in toolchain mode it is our own clang++, always the
+# deploy-layout placeholder. In plugin mode it is upstream's HIPSYCL_CPU_CXX
+# exactly: the machine's own build compiler (CMAKE_CXX_COMPILER), the one
+# AdaptiveCpp itself was built with, absolute, overridable only by
+# reconfiguring with a different CMAKE_CXX_COMPILER.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   set(ACPP_CPU_CXX "{{ acpp-root }}/{{ acpp-bindir }}/clang++")
 else()
@@ -113,19 +106,17 @@ else()
 endif()
 
 # The compiler plugin, in plugin builds only. We always build our own
-# plugin file, so it is ours (rule 1): always the deploy-layout placeholder,
-# in every strategy, with no override - a strategy choice is about vendor
-# assets we do not build, and this is not one. When
-# AdaptiveCpp is linked into the LLVM tools there is no plugin file and the
-# driver emits no plugin flags.
+# plugin file, so it is ours: always the deploy-layout placeholder, with no
+# override. When AdaptiveCpp is linked into the LLVM tools there is no plugin
+# file and the driver emits no plugin flags.
 if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   set(ACPP_PLUGIN_PATH "{{ acpp-root }}/{{ acpp-libdir }}/libacpp-clang.so")
 endif()
 
 # Which vector math library the host JIT uses. The default comes from the root
-# detection block in CMakeLists.txt (DEFAULT_VEC_MATH_LIB: svml on x86 when
-# found, else libmvec when usable, else none); every code path compiles
-# unconditionally, and -DACPP_VECTOR_MATH_LIB overrides it.
+# detection block in CMakeLists.txt (DEFAULT_VEC_MATH_LIB: libmvec, or svml on
+# x86 when found); every code path compiles unconditionally, and
+# -DACPP_VECTOR_MATH_LIB overrides it.
 if(NOT DEFINED ACPP_VECTOR_MATH_LIB)
   set(ACPP_VECTOR_MATH_LIB "${DEFAULT_VEC_MATH_LIB}")
 endif()

@@ -1,67 +1,35 @@
-# Per-vendor cmake install rules: home (a)+(b) of the three-part manifest
-# (doc/configuration-model.md, "The manifest"). A SHIPPED vendor
-# (ACPP_<STEM>_SHIPPED, i.e. its ACPP_BUNDLE_<STEM> option ON) is copied
-# at `cmake --install` time into ${CMAKE_INSTALL_PREFIX}/<ACPP_<STEM>_SUBDIR>
-# /<fact subdir>, in the vendor's own layout. Every helper below is a no-op
-# unless the vendor it names is SHIPPED - not shipped means the driver
-# reaches the vendor in place, nothing to copy.
+# Per-vendor cmake install rules. A SHIPPED vendor (ACPP_<STEM>_SHIPPED, i.e.
+# its ACPP_BUNDLE_<STEM> option ON) is copied at `cmake --install` time into
+# ${CMAKE_INSTALL_PREFIX}/<ACPP_<STEM>_SUBDIR>/<fact subdir>, in the vendor's
+# own layout. Every helper below is a no-op unless the vendor it names is
+# SHIPPED - not shipped means the driver reaches the vendor in place, nothing
+# to copy.
 #
-# The install lists these helpers build are written explicitly, per vendor,
-# in cmake/install/<platform>/common/<unit>.cmake - deliberately NOT derived
-# from the deploy manifest (config/*/deploy/<unit>.json): the manifest is
+# The install lists are written explicitly, per vendor, in
+# cmake/install/<platform>/common/<unit>.cmake - deliberately NOT derived from
+# the deploy manifest (config/*/deploy/<unit>.json): the manifest is
 # drive-time configuration a downstream toolchain user may edit; the install
-# rule is a package-time decision about what physically ships. A later sync
-# harness (owed, not yet written - see doc/source-obligations.md) compares
-# the two so they cannot silently drift, but neither is ever generated from
-# the other. So a vendor's install file lists BOTH the toolchain-only pieces
-# its manifest never deploys (headers, ptxas/fatbinary-class tools, import
-# libraries) AND everything the manifest deploys with an application.
+# rule is a package-time decision about what physically ships. So a vendor's
+# install file lists BOTH the toolchain-only pieces its manifest never deploys
+# (headers, ptxas/fatbinary-class tools, import libraries) AND everything the
+# manifest deploys with an application.
 #
-# Self-contained on purpose: only cmake/options/common/core.cmake's
-# acpp_declare_vendor* macros are assumed to have already run (they set
-# ACPP_<STEM>_SHIPPED, ACPP_<STEM>_SUBDIR, ACPP_<STEM>_DISCOVERED_ROOT before
-# any helper here is ever called) - but the tiny path-joining this file
-# needs of its own is reimplemented locally rather than pulled in from
-# core.cmake, so a harness can include this file alone against a handful of
-# hand-set ACPP_<STEM>_* variables, the same way cmake/acpp-config-merge.cmake
-# stands alone from the options model that also uses it.
+# Only cmake/options/common/core.cmake's acpp_declare_vendor* macros are
+# assumed to have already run (they set ACPP_<STEM>_SHIPPED,
+# ACPP_<STEM>_SUBDIR, ACPP_<STEM>_DISCOVERED_ROOT); the small path joins this
+# file needs are reimplemented locally rather than pulled in from core.cmake.
 
 include_guard(GLOBAL)
 
-# This file's own absolute path, computed once at file scope (not inside a
-# function - CMAKE_CURRENT_LIST_FILE there would be wherever a *caller*
-# happens to sit) - baked into every install(CODE) block below so it can
-# re-include this file at `cmake --install` time, in the freshly spawned
-# cmake_install.cmake process, which shares nothing from this configure
-# run except what such a block explicitly re-establishes. Mirrors how
-# cmake/acpp-config-merge.cmake computes its own repo root once, at file
-# scope, for the same reason.
+# This file's own absolute path, computed once at file scope (inside a
+# function, CMAKE_CURRENT_LIST_FILE would be wherever a *caller* sits). It is
+# baked into every install(CODE) block below so the block can re-include this
+# file at `cmake --install` time, in the freshly spawned cmake_install.cmake
+# process, which shares nothing from this configure run.
 set(_ACPP_VENDOR_INSTALL_SELF "${CMAKE_CURRENT_LIST_FILE}")
 
-# ACPP_VENDOR_INSTALL_PLAN: every acpp_install_vendor_* call that actually
-# schedules a copy (SHIPPED only) appends the destination path(s) here,
-# ACPP_<STEM>_SUBDIR-relative - a record a harness can inspect under plain
-# `cmake -P`, where the install(CODE) blocks these functions also queue
-# never run (cmake -P parses install() but does not execute it). Not
-# shipped means nothing is appended - the plan's emptiness is exactly what
-# a harness asserts in that case.
-if(NOT DEFINED ACPP_VENDOR_INSTALL_PLAN)
-  set(ACPP_VENDOR_INSTALL_PLAN "")
-endif()
-
-# install() is rejected outright under `cmake -P` ("install command is not
-# scriptable") - not skipped, an error, regardless of what it would do -
-# so every helper below guards its install(CODE ...) call on
-# CMAKE_SCRIPT_MODE_FILE (only ever defined in script mode) rather than
-# letting a harness's mere call to a SHIPPED helper abort the script. The
-# plan-recording half runs either way: that half is what a harness under
-# `cmake -P` can and does inspect; the install(CODE ...) half is what a real
-# `cmake --install` runs.
-
 # ---------------------------------------------------------------------------
-# Small path helpers, local to this file (see the header comment for why
-# they are not shared with cmake/options/common/core.cmake's
-# identical-in-spirit acpp_join_relative/acpp_join_absolute).
+# Small path helpers, local to this file.
 # ---------------------------------------------------------------------------
 
 function(_acpp_vi_join_relative out_var)
@@ -191,8 +159,7 @@ function(acpp_install_vendor_libs)
 
   foreach(_avl_name IN LISTS _avl_NAMES)
     if(IS_DIRECTORY "${_avl_srcdir}")
-      # Known now: fail fast at configure time, and record the exact
-      # resolved filename(s) in the plan.
+      # Known now: fail fast at configure time.
       _acpp_resolve_vendor_lib_files(_avl_files "${_avl_srcdir}" "${_avl_name}")
       if(NOT _avl_files)
         if(_avl_OPTIONAL)
@@ -204,29 +171,20 @@ function(acpp_install_vendor_libs)
           "Vendor '${_avl_STEM}' is SHIPPED but library '${_avl_name}' was "
           "not found under ${_avl_srcdir} at configure time.")
       endif()
-      foreach(_avl_f IN LISTS _avl_files)
-        get_filename_component(_avl_fname "${_avl_f}" NAME)
-        list(APPEND ACPP_VENDOR_INSTALL_PLAN "${_avl_destrel}/${_avl_fname}")
-      endforeach()
     else()
       if(_avl_OPTIONAL)
         message(STATUS
           "Vendor '${_avl_STEM}': optional library '${_avl_name}' not present, not shipped")
         continue()
       endif()
-      # Not known yet - the source directory itself does not exist at
-      # configure time (toolchain-mode libomp; see
-      # cmake/install/*/common/omp.cmake). Record what is sought, not a
-      # resolved name, and let the install(CODE) block below resolve and
-      # fail (clearly) at install time instead.
-      list(APPEND ACPP_VENDOR_INSTALL_PLAN "${_avl_destrel}/ (deferred: ${_avl_name})")
+      # The source directory itself does not exist at configure time
+      # (toolchain-mode libomp; see cmake/install/*/common/omp.cmake); the
+      # install(CODE) block below resolves the library and fails (clearly)
+      # at install time instead.
     endif()
-    if(NOT CMAKE_SCRIPT_MODE_FILE)
-      install(CODE "include(\"${_ACPP_VENDOR_INSTALL_SELF}\")
+    install(CODE "include(\"${_ACPP_VENDOR_INSTALL_SELF}\")
 _acpp_install_vendor_lib_now(\"${_avl_srcdir}\" \"\${CMAKE_INSTALL_PREFIX}/${_avl_destrel}\" \"${_avl_name}\")")
-    endif()
   endforeach()
-  set(ACPP_VENDOR_INSTALL_PLAN "${ACPP_VENDOR_INSTALL_PLAN}" PARENT_SCOPE)
 endfunction()
 
 # acpp_install_vendor_files(STEM <s> FACT <fact-or-empty>
@@ -254,17 +212,13 @@ function(acpp_install_vendor_files)
           "Vendor '${_avf_STEM}' is SHIPPED but '${_avf_src}' was not "
           "found at configure time.")
       endif()
-      list(APPEND ACPP_VENDOR_INSTALL_PLAN "${_avf_destrel}/${_avf_name}")
-      if(NOT CMAKE_SCRIPT_MODE_FILE)
-        if(_avf_kind STREQUAL "PROGRAMS")
-          install(CODE "file(INSTALL \"${_avf_src}\" DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${_avf_destrel}\" TYPE PROGRAM)")
-        else()
-          install(CODE "file(INSTALL \"${_avf_src}\" DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${_avf_destrel}\" TYPE FILE)")
-        endif()
+      if(_avf_kind STREQUAL "PROGRAMS")
+        install(CODE "file(INSTALL \"${_avf_src}\" DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${_avf_destrel}\" TYPE PROGRAM)")
+      else()
+        install(CODE "file(INSTALL \"${_avf_src}\" DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${_avf_destrel}\" TYPE FILE)")
       endif()
     endforeach()
   endforeach()
-  set(ACPP_VENDOR_INSTALL_PLAN "${ACPP_VENDOR_INSTALL_PLAN}" PARENT_SCOPE)
 endfunction()
 
 # acpp_install_vendor_dir(STEM <s> FACT <fact-or-empty>)
@@ -287,9 +241,5 @@ function(acpp_install_vendor_dir)
       "Vendor '${_avd_STEM}' is SHIPPED but directory '${_avd_srcdir}' was "
       "not found at configure time.")
   endif()
-  list(APPEND ACPP_VENDOR_INSTALL_PLAN "${_avd_destrel}/")
-  if(NOT CMAKE_SCRIPT_MODE_FILE)
-    install(CODE "file(INSTALL \"${_avd_srcdir}/\" DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${_avd_destrel}\")")
-  endif()
-  set(ACPP_VENDOR_INSTALL_PLAN "${ACPP_VENDOR_INSTALL_PLAN}" PARENT_SCOPE)
+  install(CODE "file(INSTALL \"${_avd_srcdir}/\" DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${_avd_destrel}\")")
 endfunction()

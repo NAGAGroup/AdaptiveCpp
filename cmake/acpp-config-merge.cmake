@@ -1,21 +1,12 @@
-# The tiered configuration merge, shared by the harnesses and (from later
-# steps of Commit 3) the actual build - config/common -> config/<platform>/
-# common -> config/<platform>/<arch>, for three kinds of fragment: `config`
-# (the toolchain-config json objects, config/<platform>/<arch>/<unit>.json),
-# `deploy` (the deploy manifests, .../deploy/<unit>.json) and `app` (the
-# application-config .cfg fragments, .../app/<unit>.cfg).
-#
-# include_guard(GLOBAL): safe to include from more than one harness (or
-# from the harness and the build) in the same cmake -P / configure process.
-#
-# Repo root is computed once, here, from this file's own location -
-# CMAKE_CURRENT_LIST_DIR at file scope (not inside a function) is always
-# this file's own directory, regardless of who includes it or from where.
-# Nothing below reads a harness-local ACPP_REPO_ROOT or any other
-# harness-local variable.
+# The tiered configuration merge: config/common -> config/<platform>/common ->
+# config/<platform>/<arch>, for three kinds of fragment: `config` (the
+# toolchain-config json objects, <unit>.json), `deploy` (the deploy manifests,
+# deploy/<unit>.json) and `app` (the application-config .cfg fragments,
+# app/<unit>.cfg).
 
 include_guard(GLOBAL)
 
+# Repo root, from this file's own location (CMAKE_CURRENT_LIST_DIR at file scope).
 get_filename_component(_ACPP_MERGE_REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 
 # ---------------------------------------------------------------------------
@@ -145,9 +136,8 @@ endfunction()
 # seen_keys_var names a list variable in the CALLER's scope that
 # accumulates every key seen so far: acpp_merge_unit passes a fresh one per
 # unit (so that unit's own tiers are checked against each other only);
-# acpp_merge_all carries one across every unit (so the final file's
-# cross-unit rule is the same check, just with a longer-lived list) - the
-# same primitive proves both.
+# acpp_merge_units carries one across every unit (the final file's
+# cross-unit check).
 # ---------------------------------------------------------------------------
 function(acpp_merge_app_text result_var seen_keys_var base addition label)
   string(REGEX REPLACE "\r\n" "\n" _norm "${addition}")
@@ -233,9 +223,8 @@ endfunction()
 # key is an error across units too, same rule as within one unit's own
 # tiers).
 #
-# Used both by acpp_merge_all (below, whose unit list is every unit found
-# on disk) and by acpp_generate_installed_configs (cmake/acpp-installed-
-# configs.cmake), whose unit list is whatever the build actually enables.
+# Used by acpp_generate_installed_configs (cmake/acpp-installed-configs.cmake),
+# whose unit list is whatever the build actually enables.
 # ---------------------------------------------------------------------------
 function(acpp_merge_units kind platform arch units out_var)
   if("${kind}" STREQUAL "app")
@@ -256,44 +245,5 @@ function(acpp_merge_units kind platform arch units out_var)
     endif()
   endforeach()
 
-  set(${out_var} "${_merged}" PARENT_SCOPE)
-endfunction()
-
-# ---------------------------------------------------------------------------
-# Merge every unit of one kind into the final single file for one
-# platform/arch, where "every unit" is discovered rather than given: the
-# union of whatever <unit>.json / deploy/<unit>.json / app/<unit>.cfg files
-# exist across the three tiers, since a unit can be introduced at any tier
-# (a vendor with no common file at all, an arch-only addition like SVML).
-# The actual merge is acpp_merge_units, above; this only computes the list.
-# ---------------------------------------------------------------------------
-function(acpp_merge_all kind platform arch out_var)
-  if("${kind}" STREQUAL "config")
-    set(_subdir "")
-    set(_ext "json")
-  elseif("${kind}" STREQUAL "deploy")
-    set(_subdir "deploy/")
-    set(_ext "json")
-  elseif("${kind}" STREQUAL "app")
-    set(_subdir "app/")
-    set(_ext "cfg")
-  else()
-    message(FATAL_ERROR "acpp_merge_all: kind must be config, deploy or app, not '${kind}'.")
-  endif()
-
-  set(_units "")
-  foreach(_dir
-      "config/common/${_subdir}"
-      "config/${platform}/common/${_subdir}"
-      "config/${platform}/${arch}/${_subdir}")
-    file(GLOB _files "${_ACPP_MERGE_REPO_ROOT}/${_dir}*.${_ext}")
-    foreach(_f ${_files})
-      get_filename_component(_stem "${_f}" NAME_WE)
-      list(APPEND _units "${_stem}")
-    endforeach()
-  endforeach()
-  list(REMOVE_DUPLICATES _units)
-
-  acpp_merge_units("${kind}" "${platform}" "${arch}" "${_units}" _merged)
   set(${out_var} "${_merged}" PARENT_SCOPE)
 endfunction()

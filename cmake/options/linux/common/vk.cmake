@@ -1,11 +1,11 @@
 # Vulkan options - linux, every architecture.
 #
 # Include after core.cmake, only when the Vulkan backend is enabled; the
-# helpers live in core. A loader-only unit: the
-# unit is the Vulkan loader in the vendor's own library directory, nothing
-# else. Vulkan has no multipass flow, so the driver passes nothing. Two
-# knobs (ACPP_VK_SUBDIR plus the loader/header/SPIRV-Tools hints),
-# everything else derived - see "Vendor units" in the common core file.
+# helpers live in core. A loader-only unit: the unit is the Vulkan loader in
+# the vendor's own library directory, nothing else. Vulkan has no multipass
+# flow, so the driver passes nothing. Two knobs (ACPP_BUNDLE_VK plus the
+# loader/header/SPIRV-Tools hints), everything else derived - see "Vendor
+# units" in the common core file.
 
 include_guard(GLOBAL)
 

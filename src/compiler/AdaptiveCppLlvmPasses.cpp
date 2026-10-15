@@ -155,7 +155,7 @@ struct LastEPAdapter{
 // Linked into the LLVM tools, the plugin's objects are part of LLVMExtensions and therefore of
 // the LLVM DLL on Windows. opt (LLVMOptDriver) and clang's CodeGen call getAdaptiveCppPluginInfo()
 // from OUTSIDE that DLL through Extension.def, so the DLL must export it (lld-link: undefined
-// symbol in opt.exe and clang-cpp.dll, win-64 and win-arm64, run 38570967283). Explicit dllexport,
+// symbol in opt.exe and clang-cpp.dll, win-64 and win-arm64). Explicit dllexport,
 // not LLVM_ABI: this is not a component library, LLVM_EXPORTS is not defined here, and LLVM_ABI
 // would expand to dllimport.
 #if defined(_WIN32) && defined(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)

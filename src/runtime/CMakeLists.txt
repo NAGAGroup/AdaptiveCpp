@@ -386,14 +386,14 @@ if(WITH_CPU_BACKEND)
     #    ${LLVM_BINARY_DIR}/lib/clang/<major>/include). That directory also holds clang's
     #    BUILTIN headers (stddef.h, __stddef_*.h, ...), which a non-clang host compiler must
     #    never see: with `-I <resource dir>` the conda GCC picked up clang's stddef.h and failed
-    #    (`__stddef_*.h: missing binary operator before token "("`, run 38570967283). So omp.h
+    #    (`__stddef_*.h: missing binary operator before token "("`). So omp.h
     #    alone is copied into a private include directory of this target, and only that
     #    directory is put on the include path (only omp.h is needed: omp_hardware_manager.cpp
     #    and omp_queue.cpp, and the installed headers, include nothing else of libomp);
     #  - libomp is NOT written to LLVM_LIBRARY_OUTPUT_INTDIR: openmp/runtime/src/CMakeLists.txt:186
     #    creates `omp` with a plain add_library() and no output directory (add_llvm_library is
     #    only used for the profiling variant), so it lands in the runtimes sub-build's own
-    #    binary directory (ld: `cannot find -lomp`, run 38577744298). On unix that is libomp.so /
+    #    binary directory (ld: `cannot find -lomp`). On unix that is libomp.so /
     #    libomp.dylib; on Windows the DLL and the by-name import library libomp.lib (target
     #    `ompimp`, openmp/runtime/src/CMakeLists.txt:367-389; OPENMP_MSVC_NAME_SCHEME=OFF makes
     #    LIBOMP_IMP_LIB_FILE libomp.lib) are in the same directory.

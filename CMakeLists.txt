@@ -598,17 +598,10 @@ endif()
 ## no-ops (include_guard) purely so each options file visibly follows its
 ## own discovery.
 ##
-## Separately, cmake/discovery.cmake's own LLVM half (not a vendor file)
-## requires LLVM whenever ACPP_COMPILER_FEATURE_PROFILE is not "none",
-## which is slightly wider than this file's own BUILD_CLANG_PLUGIN gate
-## (a "minimal" profile with every WITH_*_BACKEND off never sets
-## BUILD_CLANG_PLUGIN, so never finds LLVM today) - consistent with the
-## new model, where the device compiler is unconditionally either ours
-## or the machine's, never absent, but a real behaviour widening for that
-## one narrow combination. Left as is: there is no LLVM in this sandbox
-## to test either behaviour against, and reconciling BUILD_CLANG_PLUGIN's
-## ad-hoc gate with the options model's own ownership rules is later
-## wiring, not this step's.
+## cmake/discovery.cmake's own LLVM half requires LLVM whenever
+## ACPP_COMPILER_FEATURE_PROFILE is not "none", which is wider than the
+## BUILD_CLANG_PLUGIN gate: a "minimal" profile with every WITH_*_BACKEND off
+## never sets BUILD_CLANG_PLUGIN.
 ##########################################################
 
 include(${ACPP_SOURCE_ROOT}/cmake/discovery.cmake)
@@ -807,21 +800,17 @@ install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-app.cfg"
 install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-deploy.json"
   DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 
-# Per-vendor cmake install rules: home (a)+(b) of the three-part manifest
-# (doc/configuration-model.md, "The manifest") - what physically ships
-# alongside the toolchain for each bundled vendor, both the
-# toolchain-only pieces (headers, ptxas-class tools, import libraries) and
-# everything the manifest above also deploys with an application. Every
-# call inside cmake/install/<platform>/common/<unit>.cmake is a no-op
-# unless that unit is ACPP_<STEM>_SHIPPED (cmake/acpp-vendor-install.cmake).
-# omp is not in ACPP_UNITS (core and omp are acpp_generate_installed_configs'
-# own unconditional additions, not units this file tracks - see the
-# ACPP_UNITS comment above, near cmake/discovery.cmake's own include), so
-# it needs a call of its own, unconditional on the loop below, matching
-# that same reasoning. "when it exists" (per the design walkthrough): not
-# every unit has an install file yet, and not every platform ships every
-# unit (no cuda.cmake under cmake/install/macos, for instance) - EXISTS
-# guards both.
+# Per-vendor cmake install rules: what physically ships alongside the
+# toolchain for each bundled vendor, both the toolchain-only pieces (headers,
+# ptxas-class tools, import libraries) and everything the manifest above also
+# deploys with an application. Every call inside
+# cmake/install/<platform>/common/<unit>.cmake is a no-op unless that unit is
+# ACPP_<STEM>_SHIPPED (cmake/acpp-vendor-install.cmake). omp is not in
+# ACPP_UNITS (core and omp are acpp_generate_installed_configs' own
+# unconditional additions), so it needs a call of its own, unconditional on
+# the loop below. Not every unit has an install file, and not every platform
+# ships every unit (no cuda.cmake under cmake/install/macos, for instance) -
+# EXISTS guards both.
 include(${ACPP_SOURCE_ROOT}/cmake/acpp-vendor-install.cmake)
 
 foreach(_acpp_unit IN LISTS ACPP_UNITS)
@@ -921,11 +910,9 @@ install(PROGRAMS bin/acpp DESTINATION ${CMAKE_INSTALL_BINDIR} RENAME syclcc-clan
 include(CMakePackageConfigHelpers)
 
 # The install rpath add_sycl_to_target gives applications, under all three
-# installed CMake packages below (Commit 6, doc/design-walkthrough-2026-
-# 09-25.md, "Resolved opens -> CMake rpaths for apps") - a plain @VAR@
-# substitution shared by all three *-config.cmake.in files' configure_
-# package_config_file calls, computed once since it does not depend on
-# which package is being generated.
+# installed CMake packages below - a plain @VAR@ substitution shared by all
+# three *-config.cmake.in files' configure_package_config_file calls,
+# computed once since it does not depend on which package is being generated.
 acpp_app_install_rpath(ACPP_APP_INSTALL_RPATH_DEFAULT)
 
 # Legacy module (hipSYCL)

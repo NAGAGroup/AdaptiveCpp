@@ -36,7 +36,7 @@
 #     through DT_NEEDED linkage or the LLVM unit's own RUNPATH, so no running
 #     application ever looks them up.
 #
-# A VENDOR unit (rule 3: assets we do not build) is steered at configure
+# A VENDOR unit (assets we do not build) is steered at configure
 # time by the find's own hints (CUDAToolkit_ROOT, LLVM_DIR, OpenCL_LIBRARY,
 # WITH_*_BACKEND - never named here, they belong to discovery), by one
 # on/off option, ACPP_BUNDLE_<VENDOR> (install the vendor's runtime with the
@@ -46,10 +46,10 @@
 # can still override any entry through the environment, at the moment they
 # use it.
 #
-# What we build (rule 1) and, in plugin mode, the machine's own toolchain
-# pieces (rule 2) are not vendor units at all: bundling does not govern
-# them. What we build always follows cmake's own install directories; the
-# machine's own pieces are always absolute. See "Ownership" below.
+# What we build and, in plugin mode, the machine's own toolchain pieces are
+# not vendor units at all: bundling does not govern them. What we build
+# always follows cmake's own install directories; the machine's own pieces
+# are always absolute. See "Ownership" below.
 #
 # Guarded plain set(), never CACHE, for everything that is not itself a
 # packager knob: an unguarded plain set() shadows a -D cache entry so the
@@ -167,8 +167,8 @@ endfunction()
 # amath, svml/intlc, libnuma - has one CMake option, ACPP_BUNDLE_<STEM>
 # (default OFF): install this vendor's runtime with the toolchain.
 # ACPP_<STEM>_SHIPPED is simply its value, and every other vendor-facing
-# macro reads it to choose between the two shapes the per-vendor rule
-# describes. A bundled vendor always lands in one fixed location,
+# macro reads it to choose between the shipped and not-shipped shapes. A
+# bundled vendor always lands in one fixed location,
 # ACPP_<STEM>_SUBDIR: <CMAKE_INSTALL_LIBDIR>/hipSYCL/ext/<lower> (Windows:
 # CMAKE_INSTALL_BINDIR based), resolved at configure time and not a cache
 # option.
@@ -322,12 +322,12 @@ macro(acpp_declare_vendor_app_root stem lower)
 endmacro()
 
 # ---------------------------------------------------------------------------
-# Ownership (rule: what we build is ours, what we don't in plugin mode is
-# the machine's; only vendor units are governed by ACPP_BUNDLE_<STEM>)
+# Ownership (what we build is ours, what we don't in plugin mode is the
+# machine's; only vendor units are governed by ACPP_BUNDLE_<STEM>)
 # ---------------------------------------------------------------------------
 #
 # Two more shapes than the vendor macros above, one for each side of the
-# ownership rule. Neither reads a vendor's shipped-ness, and neither accepts
+# ownership split. Neither reads a vendor's shipped-ness, and neither accepts
 # a -D override through ACPP_TOOLCHAIN_*/ACPP_APP_*/the provenance variable
 # itself: bundling is a commitment about assets we do not build, and these
 # entries name assets that are always ours to place or always the machine's
@@ -336,12 +336,11 @@ endmacro()
 # Declare the two sides of a resource we build ourselves. Called only when
 # the caller has already established this is our own build output (toolchain
 # mode's LLVM pieces, or any platform's plugin-mode compiler plugin file):
-# both sides are always the deploy-layout placeholder, because rule 1 says
-# what we build is always INSTALLED. Whether it is also deployed with an
-# application is a separate question the deploy manifest answers.
-# `relative` must already be a concrete
-# path (no {{ }}): the toolchain side still defers {{ acpp-root }} to the
-# driver's own resolver, but the application side is written by
+# both sides are always the deploy-layout placeholder, because what we build
+# is always INSTALLED. Whether it is also deployed with an application is a
+# separate question the deploy manifest answers. `relative` must already be a
+# concrete path (no {{ }}): the toolchain side still defers {{ acpp-root }} to
+# the driver's own resolver, but the application side is written by
 # configure_file, so it is computed here, from the runtime library's own
 # install directory, the same way a vendor's SHIPPED value is.
 macro(acpp_declare_owned_resource stem relative)
@@ -357,7 +356,7 @@ endmacro()
 
 # Declare a provenance entry for something we build ourselves: single-sided,
 # same reasoning as acpp_declare_owned_resource. Still takes a {{ }} deploy
-# path, unlike acpp_declare_owned_resource's now-concrete `relative`: a
+# path, unlike acpp_declare_owned_resource's concrete `relative`: a
 # provenance entry has no application side needing a resolved path, only the
 # toolchain side the driver's own resolver already handles.
 macro(acpp_declare_owned_provenance var relative)
@@ -365,11 +364,10 @@ macro(acpp_declare_owned_provenance var relative)
 endmacro()
 
 # Declare the two sides of a resource that belongs to the machine in plugin
-# mode (rule 2): both sides are the discovered absolute path - nothing is
-# deployed, so the JIT reaches the same machine copy the driver does.
-# Empty when discovery found nothing (a profile that builds no plugin,
-# decision d): that is not an error, it is the honest "this
-# toolchain has no plugin, so it has no plugin-side compiler either".
+# mode: both sides are the discovered absolute path - nothing is deployed, so
+# the JIT reaches the same machine copy the driver does. Empty when discovery
+# found nothing (a profile that builds no plugin): that is not an error, the
+# toolchain simply has no plugin-side compiler.
 # Override through the underlying find's own cache variable (upstream's
 # CLANG_EXECUTABLE_PATH is one such CACHE STRING), never through
 # ACPP_TOOLCHAIN_*/ACPP_APP_*: those names do not exist for a machine
@@ -390,10 +388,10 @@ endmacro()
 # ---------------------------------------------------------------------------
 #
 # The OpenMP runtime our OMP backend links, and apps use, is a vendor unit
-# like cuda or hip (principle 3 of the design walkthrough): governed by
-# ACPP_BUNDLE_LIBOMP, with its own fixed subdir. The build mode changes only the
-# default SOURCE - which library the SHIPPED copy is taken from - not
-# whether it is a vendor unit at all: in toolchain mode, the libomp of the
+# like cuda or hip: governed by ACPP_BUNDLE_LIBOMP, with its own fixed
+# subdir. The build mode changes only the default SOURCE - which library the
+# SHIPPED copy is taken from - not whether it is a vendor unit at all: in
+# toolchain mode, the libomp of the
 # LLVM this build produces (guaranteed to exist, since the product must
 # work out of the box with only what we ship); in plugin mode, whatever
 # find_package(OpenMP) found for the compiler AdaptiveCpp itself was built

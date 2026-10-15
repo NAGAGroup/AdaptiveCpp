@@ -11,9 +11,7 @@
 # degenerates to "/" when a layout scatters them with nothing in common
 # but the filesystem root.
 #
-# Included from each cmake/discovery/<vendor>.cmake that needs it, not
-# from cmake/discovery.cmake, because the harnesses include a vendor file
-# directly without going through the parent first.
+# Included from each cmake/discovery/<vendor>.cmake that needs it.
 
 include_guard(GLOBAL)
 

@@ -6,8 +6,6 @@
 #
 # The root's CMAKE_POLICY_VERSION_MINIMUM 3.5 (needed for ocl-cxx-headers
 # under cmake 4) must be set before this file runs.
-#
-# This file is parse-checked only: FetchContent cannot run under -P.
 
 include_guard(GLOBAL)
 

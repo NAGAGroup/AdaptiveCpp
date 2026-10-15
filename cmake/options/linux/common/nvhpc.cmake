@@ -41,12 +41,11 @@ else()
 endif()
 
 # No rpath here, and no -Mnorpath either: the CLI driver never adds
-# rpaths by itself (doc/design-walkthrough-2026-09-25.md, "Driving") - an
-# app builder driving the nvcxx flow by hand owns its own link, same as
-# nvc++'s own default behaviour, so nothing here interferes with it
-# either. A CMake app gets its rpath from add_sycl_to_target instead
-# (Commit 6, ACPP_APP_INSTALL_RPATH), which already covers the nvhpc rt
-# subdir - see acpp_app_install_rpath's own NVHPC:RT entry.
+# rpaths by itself - an app builder driving the nvcxx flow by hand owns its
+# own link, same as nvc++'s own default behaviour, so nothing here
+# interferes with it either. A CMake app gets its rpath from
+# add_sycl_to_target instead (ACPP_APP_INSTALL_RPATH), which already covers
+# the nvhpc rt subdir - see acpp_app_install_rpath's own NVHPC:RT entry.
 if(NOT DEFINED ACPP_NVCXX_LINK_LINE)
   set(ACPP_NVCXX_LINK_LINE "")
 endif()

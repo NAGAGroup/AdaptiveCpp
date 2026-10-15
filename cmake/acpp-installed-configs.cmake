@@ -1,8 +1,5 @@
 # Generate the installed toolchain config, deploy manifest and application
-# config for one platform/arch, from the units currently enabled - the
-# generation half of root wiring (a later step of Commit 3 wires this into
-# a real install() rule; this file only knows how to produce the three
-# files given a repo, an output directory and the units in scope).
+# config for one platform/arch, from the units currently enabled.
 #
 # The caller has already included the relevant options files (core.cmake
 # plus whichever vendor .cmake files the units in UNITS need), so every
@@ -42,10 +39,9 @@ endfunction()
 # currently defines: "unless": "hiprtc-link" - the clang++/resource-dir
 # rows hip's manifest ships for the generic clangJitLink path are needed
 # only when the build did NOT link hipRTC's own alternative, so the row is
-# dropped when ACPP_DISCOVERED_HIP_HIPRTC is ON (see doc/configuration-
-# model.md, "Clang and its headers are hip's rows, not core's", and
-# cmake/discovery/hip.cmake, where ACPP_DISCOVERED_HIP_HIPRTC is set from
-# whether libhiprtc.so exists next to the discovered HIP install); and
+# dropped when ACPP_DISCOVERED_HIP_HIPRTC is ON (set in
+# cmake/discovery/hip.cmake from whether libhiprtc.so exists next to the
+# discovered HIP install); and
 # "unless": "hip-no-sysdeps" - hip-no-sysdeps drops the rocm_sysdeps row
 # when the HIP distribution has no such tree (classic ROCm).
 # ---------------------------------------------------------------------------
@@ -138,17 +134,15 @@ function(acpp_generate_installed_configs)
       "acpp_generate_installed_configs: PLATFORM, ARCH and OUT_DIR are required")
   endif()
 
-  # ACPP_PLUGIN_PATH is genuinely undefined in toolchain mode - not merely
-  # empty - by existing, deliberate design (see linux/common/core.cmake's
-  # compiler-plugin section: "when AdaptiveCpp is linked into the LLVM
-  # tools there is no plugin file... the driver emits no plugin flags"). The
-  # "plugin-path" config key still exists in every build mode's schema,
-  # though, so its
-  # @ACPP_PLUGIN_PATH@ reference resolving to empty there is correct, not
-  # a forgotten variable. Default it function-locally, which never escapes
-  # to the caller's scope (no PARENT_SCOPE) and so changes nothing the
-  # rest of the build sees - just what (c) below
-  # finds when it looks.
+  # ACPP_PLUGIN_PATH is deliberately undefined in toolchain mode - not
+  # merely empty (see linux/common/core.cmake's compiler-plugin section:
+  # when AdaptiveCpp is linked into the LLVM tools there is no plugin file
+  # and the driver emits no plugin flags). The "plugin-path" config key
+  # still exists in every build mode's schema, so its @ACPP_PLUGIN_PATH@
+  # reference resolving to empty there is correct, not a forgotten
+  # variable. Default it function-locally, which never escapes to the
+  # caller's scope (no PARENT_SCOPE) - just what (c) below finds when it
+  # looks.
   if(NOT DEFINED ACPP_PLUGIN_PATH)
     set(ACPP_PLUGIN_PATH "")
   endif()

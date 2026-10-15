@@ -791,8 +791,7 @@ void run_with_watchdog(const char* test_name, F&& body) {
 
 } // namespace async_host_regression
 
-// Hangs before b04d8349: a sycl::free inside an async_host task deadlocks on
-// CUDA/HIP when the queue holds back the operations that depend on it.
+// sycl::free inside an async_host task must not deadlock on CUDA/HIP.
 BOOST_AUTO_TEST_CASE(async_host_free_deadlock) {
   auto accelerator = async_host_regression::find_accelerator();
   if(!accelerator) {
@@ -833,8 +832,8 @@ BOOST_AUTO_TEST_CASE(async_host_free_deadlock) {
 }
 
 #ifdef ACPP_EXT_CG_PROPERTY_RETARGET
-// Aborts on b04d8349 ("provides no deferred event"): work on the OpenMP device
-// depends on a CUDA/HIP kernel that is held back behind an async_host node.
+// Work on the OpenMP device that depends on a CUDA/HIP kernel queued behind an
+// async_host node must not abort.
 BOOST_AUTO_TEST_CASE(async_host_retarget_no_abort) {
   auto accelerator = async_host_regression::find_accelerator();
   auto host_device = async_host_regression::find_omp_device();

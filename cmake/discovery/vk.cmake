@@ -7,8 +7,7 @@
 # cannot be built without them) but never manifest rows.
 #
 # find_package(Vulkan) is not used (outside Android, see the first branch)
-# because it creates imported targets and cannot run under cmake -P; its
-# components mix build-only libraries with the loader.
+# because its components mix build-only libraries with the loader.
 
 include_guard(GLOBAL)
 include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
@@ -16,9 +15,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
   # The Android NDK comes with Vulkan but not with the Vulkan SDK, so
   # SPIRV-Tools is found separately, and the headers come from paths the
-  # user supplies. These are imported targets (find_package), which is fine:
-  # Android is a cross build, so there is no cmake -P use here. The loader is
-  # the system's own; nothing is bundled or deployed for it.
+  # user supplies. The loader is the system's own; nothing is bundled or
+  # deployed for it.
   find_package(Vulkan QUIET REQUIRED)
   find_package(SPIRV-Tools QUIET REQUIRED)
 

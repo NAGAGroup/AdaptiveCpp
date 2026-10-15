@@ -14,7 +14,7 @@ endif()
 find_package(CUDAToolkit QUIET)
 
 # Probing happens first, into locals: found-but-incomplete (libdevice
-# missing) must not FATAL_ERROR now that discovery runs unconditionally -
+# missing) must not FATAL_ERROR, since discovery runs unconditionally -
 # it warns and the export below lands in the same not-found state as
 # CUDAToolkit not being found at all. Explicitly requesting the backend
 # still fails, from the root's own WITH_CUDA_BACKEND check.

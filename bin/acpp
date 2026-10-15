@@ -2558,8 +2558,7 @@ class compiler:
       print("acpp: Using temporary directory:",temp_dir)
       return self._run(temp_dir)
 
-# Application configuration model ("Application configuration" in
-# doc/design-walkthrough-2026-09-25.md): absent at the target -> copy;
+# Application configuration deploy: absent at the target -> copy;
 # present and byte-identical -> skip; present and different -> fail loud
 # rather than silently keep a stale one. Absent at the *install* is a
 # warning, not a failure - deploy still ships everything else.

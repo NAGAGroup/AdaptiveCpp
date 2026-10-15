@@ -24,11 +24,10 @@ acpp_declare_vendor_subdir_fact(HIP INCLUDE ACPP_DISCOVERED_HIP_INCDIR "${ACPP_D
 acpp_declare_vendor_subdir_fact(HIP BIN ACPP_DISCOVERED_HIP_BINDIR "${ACPP_DISCOVERED_HIP_BINDIR}")
 acpp_declare_vendor_subdir_fact(HIP BITCODE ACPP_DISCOVERED_HIP_BITCODE_DIR "${ACPP_DISCOVERED_HIP_BITCODE_DIR}")
 
-# The application's own view of each (D7): the manifest's app-config
-# section embeds these via @VAR@; Piece 3's concern to wire in. BIN doubles
-# as the DLL directory AddDllDirectory is fed, which is why it is declared
-# here rather than skipped the way it would be if only the import library
-# at RT mattered.
+# The application's own view of each: the manifest's app-config section
+# embeds these via @VAR@. BIN doubles as the DLL directory AddDllDirectory is
+# fed, which is why it is declared here rather than skipped the way it would
+# be if only the import library at RT mattered.
 acpp_declare_vendor_app_dir(HIP hip RT)
 acpp_declare_vendor_app_dir(HIP hip INCLUDE)
 acpp_declare_vendor_app_dir(HIP hip BIN)

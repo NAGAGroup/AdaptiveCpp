@@ -52,7 +52,7 @@ function(create_llvm_based_library)
   # When LLVM is a DLL (Windows LLVM_LINK_LLVM_DYLIB), link the DLL like
   # LLVM's own tools do; linking the static component libraries against
   # headers that declare dllimport broke the llvm-to-*-tool links
-  # (duplicate std::ctype<char>::_Getcat, run 38602918135).
+  # (duplicate std::ctype<char>::_Getcat).
   if(WIN32 AND NOT LLVM_LINK_LLVM_DYLIB)
     llvm_config(${target} core support irreader passes)
   else()
@@ -268,7 +268,7 @@ if(WITH_SSCP_COMPILER)
       GIT_SHALLOW ${LLVMSPIRV_GIT_SHALLOW}
       GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
       # The translator's test tree has paths beyond MAX_PATH; the win-64 clone hit 17
-      # "Filename too long" checkout errors (runs 38570967283 and 38577744298).
+      # "Filename too long" checkout errors.
       GIT_CONFIG core.longpaths=true
       BUILD_ALWAYS OFF
       BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/ext/llvm-spirv

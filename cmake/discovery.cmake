@@ -52,11 +52,7 @@ if(ACPP_LLVM_COMPONENT)
   # The parent installs everything into one prefix - LLVM's tools and
   # libraries, its libomp, and AdaptiveCpp itself - so LLVM's own install
   # prefix simply is CMAKE_INSTALL_PREFIX, the same {{ acpp-root }} every
-  # other placeholder resolves against. There is no separate
-  # llvm-deploy-path knob: it is gone outright (D5), not renamed - what
-  # toolchain mode builds follows cmake's own install directories under
-  # {{ acpp-root }} directly, so there is nothing left for a
-  # fork-specific knob to say.
+  # other placeholder resolves against.
 
   set(ACPP_DISCOVERED_LLVM_PREFIX "${CMAKE_INSTALL_PREFIX}")
   set(ACPP_DISCOVERED_LLVM_BINDIR "${ACPP_DISCOVERED_LLVM_PREFIX}/bin")
@@ -89,26 +85,9 @@ else()
   # Upstream only builds the plugin (BUILD_CLANG_PLUGIN) when a feature
   # that needs it is on; under ACPP_COMPILER_FEATURE_PROFILE "none" - its
   # own default outside an LLVM build on macOS and Windows - none are, so
-  # there is no plugin and nothing to find. This mirrors that one case
-  # (profile "none") rather than upstream's whole BUILD_CLANG_PLUGIN state
-  # machine, which also turns on per-backend (CUDA, ROCm, OpenCL/Level
-  # Zero); those triggers are not replicated here.
-  #
-  # The root already computes ACPP_COMPILER_FEATURE_PROFILE as a CACHE
-  # STRING (CMakeLists.txt ~131-143) before this file would ever run in
-  # the wired build, so it is always DEFINED by the time we get here. This
-  # fallback is for exercising discovery.cmake on its own, ahead of that -
-  # a harness, say: upstream's own default rule, simplified to the case
-  # this branch can reach (ACPP_LLVM_COMPONENT is never true here), and
-  # uncached - the options side still owns the cache entry once one exists.
-  if(NOT DEFINED ACPP_COMPILER_FEATURE_PROFILE)
-    if(APPLE OR WIN32)
-      set(ACPP_COMPILER_FEATURE_PROFILE "none")
-    else()
-      set(ACPP_COMPILER_FEATURE_PROFILE "full")
-    endif()
-  endif()
-
+  # there is no plugin and nothing to find. Only that case is mirrored here,
+  # not upstream's per-backend BUILD_CLANG_PLUGIN triggers (CUDA, ROCm,
+  # OpenCL/Level Zero).
   if(ACPP_COMPILER_FEATURE_PROFILE STREQUAL "none")
     set(ACPP_DISCOVERED_LLVM_BINDIR "")
     set(ACPP_DISCOVERED_LLVM_PREFIX "")
