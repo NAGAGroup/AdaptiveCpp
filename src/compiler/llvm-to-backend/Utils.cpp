@@ -106,7 +106,7 @@ std::string resolveLLVMTool(const std::string& Setting,
   HIPSYCL_DEBUG_ERROR
       << Setting << " not found: set "
       << common::settings::detail::generate_configuration_identifier(Setting)
-      << " or install it at " << Bundled << std::endl;
+      << " or install it at " << Bundled << "\n";
   return std::string{};
 }
 
