@@ -90,9 +90,10 @@ if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   set(ACPP_PLUGIN_PATH "{{ acpp-root }}/{{ acpp-bindir }}/acpp-clang.dll")
 endif()
 
-# No vector math on Windows; the default is "none".
+# The default comes from the root detection block in CMakeLists.txt
+# (DEFAULT_VEC_MATH_LIB, "none" on Windows).
 if(NOT DEFINED ACPP_VECTOR_MATH_LIB)
-  set(ACPP_VECTOR_MATH_LIB "none")
+  set(ACPP_VECTOR_MATH_LIB "${DEFAULT_VEC_MATH_LIB}")
 endif()
 
 # ---------------------------------------------------------------------------

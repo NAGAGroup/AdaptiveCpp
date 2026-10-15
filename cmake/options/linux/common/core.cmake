@@ -122,12 +122,12 @@ if(NOT LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   set(ACPP_PLUGIN_PATH "{{ acpp-root }}/{{ acpp-libdir }}/libacpp-clang.so")
 endif()
 
-# Which vector math library the host JIT uses. NOT discovery-derived: several
-# may be present at once and discovery cannot choose between them. The default
-# is the one every glibc system has, every code path compiles unconditionally,
-# and the runtime falls back to libmvec when the configured library is absent.
+# Which vector math library the host JIT uses. The default comes from the root
+# detection block in CMakeLists.txt (DEFAULT_VEC_MATH_LIB: svml on x86 when
+# found, else libmvec when usable, else none); every code path compiles
+# unconditionally, and -DACPP_VECTOR_MATH_LIB overrides it.
 if(NOT DEFINED ACPP_VECTOR_MATH_LIB)
-  set(ACPP_VECTOR_MATH_LIB "libmvec")
+  set(ACPP_VECTOR_MATH_LIB "${DEFAULT_VEC_MATH_LIB}")
 endif()
 
 # ---------------------------------------------------------------------------

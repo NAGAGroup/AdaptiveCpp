@@ -525,13 +525,15 @@ set(ACPP_FILESYSTEM_SEARCH_OPTIONS "Final;Experimental;Boost" CACHE STRING "Whic
 
 # Vector math library discovery. The add_definitions that turn these results
 # into compile definitions remain in src/compiler and read the variables set
-# here. The selection order is load-bearing: libmvec is the default when
-# usable, and the
-# architecture-specific libraries override it.
+# here. Defaults: x86 Linux uses svml when found, else libmvec; aarch64 Linux
+# uses libmvec; macOS and Windows use none. The user can override with
+# -DACPP_VECTOR_MATH_LIB; sleef and armpl are selectable but never default.
 if(APPLE OR WIN32)
-  message(WARNING "Usage of vector math library for JIT compilation is not supported on windows and Apple")
+  # Windows x86: conda-forge's intel-cmplr-lib-rt ships svml_dispmd.dll without an import library, so the JIT cannot link SVML there.
+  message(STATUS "No vector math library by default on this platform")
   set(DEFAULT_VEC_MATH_LIB none)
 else()
+  set(DEFAULT_VEC_MATH_LIB none)
 
   #LIBMVEC
   find_library(LIBMVEC NAMES mvec)
@@ -579,8 +581,6 @@ else()
     find_library(LIBSLEEF NAMES sleefgnuabi)
 
     if(LIBSLEEF)
-      set(DEFAULT_VEC_MATH_LIB sleef)
-
       message( STATUS "SLEEF found at ${LIBSLEEF}")
     else()
       message( STATUS "SLEEF was not found")
@@ -594,8 +594,6 @@ else()
     find_library(LIBAMATH NAMES amath)
 
     if(LIBAMATH)
-      set(DEFAULT_VEC_MATH_LIB armpl)
-
       message( STATUS "AMATH found at ${LIBAMATH}")
     else()
       message( STATUS "AMATH was not found")
