@@ -909,7 +909,7 @@ configure_file(
   ${ACPP_BINARY_ROOT}/include/hipSYCL/pcuda/detail/cuda_prefixed_runtime.hpp)
 
 set(ACPP_PCUDA_PREFIX "hip")
-set(ACPP_PCUDA_CAPTIAL_PREFIX "HIP")
+set(ACPP_PCUDA_CAPITAL_PREFIX "HIP")
 configure_file(
   ${ACPP_SOURCE_ROOT}/include/hipSYCL/pcuda/detail/prefixed_runtime.hpp.in
   ${ACPP_BINARY_ROOT}/include/hipSYCL/pcuda/detail/hip_prefixed_runtime.hpp)
@@ -922,7 +922,7 @@ configure_file(
   ${ACPP_BINARY_ROOT}/include/hipSYCL/pcuda/detail/cuda_prefixed_runtime.hpp)
 
 set(ACPP_PCUDA_PREFIX "hip")
-set(ACPP_PCUDA_CAPTIAL_PREFIX "HIP")
+set(ACPP_PCUDA_CAPITAL_PREFIX "HIP")
 configure_file(
   ${ACPP_SOURCE_ROOT}/include/hipSYCL/pcuda/detail/prefixed_runtime.hpp.in
   ${ACPP_BINARY_ROOT}/include/hipSYCL/pcuda/detail/hip_prefixed_runtime.hpp)
