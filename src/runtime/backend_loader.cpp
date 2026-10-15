@@ -17,7 +17,9 @@
 #include "hipSYCL/runtime/application.hpp"
 #include "hipSYCL/runtime/device_id.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <system_error>
 
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -118,12 +120,43 @@ std::vector<fs::path> get_plugin_search_paths()
   // ACPP_<VENDOR>_DLL_DIR rows), so each is registered here too, before any
   // backend plugin - and the vendor DLLs it transitively loads - is opened
   // below.
+  //
+  // A directory that is the vendor's bundled location (the <name>_bundled
+  // config entry won) has its DLLs loaded by full path instead, in sorted
+  // name order, so the plugin's imports bind to those already-loaded modules.
+  // The handles are kept for the process lifetime and never freed.
+  static std::vector<HMODULE> preloaded_vendor_dlls;
   for(const char* setting_name :
       {"cuda_dll_dir", "hip_dll_dir", "ocl_dll_dir", "ze_dll_dir", "libomp_dll_dir"}) {
     std::string dll_dir;
-    if(hipsycl::common::settings::try_resolve_vendor_path(setting_name, dll_dir) &&
+    bool is_bundled = false;
+    if(hipsycl::common::settings::try_resolve_vendor_path(setting_name, dll_dir, &is_bundled) &&
        !dll_dir.empty() && fs::is_directory(dll_dir)) {
-      AddDllDirectory(fs::path{dll_dir}.c_str());
+      if(!is_bundled) {
+        AddDllDirectory(fs::path{dll_dir}.c_str());
+        continue;
+      }
+
+      std::vector<fs::path> dlls;
+      std::error_code ec;
+      for(const fs::directory_entry& entry : fs::directory_iterator(dll_dir, ec)) {
+        std::error_code status_ec;
+        if(entry.is_regular_file(status_ec) && entry.path().extension() == ".dll")
+          dlls.push_back(entry.path());
+      }
+      std::sort(dlls.begin(), dlls.end());
+
+      for(const fs::path& dll : dlls) {
+        HMODULE module = LoadLibraryExW(dll.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if(module) {
+          preloaded_vendor_dlls.push_back(module);
+          HIPSYCL_DEBUG_INFO << "backend_loader: Pre-loaded bundled vendor DLL: "
+                             << dll << std::endl;
+        } else {
+          HIPSYCL_DEBUG_WARNING << "backend_loader: Could not pre-load bundled vendor DLL "
+                                << dll << " (error " << GetLastError() << ")" << std::endl;
+        }
+      }
     }
   }
 #endif
