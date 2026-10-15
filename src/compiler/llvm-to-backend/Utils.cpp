@@ -15,7 +15,6 @@
 
 #include <llvm/Support/Program.h>
 
-#include <chrono>
 #include <string>
 
 #ifdef _WIN32
@@ -50,10 +49,6 @@ std::string getLLVMRedistributablePackagePath() {
   return common::filesystem::join_path(RedistPkg, "llvm");
 }
 
-// Set when the most recent executeAndWait() on this thread hit
-// ToolInvocationTimeoutSeconds; read back by describeToolExitCode().
-thread_local bool LastToolInvocationTimedOut = false;
-
 // On Windows, a child that cannot load a DLL (or crashes) raises a modal
 // system-error / WER dialog. On a headless machine nobody can dismiss it, so
 // the child blocks forever and the JIT hangs instead of failing. The error
@@ -72,27 +67,10 @@ void suppressChildErrorDialogs() {
 #endif
 }
 
-// llvm::sys::ExecuteAndWait/Wait report a timed-out (killed) child as return
-// code -2, which is also what a child killed by a signal reports. Tell them
-// apart by the time spent: only a run that lasted the full timeout counts.
-void recordToolResult(int ReturnCode,
-                      std::chrono::steady_clock::time_point Start) {
-  const auto Elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-                           std::chrono::steady_clock::now() - Start)
-                           .count();
-  LastToolInvocationTimedOut =
-      ReturnCode == -2 &&
-      Elapsed >= static_cast<long long>(ToolInvocationTimeoutSeconds) - 1;
-}
-
 }
 
 std::string describeToolExitCode(int ReturnCode) {
-  std::string Result = "with exit code " + std::to_string(ReturnCode);
-  if(ReturnCode == -2 && LastToolInvocationTimedOut)
-    Result += " (timed out after " +
-              std::to_string(ToolInvocationTimeoutSeconds) + " s)";
-  return Result;
+  return "with exit code " + std::to_string(ReturnCode);
 }
 
 std::string getClangPath() {
@@ -278,11 +256,7 @@ int executeAndWait(
     llvm::Optional<llvm::ArrayRef<llvm::StringRef>> Env,
     llvm::ArrayRef<llvm::Optional<llvm::StringRef>> Redirects) {
   suppressChildErrorDialogs();
-  const auto Start = std::chrono::steady_clock::now();
-  int Result = llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects,
-                                         ToolInvocationTimeoutSeconds);
-  recordToolResult(Result, Start);
-  return Result;
+  return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
 }
 #else
 int executeAndWait(
@@ -291,12 +265,8 @@ int executeAndWait(
     std::optional<llvm::ArrayRef<llvm::StringRef>> Env,
     llvm::ArrayRef<std::optional<llvm::StringRef>> Redirects) {
   suppressChildErrorDialogs();
-  const auto Start = std::chrono::steady_clock::now();
 #if !defined(_WIN32) || LLVM_VERSION_MAJOR < 19
-  int Result = llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects,
-                                         ToolInvocationTimeoutSeconds);
-  recordToolResult(Result, Start);
-  return Result;
+  return llvm::sys::ExecuteAndWait(Program, Args, Env, Redirects);
 #else
   std::string ErrMsg;
   bool ExecutionFailed = false;
@@ -341,10 +311,7 @@ int executeAndWait(
     return -1;
   }
 
-  // Bounded wait: on timeout LLVM kills the child and returns -2, so the
-  // caller's error path fires instead of the JIT hanging forever.
-  auto Result = llvm::sys::Wait(ProcessInfo, ToolInvocationTimeoutSeconds);
-  recordToolResult(Result.ReturnCode, Start);
+  auto Result = llvm::sys::Wait(ProcessInfo, std::nullopt);
 
   if(CaptureOutput) {
     if(auto StdoutBuffer = llvm::MemoryBuffer::getFile(StdoutFile))

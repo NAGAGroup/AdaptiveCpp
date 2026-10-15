@@ -387,14 +387,7 @@ std::string getLibAmathDir();
 std::string getLibMvecDir();
 std::string getBitcodePath();
 
-// Upper bound for one external tool invocation (opt, llc, lld, llvm-spirv,
-// clang, ...). A hung child is killed after this long and executeAndWait()
-// returns -2, so the caller's error path fires instead of the JIT hanging.
-constexpr unsigned ToolInvocationTimeoutSeconds = 600;
-
-// Text for a failed tool invocation's error message: "with exit code N", plus
-// "(timed out after 600 s)" when the last executeAndWait() on this thread
-// was killed by the timeout.
+// Text for a failed tool invocation's error message: "with exit code N".
 std::string describeToolExitCode(int ReturnCode);
 
 #if LLVM_VERSION_MAJOR >= 16
