@@ -152,9 +152,11 @@ const hcf_kernel_info* extract_kernel_info(hcf_object_id id, std::string_view ke
   else {
     auto* info = hcf_cache::get().get_kernel_info(id, kernel_name);
 
-    __atomic_store_n(kernel_specific_storage,
-                     const_cast<void *>(static_cast<const void *>(info)),
-                     __ATOMIC_RELAXED);
+    // A failed lookup is not cached.
+    if(info)
+      __atomic_store_n(kernel_specific_storage,
+                       const_cast<void *>(static_cast<const void *>(info)),
+                       __ATOMIC_RELAXED);
     return info;
   }
 }
@@ -193,6 +195,13 @@ ACPP_PCUDA_API pcudaError_t __pcudaKernelCall(const char *kernel_name,
   std::string_view kernel_name_view = std::string_view{kernel_name};
   const rt::hcf_kernel_info *kinfo = extract_kernel_info(
       hcf_object, kernel_name_view, kernel_specific_storage);
+  if(!kinfo) {
+    register_pcuda_error(__acpp_here(), pcudaErrorInvalidDeviceFunction,
+                         std::string{"pcudaKernelCall: no kernel info for kernel '"} +
+                             std::string{kernel_name_view} + "' in HCF object " +
+                             std::to_string(hcf_object));
+    return pcudaErrorInvalidDeviceFunction;
+  }
   std::size_t num_args = kinfo->get_host_side_parameter_sizes().size();
   // empty config is fine; we don't expect user interaction
   rt::kernel_configuration config;
