@@ -21,8 +21,6 @@
 #define HIPSYCL_VERSION_MINOR ACPP_VERSION_MINOR
 #define HIPSYCL_VERSION_PATCH ACPP_VERSION_PATCH
 
-// Deliberately empty: the installation is found by asking the dynamic loader
-// where our libraries are, never from a compiled-in path.
 #define ACPP_LIBDIR_TO_PREFIX "@ACPP_LIBDIR_TO_PREFIX@"
 #define HIPSYCL_RT_LIBRARY_NAME "@HIPSYCL_RT_LIBRARY_OUTPUT_NAME@"
 #define HIPSYCL_COMMON_LIBRARY_NAME "@HIPSYCL_COMMON_LIBRARY_OUTPUT_NAME@"

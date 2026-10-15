@@ -507,12 +507,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# The install prefix is deliberately not recorded in the binaries. The only
-# mechanism for finding the installation is asking the dynamic loader where
-# our own libraries are (get_lib_directory()); a compiled-in fallback would
-# name the machine that built the toolchain, and both readers treat the value
-# as a fallback behind that lookup.
-
 # Where our shared libraries live relative to the install prefix is fixed
 # at configure time; the prefix itself is not. The runtime finds its own
 # directory from the loader and walks this relative path back up.

@@ -137,14 +137,13 @@ function(acpp_generate_installed_configs)
   # ACPP_PLUGIN_PATH is genuinely undefined in toolchain mode - not merely
   # empty - by existing, deliberate design (see linux/common/core.cmake's
   # compiler-plugin section: "when AdaptiveCpp is linked into the LLVM
-  # tools there is no plugin file... the driver emits no plugin flags";
-  # verify-core.cmake and its macOS/Windows counterparts assert exactly
-  # this with expect_unset(ACPP_PLUGIN_PATH)). The "plugin-path" config key
-  # still exists in every build mode's schema, though, so its
+  # tools there is no plugin file... the driver emits no plugin flags"). The
+  # "plugin-path" config key still exists in every build mode's schema,
+  # though, so its
   # @ACPP_PLUGIN_PATH@ reference resolving to empty there is correct, not
   # a forgotten variable. Default it function-locally, which never escapes
-  # to the caller's scope (no PARENT_SCOPE) and so changes nothing any
-  # other harness or the rest of the build sees - just what (c) below
+  # to the caller's scope (no PARENT_SCOPE) and so changes nothing the
+  # rest of the build sees - just what (c) below
   # finds when it looks.
   if(NOT DEFINED ACPP_PLUGIN_PATH)
     set(ACPP_PLUGIN_PATH "")
