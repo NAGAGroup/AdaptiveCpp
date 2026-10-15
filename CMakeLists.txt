@@ -512,7 +512,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # our own libraries are (get_lib_directory()); a compiled-in fallback would
 # name the machine that built the toolchain, and both readers treat the value
 # as a fallback behind that lookup.
-set(ACPP_RECORDED_INSTALL_PREFIX "")
 
 # Where our shared libraries live relative to the install prefix is fixed
 # at configure time; the prefix itself is not. The runtime finds its own
