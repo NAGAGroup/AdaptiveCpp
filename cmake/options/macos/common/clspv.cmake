@@ -10,7 +10,7 @@
 
 include_guard(GLOBAL)
 
-acpp_declare_vendor(CLSPV clspv permissive)
+acpp_declare_vendor(CLSPV clspv)
 acpp_declare_vendor_root(CLSPV clspv ACPP_DISCOVERED_CLSPV_PREFIX "${ACPP_DISCOVERED_CLSPV_PREFIX}")
 
 acpp_declare_vendor_subdir_fact(CLSPV BIN ACPP_DISCOVERED_CLSPV_BINDIR "${ACPP_DISCOVERED_CLSPV_BINDIR}")

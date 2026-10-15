@@ -37,21 +37,19 @@
 #     application ever looks them up.
 #
 # A VENDOR unit (rule 3: assets we do not build) is steered at configure
-# time by exactly two packager knobs: the find's own hints (CUDAToolkit_ROOT,
-# LLVM_DIR, OpenCL_LIBRARY, WITH_*_BACKEND - never named here, they belong to
-# discovery) and one install subdirectory, ACPP_<VENDOR>_SUBDIR. After
-# discovery and that one knob, everything else about the vendor is derived:
-# There is no per-resource -D override. Under managed there is one per
-# vendor root, ACPP_<VENDOR>_ROOT (see acpp_declare_vendor_root); full and
-# full-permissive-only take none for what they ship. A user of the
-# installed toolchain can still override any entry through the environment,
-# at the moment they use it - unchanged.
+# time by the find's own hints (CUDAToolkit_ROOT, LLVM_DIR, OpenCL_LIBRARY,
+# WITH_*_BACKEND - never named here, they belong to discovery), by one
+# on/off option, ACPP_BUNDLE_<VENDOR> (install the vendor's runtime with the
+# toolchain), and by an optional location override, ACPP_<VENDOR>_ROOT (see
+# acpp_declare_vendor_root). Everything else about the vendor is derived.
+# There is no per-resource -D override. A user of the installed toolchain
+# can still override any entry through the environment, at the moment they
+# use it.
 #
 # What we build (rule 1) and, in plugin mode, the machine's own toolchain
-# pieces (rule 2) are not vendor units at all: the strategy does not govern
-# them. What we build always follows cmake's own install directories, in
-# every strategy; the machine's own pieces are always absolute, in every
-# strategy. See "Ownership" below.
+# pieces (rule 2) are not vendor units at all: bundling does not govern
+# them. What we build always follows cmake's own install directories; the
+# machine's own pieces are always absolute. See "Ownership" below.
 #
 # Guarded plain set(), never CACHE, for everything that is not itself a
 # packager knob: an unguarded plain set() shadows a -D cache entry so the
@@ -162,117 +160,69 @@ function(acpp_join_absolute out_var root piece)
 endfunction()
 
 # ---------------------------------------------------------------------------
-# Vendor units: shipped or not, two knobs either way
+# Vendor units: bundled or not
 # ---------------------------------------------------------------------------
 #
 # Every vendor unit - cuda, nvhpc, hip, ocl, ze, vk, clspv, libomp, sleef,
-# amath, svml/intlc, libnuma - gets exactly one packager knob beyond what
-# its own discovery steers: ACPP_<VENDOR>_SUBDIR, a pure subdirectory with
-# no root in it, resolved at configure time like CMAKE_INSTALL_LIBDIR
-# itself, never deferred to a {{ }} placeholder. The default is
-# <CMAKE_INSTALL_LIBDIR>/hipSYCL/ext/<lower> (Windows:
-# CMAKE_INSTALL_BINDIR-based, matching where the rest of what we install
-# already lands); an explicitly empty string installs straight at the root -
-# the conda case, where the packager's own layout already scopes it.
-#
-# Whether a vendor is actually SHIPPED - copied into that subdirectory at
-# all - is not a further knob; it falls straight out of the strategy and
-# the vendor's own category (see "Controls" below): shipped under full,
-# always; under full-permissive-only, only if the category is permissive;
-# never under managed. Every other vendor-facing macro reads
-# ACPP_<VENDOR>_SHIPPED, set here, to choose between the two shapes the
-# per-vendor rule describes - relative to our own tree when shipped,
-# the discovered location otherwise - rather than testing
-# ACPP_DEPLOYMENT_STRATEGY itself.
+# amath, svml/intlc, libnuma - has one CMake option, ACPP_BUNDLE_<STEM>
+# (default OFF): install this vendor's runtime with the toolchain.
+# ACPP_<STEM>_SHIPPED is simply its value, and every other vendor-facing
+# macro reads it to choose between the two shapes the per-vendor rule
+# describes. A bundled vendor always lands in one fixed location,
+# ACPP_<STEM>_SUBDIR: <CMAKE_INSTALL_LIBDIR>/hipSYCL/ext/<lower> (Windows:
+# CMAKE_INSTALL_BINDIR based), resolved at configure time and not a cache
+# option.
 
-# Whether a vendor unit of the given category ships under the strategy in
-# effect. Sets _acpp_vendor_shipped in the caller's scope (a macro, not a
-# function, precisely so that scope is the caller's and not thrown away).
-macro(acpp_vendor_shipped category)
-  if(NOT "${category}" MATCHES "^(permissive|nonpermissive)$")
-    message(FATAL_ERROR
-      "acpp_vendor_shipped: category must be permissive or nonpermissive, "
-      "not '${category}'.")
-  endif()
-  if(ACPP_DEPLOYMENT_STRATEGY STREQUAL "full")
-    set(_acpp_vendor_shipped ON)
-  elseif(ACPP_DEPLOYMENT_STRATEGY STREQUAL "full-permissive-only"
-      AND "${category}" STREQUAL "permissive")
-    set(_acpp_vendor_shipped ON)
+# Declare a vendor: the ACPP_BUNDLE_<stem> option, ACPP_<stem>_SHIPPED (its
+# value), the fixed ACPP_<stem>_SUBDIR, and - when bundled - an entry in the
+# GLOBAL property ACPP_BUNDLED_VENDORS. Third argument, optional: where
+# discovery found the vendor; when given and empty, bundling it is an error.
+macro(acpp_declare_vendor stem lower)
+  if(WIN32)
+    set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/${lower}")
   else()
-    set(_acpp_vendor_shipped OFF)
+    set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/${lower}")
+  endif()
+
+  option(ACPP_BUNDLE_${stem} "Install the ${lower} vendor runtime into the toolchain under its fixed hipSYCL/ext/${lower} location" OFF)
+  set(ACPP_${stem}_SHIPPED ${ACPP_BUNDLE_${stem}})
+
+  if(ACPP_${stem}_SHIPPED AND ${ARGC} GREATER 2 AND "${ARGV2}" STREQUAL "")
+    message(FATAL_ERROR
+      "ACPP_BUNDLE_${stem} is ON but the ${lower} vendor was not found by discovery.")
+  endif()
+  if(ACPP_${stem}_SHIPPED)
+    set_property(GLOBAL APPEND PROPERTY ACPP_BUNDLED_VENDORS ${lower})
   endif()
 endmacro()
 
-# Declare a vendor's install subdirectory knob and whether it ships.
-# `category` is `permissive` or `nonpermissive` (see "Controls" for what
-# that means and the gate it triggers). Replaces the old
-# acpp_declare_vendor_subdir, which took no category because it never
-# needed to decide shipped-ness itself - every strategy already treated
-# every subdir as relative except the one absolute-path case the design
-# walkthrough retired.
-#
-# Fourth argument, optional: where discovery found the vendor; when given
-# and empty, nothing was found, so nothing will be shipped and there is no
-# redistribution decision to gate.
-macro(acpp_declare_vendor stem lower category)
-  if(${ARGC} GREATER 3 AND "${ARGV3}" STREQUAL "")
-    set(_acpp_vendor_found OFF)
+# Declare a vendor that can never be bundled: the same fixed
+# ACPP_<stem>_SUBDIR, no option, ACPP_<stem>_SHIPPED always OFF. Setting
+# ACPP_BUNDLE_<stem> to a true value is an error.
+macro(acpp_declare_unbundleable_vendor stem lower)
+  if(WIN32)
+    set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/${lower}")
   else()
-    set(_acpp_vendor_found ON)
+    set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/${lower}")
   endif()
-  if(NOT DEFINED ACPP_${stem}_SUBDIR)
-    if(WIN32)
-      set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/${lower}"
-        CACHE STRING
-        "Install subdirectory for the ${lower} vendor unit, relative to the install root. Empty installs straight at the root (e.g. a conda build).")
-    else()
-      set(ACPP_${stem}_SUBDIR "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/${lower}"
-        CACHE STRING
-        "Install subdirectory for the ${lower} vendor unit, relative to the install root. Empty installs straight at the root (e.g. a conda build).")
-    endif()
-  endif()
-  acpp_require_relative(ACPP_${stem}_SUBDIR)
 
-  acpp_vendor_shipped(${category})
-  set(ACPP_${stem}_SHIPPED ${_acpp_vendor_shipped})
-  unset(_acpp_vendor_shipped)
-
-  # Copying a nonpermissive vendor into our own install tree is the
-  # redistribution decision the gate exists for (see "Controls"); a
-  # packager choosing full-permissive-only never reaches this, because
-  # ACPP_${stem}_SHIPPED is already OFF for a nonpermissive category there.
-  if(ACPP_${stem}_SHIPPED
-      AND "${category}" STREQUAL "nonpermissive"
-      AND ACPP_DEPLOYMENT_STRATEGY STREQUAL "full"
-      AND NOT ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN
-      AND _acpp_vendor_found)
-    message(FATAL_ERROR
-      "Strategy full would ship the ${lower} vendor unit, which is "
-      "nonpermissive, but ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN "
-      "is OFF. Turn it on, having read ${lower}'s redistribution terms and "
-      "accepted passing that obligation on to your own users, or configure "
-      "with full-permissive-only instead, which ships permissive vendors "
-      "only and needs no such decision.")
+  set(ACPP_${stem}_SHIPPED OFF)
+  if(DEFINED ACPP_BUNDLE_${stem} AND ACPP_BUNDLE_${stem})
+    message(FATAL_ERROR "${lower} cannot be bundled with the toolchain.")
   endif()
-  unset(_acpp_vendor_found)
 endmacro()
 
 # Declare "<lower>-install-root": where the driver finds the vendor. Also
 # records the raw discovered root (ACPP_<stem>_DISCOVERED_ROOT), which the
-# NOT SHIPPED side of every application-facing macro below reads directly -
-# an application run against a not-shipped vendor uses the same absolute
-# location the driver found, because nothing was copied anywhere else for
-# it to use instead. Driver-only: nothing here is a two-sided resource,
-# because the root by itself names no file an application reads; its
-# subdirs (below) do that.
+# install rules copy from when the vendor is bundled. Driver-only: nothing
+# here is a two-sided resource, because the root by itself names no file an
+# application reads; its subdirs (below) do that.
 #
-# Under managed, -DACPP_<STEM>_ROOT moves where a not-shipped vendor is
-# found: absolute is used as-is; relative is relative to the install
-# prefix ({{ acpp-root }}/<rel> for the driver, $ACPP_RT_LIB_DIR-relative
-# for the application config). ACPP_<STEM>_APP_ROOT is the application
-# side of the root; ACPP_<STEM>_DISCOVERED_ROOT stays what discovery found
-# (the install rules copy from it, and only for shipped vendors).
+# -DACPP_<STEM>_ROOT moves where the vendor is found: absolute is used
+# as-is; relative is relative to the install prefix ({{ acpp-root }}/<rel> for
+# the driver, $ACPP_RT_LIB_DIR-relative for the application config). It always
+# sets ACPP_<STEM>_APP_ROOT, the application-side fallback, bundled or not;
+# a bundled vendor's driver-side INSTALL_ROOT stays its fixed bundled location.
 macro(acpp_declare_vendor_root stem lower discovered_var discovered)
   acpp_require_discovered(${discovered_var})
   set(ACPP_${stem}_DISCOVERED_ROOT "${discovered}")
@@ -282,16 +232,7 @@ macro(acpp_declare_vendor_root stem lower discovered_var discovered)
   else()
     set(_acpp_override "")
   endif()
-  if(ACPP_${stem}_SHIPPED)
-    if(NOT "${_acpp_override}" STREQUAL "")
-      message(FATAL_ERROR
-        "ACPP_${stem}_ROOT moves where the ${lower} vendor unit is found, "
-        "which only applies to a vendor that is not shipped. Under "
-        "ACPP_DEPLOYMENT_STRATEGY=${ACPP_DEPLOYMENT_STRATEGY} ${lower} is "
-        "shipped into the toolchain, and a shipped vendor takes no override.")
-    endif()
-    set(ACPP_${stem}_INSTALL_ROOT "{{ acpp-root }}/{{ ${lower}-subdir }}")
-  elseif(NOT "${_acpp_override}" STREQUAL "")
+  if(NOT "${_acpp_override}" STREQUAL "")
     if("${_acpp_override}" MATCHES "\\{\\{|\\$")
       message(FATAL_ERROR "ACPP_${stem}_ROOT must be a plain path, not a template ('${_acpp_override}').")
     endif()
@@ -314,44 +255,44 @@ macro(acpp_declare_vendor_root stem lower discovered_var discovered)
   else()
     set(ACPP_${stem}_INSTALL_ROOT "${discovered}")
   endif()
+  if(ACPP_${stem}_SHIPPED)
+    set(ACPP_${stem}_INSTALL_ROOT "{{ acpp-root }}/{{ ${lower}-subdir }}")
+  endif()
   unset(_acpp_override)
 endmacro()
 
 # Declare one vendor-relative subdir fact, "<lower>-<x>-subdir": always the
-# relative fact discovery found, in every strategy - it describes the
-# vendor's own internal layout, not where we chose to put the vendor, so
-# nothing here branches on shipped-ness. A link line composes this with the
+# relative fact discovery found - it describes the vendor's own internal
+# layout, not where we chose to put the vendor, so nothing here branches on
+# shipped-ness. A link line composes this with the
 # vendor root itself where an absolute answer is needed.
 macro(acpp_declare_vendor_subdir_fact stem x discovered_var discovered)
   acpp_require_discovered(${discovered_var})
   set(ACPP_${stem}_${x}_SUBDIR "${discovered}")
 endmacro()
 
-# Declare the application-config value for one vendor subdir fact: what a
-# deployed app's own configuration carries for this location. configure_file
-# writes this literally - nothing resolves a {{ }} placeholder in it - so
-# both branches must already be a concrete string.
+# Declare the application-config values for one vendor subdir fact.
+# configure_file writes these literally - nothing resolves a {{ }}
+# placeholder in them - so each must already be a concrete string.
 #
-# SHIPPED: the literal $ACPP_RT_LIB_DIR the runtime resolves at its own run
-# time, plus the concrete path from the runtime library's install directory
-# to the vendor subdir, plus this subdir fact - matching where the manifest's
-# copy rows actually deploy the vendor.
-#
-# NOT SHIPPED: the application-side root (what discovery found, or
-# ACPP_<STEM>_ROOT) joined with this subdir fact directly - an application
-# run against a not-shipped vendor reaches the same location the driver
-# did, because nothing else was put anywhere for it.
+# ACPP_APP_<stem>_<x>_BUNDLED_DIR is always set: the literal $ACPP_RT_LIB_DIR
+# the runtime resolves at its own run time, plus the concrete path from the
+# runtime library's install directory to the vendor's fixed subdir, plus this
+# subdir fact. ACPP_APP_<stem>_<x>_DIR is the fallback: empty when the vendor
+# is bundled, otherwise the application-side root (what discovery found, or
+# ACPP_<STEM>_ROOT) joined with this subdir fact.
 macro(acpp_declare_vendor_app_dir stem lower x)
+  acpp_relative_from_rt_libdir(_acpp_vendor_app_rel "${ACPP_${stem}_SUBDIR}")
+  acpp_join_relative(_acpp_vendor_app_rel
+    "${_acpp_vendor_app_rel}" "${ACPP_${stem}_${x}_SUBDIR}")
+  if("${_acpp_vendor_app_rel}" STREQUAL "")
+    set(ACPP_APP_${stem}_${x}_BUNDLED_DIR "\$ACPP_RT_LIB_DIR")
+  else()
+    set(ACPP_APP_${stem}_${x}_BUNDLED_DIR "\$ACPP_RT_LIB_DIR/${_acpp_vendor_app_rel}")
+  endif()
+  unset(_acpp_vendor_app_rel)
   if(ACPP_${stem}_SHIPPED)
-    acpp_relative_from_rt_libdir(_acpp_vendor_app_rel "${ACPP_${stem}_SUBDIR}")
-    acpp_join_relative(_acpp_vendor_app_rel
-      "${_acpp_vendor_app_rel}" "${ACPP_${stem}_${x}_SUBDIR}")
-    if("${_acpp_vendor_app_rel}" STREQUAL "")
-      set(ACPP_APP_${stem}_${x}_DIR "\$ACPP_RT_LIB_DIR")
-    else()
-      set(ACPP_APP_${stem}_${x}_DIR "\$ACPP_RT_LIB_DIR/${_acpp_vendor_app_rel}")
-    endif()
-    unset(_acpp_vendor_app_rel)
+    set(ACPP_APP_${stem}_${x}_DIR "")
   else()
     acpp_join_absolute(ACPP_APP_${stem}_${x}_DIR
       "${ACPP_${stem}_APP_ROOT}" "${ACPP_${stem}_${x}_SUBDIR}")
@@ -360,20 +301,21 @@ endmacro()
 
 # The same, for a vendor unit with no internal breakdown - a single library
 # with no separate lib/include/bin split (libomp, sleef, amath, svml/intlc,
-# libnuma): its own install root is the whole answer, so there is no
-# "<x>-subdir" to compose in. `lower` is unused in the SHIPPED/NOT SHIPPED
-# bodies now that both sides are fully resolved cmake strings rather than
-# {{ }} templates; it stays a parameter so every declare_* macro shares one
-# call shape.
+# libnuma): its own install root is the whole answer. Sets
+# ACPP_APP_<stem>_INSTALL_ROOT_BUNDLED to the fixed bundled location and
+# ACPP_APP_<stem>_INSTALL_ROOT to the fallback (empty when bundled). `lower`
+# is unused; it stays a parameter so every declare_* macro shares one call
+# shape.
 macro(acpp_declare_vendor_app_root stem lower)
+  acpp_relative_from_rt_libdir(_acpp_vendor_app_rel "${ACPP_${stem}_SUBDIR}")
+  if("${_acpp_vendor_app_rel}" STREQUAL "")
+    set(ACPP_APP_${stem}_INSTALL_ROOT_BUNDLED "\$ACPP_RT_LIB_DIR")
+  else()
+    set(ACPP_APP_${stem}_INSTALL_ROOT_BUNDLED "\$ACPP_RT_LIB_DIR/${_acpp_vendor_app_rel}")
+  endif()
+  unset(_acpp_vendor_app_rel)
   if(ACPP_${stem}_SHIPPED)
-    acpp_relative_from_rt_libdir(_acpp_vendor_app_rel "${ACPP_${stem}_SUBDIR}")
-    if("${_acpp_vendor_app_rel}" STREQUAL "")
-      set(ACPP_APP_${stem}_INSTALL_ROOT "\$ACPP_RT_LIB_DIR")
-    else()
-      set(ACPP_APP_${stem}_INSTALL_ROOT "\$ACPP_RT_LIB_DIR/${_acpp_vendor_app_rel}")
-    endif()
-    unset(_acpp_vendor_app_rel)
+    set(ACPP_APP_${stem}_INSTALL_ROOT "")
   else()
     set(ACPP_APP_${stem}_INSTALL_ROOT "${ACPP_${stem}_APP_ROOT}")
   endif()
@@ -523,7 +465,7 @@ if(NOT DEFINED ACPP_LIBOMP_NAME)
     "The OpenMP runtime library's short name (as passed to -l), for whichever library ACPP_LIBOMP_SOURCE_DIR names. A packager pointing that at GOMP would set this to gomp.")
 endif()
 
-acpp_declare_vendor(LIBOMP libomp permissive)
+acpp_declare_vendor(LIBOMP libomp)
 acpp_declare_vendor_root(LIBOMP libomp ACPP_LIBOMP_SOURCE_DIR "${ACPP_LIBOMP_SOURCE_DIR}")
 
 # In toolchain mode libomp is ours: LLVM's own install puts it into this

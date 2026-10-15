@@ -17,7 +17,7 @@ include_guard(GLOBAL)
 # (<sdk-root>/REDIST), not the SDK root itself: the redistributable runtime
 # is the vendor unit here, not the compiler.
 
-acpp_declare_vendor(NVHPC nvhpc nonpermissive)
+acpp_declare_unbundleable_vendor(NVHPC nvhpc)
 acpp_declare_vendor_root(NVHPC nvhpc ACPP_DISCOVERED_NVHPC_PREFIX "${ACPP_DISCOVERED_NVHPC_PREFIX}")
 
 # ---------------------------------------------------------------------------

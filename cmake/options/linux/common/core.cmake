@@ -26,7 +26,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/../../common/core.cmake)
 # application ever reads an install-root value for it - unlike sleef and
 # amath, which the host JIT looks up by directory at run time, libnuma has
 # no application-config declaration at all.
-acpp_declare_vendor(LIBNUMA libnuma permissive)
+acpp_declare_vendor(LIBNUMA libnuma)
 acpp_declare_vendor_root(LIBNUMA libnuma ACPP_DISCOVERED_LIBNUMA_DIR "${ACPP_DISCOVERED_LIBNUMA_DIR}")
 
 # ---------------------------------------------------------------------------
@@ -78,7 +78,7 @@ acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-
 # libmvec needs no entry: it is part of glibc, so the only correct copy is
 # the one the loader resolves in the running process. SVML is x86-only and
 # lives in the arch file.
-acpp_declare_vendor(SLEEF sleef permissive)
+acpp_declare_vendor(SLEEF sleef)
 acpp_declare_vendor_root(SLEEF sleef ACPP_DISCOVERED_SLEEF_DIR "${ACPP_DISCOVERED_SLEEF_DIR}")
 acpp_declare_vendor_app_root(SLEEF sleef)
 
@@ -86,7 +86,7 @@ acpp_declare_vendor_app_root(SLEEF sleef)
 # under Arm's End User License Agreement (upstream's doc/deployment.md).
 # SLEEF (above) stays permissive: it ships under the Boost Software
 # License.
-acpp_declare_vendor(AMATH amath nonpermissive "${ACPP_DISCOVERED_AMATH_DIR}")
+acpp_declare_vendor(AMATH amath "${ACPP_DISCOVERED_AMATH_DIR}")
 acpp_declare_vendor_root(AMATH amath ACPP_DISCOVERED_AMATH_DIR "${ACPP_DISCOVERED_AMATH_DIR}")
 acpp_declare_vendor_app_root(AMATH amath)
 
