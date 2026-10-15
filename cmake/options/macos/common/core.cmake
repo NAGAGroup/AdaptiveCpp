@@ -35,10 +35,14 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # Toolchain mode's own LLVM tools live in CMAKE_INSTALL_BINDIR under the
   # prefix, like everything else this build installs.
   acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++")
+  set(ACPP_APP_DEVICE_CMPLR "")  # empty: resolved at run time from the bundled path
   acpp_declare_owned_resource(LLC "${CMAKE_INSTALL_BINDIR}/llc")
+  set(ACPP_APP_LLC "")  # empty: resolved at run time from the bundled path
   acpp_declare_owned_resource(OPT "${CMAKE_INSTALL_BINDIR}/opt")
+  set(ACPP_APP_OPT "")  # empty: resolved at run time from the bundled path
   # The host JIT links Mach-O with ld64.lld.
   acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/ld64.lld")
+  set(ACPP_APP_LLD "")  # empty: resolved at run time from the bundled path
   # clang's resource directory, as LLVM installs it
   # (lib${LLVM_LIBDIR_SUFFIX}/clang/<ver>, which need not be
   # CMAKE_INSTALL_LIBDIR): the hip flow passes it with -isystem.
@@ -58,6 +62,7 @@ endif()
 # in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
 # not - always the deploy-layout placeholder, in every strategy.
 acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_LIBDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv")
+set(ACPP_APP_LLVMSPIRV "")  # empty: resolved at run time from hipSYCL/ext/llvm-spirv/bin
 
 # No vector math libraries on macOS: upstream supports none for the JIT on
 # this platform.

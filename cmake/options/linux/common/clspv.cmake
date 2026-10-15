@@ -23,6 +23,16 @@ acpp_declare_vendor_app_dir(CLSPV clspv BIN)
 # every other application-configuration value - must already be a concrete
 # string, not a template: configure_file writes it literally.
 set(ACPP_TOOLCHAIN_CLSPV "{{ clspv-install-root }}/{{ clspv-bin-subdir }}/clspv")
+# The bundled location of the executable, always computed: where it lands when
+# ACPP_BUNDLE_CLSPV is ON. The runtime looks here via ACPP_CLSPV_BUNDLED.
+acpp_relative_from_rt_libdir(_acpp_clspv_bundled_rel "${ACPP_CLSPV_SUBDIR}")
+acpp_join_relative(_acpp_clspv_bundled_rel "${_acpp_clspv_bundled_rel}" "${ACPP_CLSPV_BIN_SUBDIR}")
+if("${_acpp_clspv_bundled_rel}" STREQUAL "")
+  set(ACPP_APP_CLSPV_BUNDLED "\$ACPP_RT_LIB_DIR/clspv")
+else()
+  set(ACPP_APP_CLSPV_BUNDLED "\$ACPP_RT_LIB_DIR/${_acpp_clspv_bundled_rel}/clspv")
+endif()
+unset(_acpp_clspv_bundled_rel)
 if(ACPP_CLSPV_SHIPPED)
   acpp_relative_from_rt_libdir(_acpp_clspv_rel "${ACPP_CLSPV_SUBDIR}")
   acpp_join_relative(_acpp_clspv_rel "${_acpp_clspv_rel}" "${ACPP_CLSPV_BIN_SUBDIR}")

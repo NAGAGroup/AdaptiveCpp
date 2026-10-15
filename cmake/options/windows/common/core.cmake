@@ -40,10 +40,14 @@ if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS)
   # Concrete now, not a {{ }} template: acpp_declare_owned_resource's
   # application side is written by configure_file, which resolves nothing.
   acpp_declare_owned_resource(DEVICE_CMPLR "${CMAKE_INSTALL_BINDIR}/clang++.exe")
+  set(ACPP_APP_DEVICE_CMPLR "")  # empty: resolved at run time from the bundled path
   acpp_declare_owned_resource(LLC "${CMAKE_INSTALL_BINDIR}/llc.exe")
+  set(ACPP_APP_LLC "")  # empty: resolved at run time from the bundled path
   acpp_declare_owned_resource(OPT "${CMAKE_INSTALL_BINDIR}/opt.exe")
+  set(ACPP_APP_OPT "")  # empty: resolved at run time from the bundled path
   # The host JIT links COFF with lld-link.
   acpp_declare_owned_resource(LLD "${CMAKE_INSTALL_BINDIR}/lld-link.exe")
+  set(ACPP_APP_LLD "")  # empty: resolved at run time from the bundled path
   # clang's resource directory, as LLVM installs it
   # (lib${LLVM_LIBDIR_SUFFIX}/clang/<ver>, which need not be
   # CMAKE_INSTALL_LIBDIR): the hip flow passes it with -isystem.
@@ -63,6 +67,7 @@ endif()
 # in BOTH modes (rule 1) - the machine's LLVM never supplies it, plugin or
 # not - always the deploy-layout placeholder, in every strategy.
 acpp_declare_owned_resource(LLVMSPIRV "${CMAKE_INSTALL_BINDIR}/hipSYCL/ext/llvm-spirv/bin/llvm-spirv.exe")
+set(ACPP_APP_LLVMSPIRV "")  # empty: resolved at run time from hipSYCL/ext/llvm-spirv/bin
 
 # No vector math libraries on Windows: upstream supports no vector math
 # library for the JIT on this platform.

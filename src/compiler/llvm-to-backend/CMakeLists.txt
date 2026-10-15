@@ -192,6 +192,23 @@ if(WITH_SSCP_COMPILER)
   # dl link is PRIVATE, so it does not carry over. Empty where libc has them.
   target_link_libraries(llvm-to-backend PRIVATE ${CMAKE_DL_LIBS})
 
+  # The JIT finds the LLVM tools this build installs (llc, opt, lld, clang++)
+  # in CMAKE_INSTALL_BINDIR, relative to the runtime library's own install
+  # directory - the same anchor and the same platform choice as
+  # ACPP_RT_LIB_DIR_TO_APP_CONFIG in src/common/CMakeLists.txt. Empty where
+  # the runtime library itself sits in the bin directory (Windows).
+  if(WIN32)
+    set(_acpp_rt_libdir_for_bin "${CMAKE_INSTALL_BINDIR}")
+  else()
+    set(_acpp_rt_libdir_for_bin "${CMAKE_INSTALL_LIBDIR}")
+  endif()
+  set(_acpp_bin_anchor "/acpp-bin-dir-anchor")
+  file(RELATIVE_PATH ACPP_RT_LIB_DIR_TO_BIN_DIR
+    "${_acpp_bin_anchor}/${_acpp_rt_libdir_for_bin}"
+    "${_acpp_bin_anchor}/${CMAKE_INSTALL_BINDIR}")
+  target_compile_definitions(llvm-to-backend PRIVATE
+    -DACPP_RT_LIB_DIR_TO_BIN_DIR="${ACPP_RT_LIB_DIR_TO_BIN_DIR}")
+
   if(WITH_LLVM_TO_SPIRV)
     add_hipsycl_llvm_backend(
       BACKEND spirv

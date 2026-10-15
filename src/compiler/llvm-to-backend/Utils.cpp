@@ -82,12 +82,15 @@ std::string describeToolExitCode(int ReturnCode) {
 
 namespace {
 
-// <lib>/hipSYCL/ext/llvm/bin/<tool>: where an app-local redistributable LLVM
-// would keep the tool.
+// <runtime lib dir>/<ACPP_RT_LIB_DIR_TO_BIN_DIR>/<tool>: where this build
+// installs its own LLVM tools (CMAKE_INSTALL_BINDIR), relative to the
+// directory of the runtime library.
 std::string getBundledLLVMToolPath(const std::string& FileName) {
-  return common::filesystem::join_path(
-      getLLVMRedistributablePackagePath(),
-      std::vector<std::string>{"bin", FileName + ACPP_EXE_SUFFIX});
+  std::string Dir = common::filesystem::get_lib_directory();
+  const std::string ToBinDir = ACPP_RT_LIB_DIR_TO_BIN_DIR;
+  if(!ToBinDir.empty())
+    Dir = common::filesystem::join_path(Dir, ToBinDir);
+  return common::filesystem::join_path(Dir, FileName + ACPP_EXE_SUFFIX);
 }
 
 // Resolution order: environment variable, config file entry, bundled path.
