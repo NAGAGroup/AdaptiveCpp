@@ -55,8 +55,8 @@ endif()
 # CMAKE_SCRIPT_MODE_FILE (only ever defined in script mode) rather than
 # letting a harness's mere call to a SHIPPED helper abort the script. The
 # plan-recording half runs either way: that half is what a harness under
-# `cmake -P` can and does inspect (see devops/verify/verify-vendor-install.
-# cmake); the install(CODE ...) half is what a real `cmake --install` runs.
+# `cmake -P` can and does inspect; the install(CODE ...) half is what a real
+# `cmake --install` runs.
 
 # ---------------------------------------------------------------------------
 # Small path helpers, local to this file (see the header comment for why

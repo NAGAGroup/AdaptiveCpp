@@ -54,6 +54,6 @@ build*/
 .cache
 
 # Python bytecode cache (bin/acpp has no .py extension, but importing it as
-# a module for devops/verify/verify-driver-config.py still creates one)
+# a module still creates one)
 __pycache__/
 *.pyc

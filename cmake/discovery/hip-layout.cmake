@@ -1,6 +1,5 @@
 # The layout probes cmake/discovery/hip.cmake uses, split out into plain
-# functions so a cmake -P harness (devops/verify/verify-hip-layouts.cmake)
-# can exercise them directly, against a fake directory tree, without
+# functions so a cmake -P harness can exercise them directly, against a fake directory tree, without
 # find_package(hip) - which creates imported targets and so is unavailable
 # in script mode.
 
