@@ -16,28 +16,9 @@ if(NOT DEFINED HIPSYCL_DEBUG_LEVEL)
   message(FATAL_ERROR "HIPSYCL_DEBUG_LEVEL was not defined by the top-level CMakeLists.txt.")
 endif()
 
-if(WIN32)
-  set(ACPP_LLD_NAME lld-link)
-elseif(APPLE)
-  set(ACPP_LLD_NAME ld64.lld)
-else()
-  set(ACPP_LLD_NAME ld.lld)
-endif()
-
-if (WITH_SSCP_COMPILER)
-  # llc/opt/lld's real location is not a build-machine fact any more: the
-  # runtime reads it from the installed configuration at run time (settings
-  # "llc"/"opt"/"lld" - ACPP_LLC/ACPP_OPT/ACPP_LLD in config/*/app/core.cfg).
-  # These bare names are only the last-resort fallback Utils.cpp uses when
-  # that setting is unset - resolved via PATH by whoever execs it, same
-  # reasoning ACPP_LLD_NAME above already follows.
-  set(ACPP_LLC_NAME "llc")
-  set(ACPP_OPT_NAME "opt")
-
-  add_definitions(-DACPP_LLD_NAME="${ACPP_LLD_NAME}")
-  add_definitions(-DACPP_LLC_NAME="${ACPP_LLC_NAME}")
-  add_definitions(-DACPP_OPT_NAME="${ACPP_OPT_NAME}")
-endif()
+# llc/opt/lld/clang locations are not build-machine facts: the runtime resolves
+# them at run time (environment, installed app config, bundled path) in
+# Utils.cpp.
 add_definitions(-DHIPSYCL_DEBUG_LEVEL=${HIPSYCL_DEBUG_LEVEL})
 if(WITH_ACCELERATED_CPU)
   add_definitions(-DHIPSYCL_WITH_ACCELERATED_CPU)

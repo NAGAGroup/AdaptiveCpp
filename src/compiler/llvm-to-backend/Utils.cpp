@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include "hipSYCL/compiler/llvm-to-backend/Utils.hpp"
+#include "hipSYCL/common/debug.hpp"
 #include "hipSYCL/common/filesystem.hpp"
 #include "hipSYCL/common/settings.hpp"
 
@@ -73,18 +74,48 @@ std::string describeToolExitCode(int ReturnCode) {
   return "with exit code " + std::to_string(ReturnCode);
 }
 
+#ifdef _WIN32
+#define ACPP_EXE_SUFFIX ".exe"
+#else
+#define ACPP_EXE_SUFFIX ""
+#endif
+
+namespace {
+
+// <lib>/hipSYCL/ext/llvm/bin/<tool>: where an app-local redistributable LLVM
+// would keep the tool.
+std::string getBundledLLVMToolPath(const std::string& FileName) {
+  return common::filesystem::join_path(
+      getLLVMRedistributablePackagePath(),
+      std::vector<std::string>{"bin", FileName + ACPP_EXE_SUFFIX});
+}
+
+// Resolution order: environment variable, config file entry, bundled path.
+// There is no bare-name fallback; when nothing is found the error says where
+// to point the tool and an empty path is returned.
+std::string resolveLLVMTool(const std::string& Setting,
+                            const std::string& BundledFileName) {
+  const std::string Bundled = getBundledLLVMToolPath(BundledFileName);
+  std::string Path;
+  if(common::settings::try_resolve_executable(Setting, Bundled, Path))
+    return Path;
+
+  HIPSYCL_DEBUG_ERROR
+      << Setting << " not found: set "
+      << common::settings::detail::generate_configuration_identifier(Setting)
+      << " or install it at " << Bundled << std::endl;
+  return std::string{};
+}
+
+}
+
 std::string getClangPath() {
   static std::string path;
   if(!path.empty())
     return path;
 
-  // "clang" -> ACPP_CLANG in the installed app config
-  // (config/linux/common/app/hip.cfg - HIP's JIT, not core.cfg); the bare
-  // name below is only the last-resort fallback, resolved via PATH by
-  // whoever execs it.
-  if(!common::settings::try_retrieve_settings_variable("clang", path) || path.empty())
-    path = "clang++";
-
+  // "clang" -> ACPP_CLANG (config/*/app/hip.cfg, HIP's JIT).
+  path = resolveLLVMTool("clang", "clang++");
   return path;
 }
 
@@ -92,19 +123,8 @@ std::string getLLCPath() {
   static std::string path;
   if(!path.empty())
     return path;
-  
-  std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
-  std::string llc_redistributable_path = common::filesystem::join_path(
-      llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_LLC_NAME});
 
-  if(common::filesystem::exists(llc_redistributable_path)) {
-    path = llc_redistributable_path;
-  } else if(!common::settings::try_retrieve_settings_variable("llc", path) || path.empty()) {
-    // "llc" -> ACPP_LLC in the installed app config; the bare name is only
-    // the last-resort fallback, resolved via PATH by whoever execs it.
-    path = ACPP_LLC_NAME;
-  }
-
+  path = resolveLLVMTool("llc", "llc");
   return path;
 }
 
@@ -112,19 +132,15 @@ std::string getLLDPath() {
   static std::string path;
   if(!path.empty())
     return path;
-  
-  std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
-  std::string lld_redistributable_path = common::filesystem::join_path(
-      llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_LLD_NAME});
 
-  if(common::filesystem::exists(lld_redistributable_path)) {
-    path = lld_redistributable_path;
-  } else if(!common::settings::try_retrieve_settings_variable("lld", path) || path.empty()) {
-    // "lld" -> ACPP_LLD in the installed app config; the bare name is only
-    // the last-resort fallback, resolved via PATH by whoever execs it.
-    path = ACPP_LLD_NAME;
-  }
-
+#if defined(_WIN32)
+  const char* LLDName = "lld-link";
+#elif defined(__APPLE__)
+  const char* LLDName = "ld64.lld";
+#else
+  const char* LLDName = "ld.lld";
+#endif
+  path = resolveLLVMTool("lld", LLDName);
   return path;
 }
 
@@ -132,19 +148,8 @@ std::string getOptPath() {
   static std::string path;
   if(!path.empty())
     return path;
-  
-  std::string llvm_redistributable_path = getLLVMRedistributablePackagePath();
-  std::string opt_redistributable_path = common::filesystem::join_path(
-      llvm_redistributable_path, std::vector<std::string>{"bin", ACPP_OPT_NAME});
 
-  if(common::filesystem::exists(opt_redistributable_path)) {
-    path = opt_redistributable_path;
-  } else if(!common::settings::try_retrieve_settings_variable("opt", path) || path.empty()) {
-    // "opt" -> ACPP_OPT in the installed app config; the bare name is only
-    // the last-resort fallback, resolved via PATH by whoever execs it.
-    path = ACPP_OPT_NAME;
-  }
-
+  path = resolveLLVMTool("opt", "opt");
   return path;
 }
 

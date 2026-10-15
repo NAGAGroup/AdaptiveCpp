@@ -300,10 +300,20 @@ bool LLVMToCLSPVTranslator::translateToBackendFormat(
     InputStream.flush();
   }
 
+  // "clspv" -> ACPP_CLSPV: the environment, then the installed app config,
+  // then the binary bundled with the clspv vendor unit. No bare-name fallback.
+#ifdef _WIN32
+  const char* CLSPVExeName = "clspv.exe";
+#else
+  const char* CLSPVExeName = "clspv";
+#endif
+  const std::string BundledCLSPV = common::filesystem::join_path(
+      common::filesystem::get_lib_directory(),
+      std::vector<std::string>{"hipSYCL", "ext", "clspv", "bin", CLSPVExeName});
   std::string CLSPV;
-  common::settings::try_retrieve_settings_variable("clspv", CLSPV);
-  if(CLSPV.empty()) {
-    registerError("LLVMToCLSPV: clspv is not configured (ACPP_CLSPV)");
+  if(!common::settings::try_resolve_executable("clspv", BundledCLSPV, CLSPV)) {
+    registerError("LLVMToCLSPV: clspv not found: set ACPP_CLSPV or install it at " +
+                  BundledCLSPV);
     return false;
   }
 

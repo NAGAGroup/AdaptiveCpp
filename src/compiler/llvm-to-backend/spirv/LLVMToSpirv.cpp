@@ -351,24 +351,23 @@ bool LLVMToSpirvTranslator::translateToBackendFormat(llvm::Module &FlavoredModul
     InputStream.flush();
   }
 
-  // "llvmspirv" -> ACPP_LLVMSPIRV in the installed app config
-  // (config/*/app/core.cfg); it already resolves whichever layout
-  // installed this copy of the translator. The app-local redistributable
-  // layout and the installation-relative layout below remain the fallback
-  // for when that setting is unset (e.g. no installed toolchain
-  // configuration at all).
+  // "llvmspirv" -> ACPP_LLVMSPIRV: the environment, then the installed app
+  // config, then the translator bundled at <lib>/hipSYCL/ext/llvm-spirv/bin.
+  // There is no bare-name fallback.
+#ifdef _WIN32
+  const char* LLVMSpirVExeName = "llvm-spirv.exe";
+#else
+  const char* LLVMSpirVExeName = "llvm-spirv";
+#endif
+  const std::string BundledLLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
+      hipsycl::common::filesystem::get_lib_directory(),
+      std::vector<std::string>{"hipSYCL", "ext", "llvm-spirv", "bin", LLVMSpirVExeName});
   std::string LLVMSpirVTranslator;
-  if(!hipsycl::common::settings::try_retrieve_settings_variable("llvmspirv", LLVMSpirVTranslator) ||
-     LLVMSpirVTranslator.empty()) {
-    // Prefer the app-local redistributable layout used by deployment manifests.
-    // Fall back to the installation layout.
-    std::string LocalLLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
-        hipsycl::common::filesystem::get_lib_directory(),
-        std::vector<std::string>{"hipSYCL", "ext", "llvm-spirv", "bin", HIPSYCL_LLVMSPIRV_NAME});
-    std::string InstalledLLVMSpirVTranslator = hipsycl::common::filesystem::join_path(
-        hipsycl::common::filesystem::get_install_directory(), HIPSYCL_RELATIVE_LLVMSPIRV_PATH);
-    LLVMSpirVTranslator = hipsycl::common::filesystem::exists(LocalLLVMSpirVTranslator)
-        ? LocalLLVMSpirVTranslator : InstalledLLVMSpirVTranslator;
+  if(!hipsycl::common::settings::try_resolve_executable(
+         "llvmspirv", BundledLLVMSpirVTranslator, LLVMSpirVTranslator)) {
+    this->registerError("LLVMToSpirv: llvmspirv not found: set ACPP_LLVMSPIRV or install it at " +
+                        BundledLLVMSpirVTranslator);
+    return false;
   }
 
   llvm::SmallVector<std::string> Args{
