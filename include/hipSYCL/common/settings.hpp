@@ -133,6 +133,20 @@ bool try_retrieve_settings_variable(const std::string& name, T& out) {
   return false;
 }
 
+// Resolve a library or directory setting: the environment variable, then the
+// <name>_bundled entry of the config file if it names an existing path (the
+// vendor's fixed location inside the installation), then the config file's
+// <name> entry. *is_bundled tells which of the last two won.
+ACPP_COMMON_EXPORT
+bool try_resolve_vendor_path(const std::string& name, std::string& out,
+                             bool* is_bundled = nullptr);
+
+// Resolve a tool: the environment variable, then the config file entry, then
+// bundled_path if it is non-empty and exists. No bare-name fallback.
+ACPP_COMMON_EXPORT
+bool try_resolve_executable(const std::string& name,
+                            const std::string& bundled_path, std::string& out);
+
 ACPP_COMMON_EXPORT
 bool get_default_enable_allocation_tracking();
 

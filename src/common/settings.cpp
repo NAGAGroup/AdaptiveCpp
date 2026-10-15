@@ -126,6 +126,53 @@ settings_config_file& settings_config_file::get() {
   return cfg;
 }
 
+bool try_resolve_vendor_path(const std::string& name, std::string& out,
+                             bool* is_bundled) {
+  if(is_bundled)
+    *is_bundled = false;
+
+  if(try_retrieve_environment_variable(name, out) && !out.empty())
+    return true;
+
+  std::string value;
+  if(settings_config_file::get().retrieve_setting(
+         detail::generate_configuration_identifier(name + "_bundled"), value) &&
+     !value.empty() && common::filesystem::exists(value)) {
+    out = value;
+    if(is_bundled)
+      *is_bundled = true;
+    return true;
+  }
+
+  if(settings_config_file::get().retrieve_setting(
+         detail::generate_configuration_identifier(name), value) &&
+     !value.empty()) {
+    out = value;
+    return true;
+  }
+  return false;
+}
+
+bool try_resolve_executable(const std::string& name,
+                            const std::string& bundled_path, std::string& out) {
+  if(try_retrieve_environment_variable(name, out) && !out.empty())
+    return true;
+
+  std::string value;
+  if(settings_config_file::get().retrieve_setting(
+         detail::generate_configuration_identifier(name), value) &&
+     !value.empty()) {
+    out = value;
+    return true;
+  }
+
+  if(!bundled_path.empty() && common::filesystem::exists(bundled_path)) {
+    out = bundled_path;
+    return true;
+  }
+  return false;
+}
+
 
 }
 }
