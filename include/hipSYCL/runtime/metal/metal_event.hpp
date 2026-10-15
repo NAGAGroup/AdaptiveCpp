@@ -17,6 +17,7 @@
 #include <cstdint>
 
 namespace MTL {
+class CommandBuffer;
 class SharedEvent;
 } // namespace MTL
 
@@ -32,7 +33,7 @@ class metal_node_event
   : public inorder_queue_event<metal_event_handle> {
 public:
   metal_node_event() = delete;
-  metal_node_event(metal_event_handle handle);
+  metal_node_event(metal_event_handle handle, MTL::CommandBuffer* command_buffer);
   ~metal_node_event();
 
   virtual bool is_complete() const override;
@@ -42,6 +43,7 @@ public:
 
 private:
   metal_event_handle _handle;
+  MTL::CommandBuffer* _command_buffer;
 };
 
 } // namespace rt

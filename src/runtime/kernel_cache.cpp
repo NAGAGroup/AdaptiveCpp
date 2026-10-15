@@ -23,7 +23,7 @@
 #include <vector>
 #include <string>
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 #include <link.h>
 #include <dlfcn.h>
 #include <cstdio>
@@ -34,7 +34,7 @@ namespace rt {
 
 namespace {
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 
 using hcf_registration_func = void(*)();
 

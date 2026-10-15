@@ -269,11 +269,13 @@ if(WITH_VULKAN_BACKEND)
      vk/vk_code_object.cpp
      vk/vk_hardware_manager.cpp
      vk/vk_profiling.cpp)
+  # ACPP_VK_INCLUDE_DIR is a list on Android (VulkanHpp, Vulkan-Headers and the
+  # SPIR-V headers), so it is deliberately left unquoted. All three variables
+  # come from cmake/discovery/vk.cmake, which handles Android itself.
   target_include_directories(rt-backend-vk PRIVATE
                              ${HIPSYCL_SOURCE_DIR}/include
-                             ${ACPP_BINARY_ROOT}/include/
-                             "${ACPP_VK_INCLUDE_DIR}")
-  # cmake/discovery/vk.cmake's finds (it does not use find_package(Vulkan)).
+                             ${ACPP_BINARY_ROOT}/include
+                             ${ACPP_VK_INCLUDE_DIR})
   target_link_libraries(rt-backend-vk PRIVATE acpp-rt ${ACPP_VK_LOADER_LIBRARY} ${ACPP_VK_SPIRV_TOOLS_LIBRARY})
 
   # Need portability subset beta extension for moltenvk
@@ -565,6 +567,18 @@ if (WITH_METAL_BACKEND)
       /System/Library/Frameworks/Metal.framework/Headers
     PATH_SUFFIXES include
   )
+  if(NOT METAL_INCLUDE_DIR)
+    message(STATUS "Metal/Metal.hpp not found, fetching metal-cpp")
+    include(FetchContent)
+    FetchContent_Declare(metal-cpp
+      GIT_REPOSITORY https://github.com/apple/metal-cpp
+      GIT_TAG release/metal-cpp_macOS26_iOS26
+      GIT_SHALLOW ON
+    )
+    FetchContent_MakeAvailable(metal-cpp)
+    set(METAL_INCLUDE_DIR ${metal-cpp_SOURCE_DIR} CACHE PATH "metal-cpp headers" FORCE)
+  endif()
+
   if(NOT METAL_INCLUDE_DIR)
     message(FATAL_ERROR "Could not find Metal/Metal.hpp. Please specify METAL_INCLUDE_DIR.")
   endif()

@@ -448,12 +448,24 @@ endif()
 # to, which the PTX backend also invokes. They name no location, so they have
 # one value that travels unchanged.
 
+# Android: the target CPU isn't known at build time, so generic keeps the
+# generated code correct (upstream's choice). Everywhere else the default is
+# native. A -D value or an earlier set() still wins.
+if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  set(_acpp_jit_host_llc_cpu_default "-mcpu=generic")
+  set(_acpp_jit_host_opt_cpu_default "--mcpu=generic")
+else()
+  set(_acpp_jit_host_llc_cpu_default "-mcpu=native")
+  set(_acpp_jit_host_opt_cpu_default "--mcpu=native")
+endif()
 if(NOT DEFINED ACPP_JIT_HOST_LLC_CPU_FLAG)
-  set(ACPP_JIT_HOST_LLC_CPU_FLAG "-mcpu=native")
+  set(ACPP_JIT_HOST_LLC_CPU_FLAG "${_acpp_jit_host_llc_cpu_default}")
 endif()
 if(NOT DEFINED ACPP_JIT_HOST_OPT_CPU_FLAG)
-  set(ACPP_JIT_HOST_OPT_CPU_FLAG "--mcpu=native")
+  set(ACPP_JIT_HOST_OPT_CPU_FLAG "${_acpp_jit_host_opt_cpu_default}")
 endif()
+unset(_acpp_jit_host_llc_cpu_default)
+unset(_acpp_jit_host_opt_cpu_default)
 if(NOT DEFINED ACPP_JIT_HOST_LLC_FLAGS)
   set(ACPP_JIT_HOST_LLC_FLAGS "")
 endif()

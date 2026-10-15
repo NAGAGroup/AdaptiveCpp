@@ -6,12 +6,45 @@
 # the static SPIRV-Tools archive are discovery requirements (the runtime
 # cannot be built without them) but never manifest rows.
 #
-# find_package(Vulkan) is not used because it creates imported targets and
-# cannot run under cmake -P; its components mix build-only libraries with
-# the loader.
+# find_package(Vulkan) is not used (outside Android, see the first branch)
+# because it creates imported targets and cannot run under cmake -P; its
+# components mix build-only libraries with the loader.
 
 include_guard(GLOBAL)
 include(${CMAKE_CURRENT_LIST_DIR}/common.cmake)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  # The Android NDK comes with Vulkan but not with the Vulkan SDK, so
+  # SPIRV-Tools is found separately, and the headers come from paths the
+  # user supplies. These are imported targets (find_package), which is fine:
+  # Android is a cross build, so there is no cmake -P use here. The loader is
+  # the system's own; nothing is bundled or deployed for it.
+  find_package(Vulkan QUIET REQUIRED)
+  find_package(SPIRV-Tools QUIET REQUIRED)
+
+  set(ACPP_VULKAN_HPP_PATH "" CACHE PATH "Path to VulkanHpp source")
+  if(NOT ACPP_VULKAN_HPP_PATH)
+    message(SEND_ERROR "Could not find VulkanHpp headers, specify with -DACPP_VULKAN_HPP_PATH=")
+  endif()
+
+  set(ACPP_SPIRV_HEADER_PATH "" CACHE PATH "Path to SPIRV headers ")
+  if(NOT ACPP_SPIRV_HEADER_PATH)
+    message(SEND_ERROR "Could not find SPIR-V headers, specify with -DACPP_SPIRV_HEADER_PATH=")
+  endif()
+
+  # A list: the runtime target's include directories take it unquoted.
+  set(ACPP_VK_INCLUDE_DIR
+    "${ACPP_VULKAN_HPP_PATH};${ACPP_VULKAN_HPP_PATH}/Vulkan-Headers/include;${ACPP_SPIRV_HEADER_PATH}/include")
+  set(ACPP_VK_LOADER_LIBRARY Vulkan::Vulkan)
+  set(ACPP_VK_SPIRV_TOOLS_LIBRARY SPIRV-Tools-static)
+
+  set(ACPP_DISCOVERED_VK_FOUND ON)
+  set(ACPP_DISCOVERED_VK_LOADER "")
+  set(ACPP_DISCOVERED_VK_PREFIX "")
+  set(ACPP_DISCOVERED_VK_LIBDIR "")
+  set(ACPP_DISCOVERED_VK_INCLUDE_DIR "${ACPP_VK_INCLUDE_DIR}")
+  set(ACPP_DISCOVERED_VK_SPIRV_TOOLS_LIBRARY "${ACPP_VK_SPIRV_TOOLS_LIBRARY}")
+else()
 
 find_library(ACPP_VK_LOADER_LIBRARY NAMES vulkan vulkan-1)
 find_path(ACPP_VK_INCLUDE_DIR NAMES vulkan/vulkan.h)
@@ -49,3 +82,5 @@ else()
   set(ACPP_DISCOVERED_VK_INCLUDE_DIR "")
   set(ACPP_DISCOVERED_VK_SPIRV_TOOLS_LIBRARY "")
 endif()
+
+endif() # CMAKE_SYSTEM_NAME STREQUAL "Android"
