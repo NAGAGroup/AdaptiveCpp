@@ -1,9 +1,9 @@
 # Level Zero options - windows, every architecture.
 #
 # Include after core.cmake, only when the Level Zero backend is enabled; the
-# helpers and the strategy control live in core. A loader-only unit: the
+# helpers live in core. A loader-only unit: the
 # unit is the loader's DLL, nothing else. On Windows there is no multipass
-# flow for Level Zero. Two knobs (ACPP_ZE_SUBDIR plus the loader/header
+# flow for Level Zero. Two knobs (ACPP_BUNDLE_ZE plus the loader/header
 # hints), everything else derived - see "Vendor units" in the common core
 # file.
 

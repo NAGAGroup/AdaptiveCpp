@@ -2,7 +2,7 @@
 # no aarch64 unit exists).
 #
 # Include after core.cmake, only when the HIP backend is enabled; the
-# helpers and the strategy control live in core. Two knobs (ACPP_HIP_SUBDIR
+# helpers live in core. Two knobs (ACPP_BUNDLE_HIP
 # plus whatever hip_ROOT/ROCM_PATH steer discovery), everything else
 # derived - see "Vendor units" in the common core file.
 

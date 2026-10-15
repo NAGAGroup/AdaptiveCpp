@@ -1,7 +1,7 @@
 # CUDA options - windows, every architecture.
 #
 # Include after core.cmake, only when the CUDA backend is enabled; the
-# helpers and the strategy control live in core. Two knobs (ACPP_CUDA_SUBDIR
+# helpers live in core. Two knobs (ACPP_BUNDLE_CUDA
 # plus whatever CUDAToolkit_ROOT and friends steer discovery), everything
 # else derived - see "Vendor units" in the common core file.
 

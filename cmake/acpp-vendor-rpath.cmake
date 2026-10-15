@@ -3,8 +3,10 @@
 # on macOS) and src/runtime/CMakeLists.txt/src/compiler/llvm-to-backend/
 # CMakeLists.txt already set CMAKE_INSTALL_RPATH per directory for what a
 # backend links against ours - this file adds the piece that was missing:
-# reaching a SHIPPED vendor's own runtime libraries, which live under
-# ACPP_<STEM>_SUBDIR, not under any of those fixed relative paths.
+# reaching a vendor's own runtime libraries, which live under
+# ACPP_<STEM>_SUBDIR (the fixed bundled location), not under any of those
+# fixed relative paths. The relative entry is always produced, bundled or not;
+# for a vendor that is not bundled, the real (absolute) location follows it.
 #
 # Included early - before add_subdirectory(src) - unlike
 # cmake/acpp-vendor-install.cmake's own per-unit install files (included
@@ -21,8 +23,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/acpp-vendor-install.cmake)
 # acpp_vendor_rpath_entry(<out_var> STEM <s> FACT <fact-or-empty>
 #                          FROM <install-dir-of-the-binary>)
 #
-# <out_var> := "" unless ACPP_<STEM>_SHIPPED; otherwise
-# "<base>/<relative path from FROM to ACPP_<STEM>_SUBDIR/<FACT>>", both
+# <out_var> := "<base>/<relative path from FROM to ACPP_<STEM>_SUBDIR/<FACT>>", both
 # sides install-root-relative (FROM the same way ACPP_<STEM>_SUBDIR always
 # is), where <base> is the literal token $ORIGIN, or @loader_path on
 # APPLE - a string the dynamic loader resolves at load time relative to
@@ -38,10 +39,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/acpp-vendor-install.cmake)
 # its own.
 function(acpp_vendor_rpath_entry out_var)
   cmake_parse_arguments(_avr "" "STEM;FACT;FROM" "" ${ARGN})
-  if(NOT ACPP_${_avr_STEM}_SHIPPED)
-    set(${out_var} "" PARENT_SCOPE)
-    return()
-  endif()
 
   _acpp_vi_join_relative(_avr_target "${ACPP_${_avr_STEM}_SUBDIR}" "${_avr_FACT}")
 
@@ -63,6 +60,25 @@ function(acpp_vendor_rpath_entry out_var)
   endif()
 endfunction()
 
+# _acpp_vendor_rpath_fallback(<out_var> STEM <s> FACT <fact-or-empty>)
+#
+# <out_var> := the absolute ACPP_<STEM>_APP_ROOT joined with <FACT> when the
+# vendor is NOT shipped and that root is an absolute path (the real location
+# of a vendor that was not bundled); otherwise "".
+function(_acpp_vendor_rpath_fallback out_var)
+  cmake_parse_arguments(_avf "" "STEM;FACT" "" ${ARGN})
+  set(${out_var} "" PARENT_SCOPE)
+  if(ACPP_${_avf_STEM}_SHIPPED)
+    return()
+  endif()
+  set(_avf_root "${ACPP_${_avf_STEM}_APP_ROOT}")
+  if("${_avf_root}" STREQUAL "" OR NOT IS_ABSOLUTE "${_avf_root}")
+    return()
+  endif()
+  acpp_join_absolute(_avf_path "${_avf_root}" "${_avf_FACT}")
+  set(${out_var} "${_avf_path}" PARENT_SCOPE)
+endfunction()
+
 # acpp_add_vendor_rpaths(<target> FROM <install-dir-of-the-binary>
 #                         ENTRIES <STEM[:FACT]>...)
 #
@@ -71,9 +87,13 @@ endfunction()
 # layers on top of whatever base rpath was already set (INSTALL_RPATH is
 # only INITIALIZED from CMAKE_INSTALL_RPATH at add_library() time; setting
 # the property afterward touches nothing else). A no-op on WIN32: Windows
-# has no RPATH - a deployed application reaches a shipped vendor's DLL
+# has no RPATH - a deployed application reaches a vendor's DLL
 # directory through the app config's ACPP_<VENDOR>_DLL_DIR/
 # AddDllDirectory instead (doc/configuration-model.md, "Windows").
+#
+# After the relative (bundled-location) entry, a vendor that is NOT shipped
+# and has an absolute ACPP_<STEM>_APP_ROOT also gets that absolute path
+# appended: the real location follows the bundled one.
 #
 # Guards itself so callers never need to: a target that does not exist
 # (its backend was disabled - WITH_*_BACKEND OFF for that add_library())
@@ -109,9 +129,20 @@ function(acpp_add_vendor_rpaths target)
       continue()
     endif()
 
+    # The ENTRIES shorthand names a fact by tag (RT, SYSDEPS); the rpath
+    # helpers expect the fact's subdir value (ACPP_<STEM>_<TAG>_SUBDIR, e.g.
+    # lib64), as acpp_app_install_rpath already passes.
+    if(NOT "${_aar_fact}" STREQUAL "" AND DEFINED ACPP_${_aar_stem}_${_aar_fact}_SUBDIR)
+      set(_aar_fact "${ACPP_${_aar_stem}_${_aar_fact}_SUBDIR}")
+    endif()
+
     acpp_vendor_rpath_entry(_aar_value STEM ${_aar_stem} FACT "${_aar_fact}" FROM "${_aar_FROM}")
     if(NOT "${_aar_value}" STREQUAL "")
       set_property(TARGET ${target} APPEND PROPERTY INSTALL_RPATH "${_aar_value}")
+    endif()
+    _acpp_vendor_rpath_fallback(_aar_abs STEM ${_aar_stem} FACT "${_aar_fact}")
+    if(NOT "${_aar_abs}" STREQUAL "")
+      set_property(TARGET ${target} APPEND PROPERTY INSTALL_RPATH "${_aar_abs}")
     endif()
   endforeach()
 endfunction()
@@ -124,27 +155,25 @@ endfunction()
 # ACPP_APP_INSTALL_RPATH, an overridable cache variable, not computed
 # again at the consuming project's configure time (this function runs
 # once, here, at OUR configure/install time; its result is a plain string
-# by the time it reaches the package). Empty under managed (an ordinary
-# CMake project's own rpath/loader-search choices are none of our
-# business - "The simplification: two strategies") and on Windows (no
-# RPATH at all there; a deployed app reaches a shipped vendor's DLL
-# directory through the app config's AddDllDirectory mechanism instead,
-# not an application's own CMake package). Assumes the executable installs
+# by the time it reaches the package). Empty on Windows (no RPATH at all
+# there; a deployed app reaches a vendor's DLL directory through the app
+# config's AddDllDirectory mechanism instead, not an application's own
+# CMake package). Assumes the executable installs
 # to <prefix>/<CMAKE_INSTALL_BINDIR>, since the deploy tree mirrors the
 # install tree (principle 5, "Deploying is driving").
 #
-# <out_var> := "" under managed/WIN32; otherwise a ;-list whose first
-# entry reaches CMAKE_INSTALL_LIBDIR from CMAKE_INSTALL_BINDIR (normally
-# $ORIGIN/../lib), followed by one acpp_vendor_rpath_entry() per vendor
-# below (FROM CMAKE_INSTALL_BINDIR, since that is where the app installs) -
-# only for a vendor whose ACPP_<STEM>_SHIPPED is even DEFINED, same guard
-# acpp_add_vendor_rpaths itself uses, and only a non-empty entry (a vendor
-# that isn't SHIPPED contributes nothing, exactly as acpp_vendor_rpath_entry
-# already encodes).
+# <out_var> := "" on WIN32; otherwise a ;-list whose first entry reaches
+# CMAKE_INSTALL_LIBDIR from CMAKE_INSTALL_BINDIR (normally $ORIGIN/../lib),
+# followed by one acpp_vendor_rpath_entry() per vendor below (FROM
+# CMAKE_INSTALL_BINDIR, since that is where the app installs) - only for a
+# vendor whose ACPP_<STEM>_SHIPPED is even DEFINED, same guard
+# acpp_add_vendor_rpaths itself uses. A vendor that is NOT shipped and has an
+# absolute ACPP_<STEM>_APP_ROOT also gets that absolute path right after its
+# relative entry.
 function(acpp_app_install_rpath out_var)
   set(_aair_result "")
 
-  if(NOT WIN32 AND NOT "${ACPP_DEPLOYMENT_STRATEGY}" STREQUAL "managed")
+  if(NOT WIN32)
     if(APPLE)
       set(_aair_base "@loader_path")
     else()
@@ -185,6 +214,10 @@ function(acpp_app_install_rpath out_var)
           STEM ${_aair_stem} FACT "${_aair_fact}" FROM "${CMAKE_INSTALL_BINDIR}")
         if(NOT "${_aair_value}" STREQUAL "")
           list(APPEND _aair_result "${_aair_value}")
+        endif()
+        _acpp_vendor_rpath_fallback(_aair_abs STEM ${_aair_stem} FACT "${_aair_fact}")
+        if(NOT "${_aair_abs}" STREQUAL "")
+          list(APPEND _aair_result "${_aair_abs}")
         endif()
       endif()
     endforeach()

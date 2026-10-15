@@ -1,9 +1,9 @@
 # OpenCL options - linux, every architecture.
 #
 # Include after core.cmake, only when the OpenCL backend is enabled; the
-# helpers and the strategy control live in core. A loader-only unit: the
+# helpers live in core. A loader-only unit: the
 # unit is the ICD loader in the vendor's own library directory, nothing
-# else. Two knobs (ACPP_OCL_SUBDIR plus whatever OpenCL_LIBRARY steers
+# else. Two knobs (ACPP_BUNDLE_OCL plus whatever OpenCL_LIBRARY steers
 # discovery), everything else derived - see "Vendor units" in the common
 # core file.
 

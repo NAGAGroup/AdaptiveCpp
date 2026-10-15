@@ -827,6 +827,13 @@ add_subdirectory(src)
 
 include(${ACPP_SOURCE_ROOT}/cmake/acpp-installed-configs.cmake)
 
+# The vendors bundled with this toolchain (ACPP_BUNDLE_<STEM> ON), comma
+# separated; empty when nothing is bundled. Written to the toolchain config's
+# "bundled-vendors" key.
+get_property(_acpp_bundled_vendors GLOBAL PROPERTY ACPP_BUNDLED_VENDORS)
+string(REPLACE ";" "," ACPP_BUNDLED_VENDORS "${_acpp_bundled_vendors}")
+unset(_acpp_bundled_vendors)
+
 acpp_generate_installed_configs(
   PLATFORM "${ACPP_OPTIONS_PLATFORM}"
   ARCH "${ACPP_OPTIONS_ARCH}"
@@ -837,14 +844,12 @@ install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-toolchain.json"
   DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-app.cfg"
   DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-if(NOT ACPP_DEPLOYMENT_STRATEGY STREQUAL "managed")
-  install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-deploy.json"
-    DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
-endif()
+install(FILES "${ACPP_BINARY_ROOT}/etc/AdaptiveCpp/acpp-deploy.json"
+  DESTINATION ${ACPP_CONFIG_FILE_INSTALL_DIR})
 
 # Per-vendor cmake install rules: home (a)+(b) of the three-part manifest
 # (doc/configuration-model.md, "The manifest") - what physically ships
-# alongside the toolchain under the full strategies, both the
+# alongside the toolchain for each bundled vendor, both the
 # toolchain-only pieces (headers, ptxas-class tools, import libraries) and
 # everything the manifest above also deploys with an application. Every
 # call inside cmake/install/<platform>/common/<unit>.cmake is a no-op

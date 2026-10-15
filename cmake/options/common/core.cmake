@@ -323,26 +323,23 @@ endmacro()
 
 # ---------------------------------------------------------------------------
 # Ownership (rule: what we build is ours, what we don't in plugin mode is
-# the machine's; only vendor plugins are governed by deployment strategy)
+# the machine's; only vendor units are governed by ACPP_BUNDLE_<STEM>)
 # ---------------------------------------------------------------------------
 #
 # Two more shapes than the vendor macros above, one for each side of the
-# ownership rule. Neither reads ACPP_DEPLOYMENT_STRATEGY or a vendor's
-# shipped-ness, and neither accepts a -D override through
-# ACPP_TOOLCHAIN_*/ACPP_APP_*/the provenance variable itself: a strategy is
-# a commitment about assets we do not build, and these entries name assets
-# that are always ours to place or always the machine's to have, regardless
-# of which strategy was chosen.
+# ownership rule. Neither reads a vendor's shipped-ness, and neither accepts
+# a -D override through ACPP_TOOLCHAIN_*/ACPP_APP_*/the provenance variable
+# itself: bundling is a commitment about assets we do not build, and these
+# entries name assets that are always ours to place or always the machine's
+# to have.
 
 # Declare the two sides of a resource we build ourselves. Called only when
 # the caller has already established this is our own build output (toolchain
 # mode's LLVM pieces, or any platform's plugin-mode compiler plugin file):
-# both sides are always the deploy-layout placeholder, in every strategy,
-# because rule 1 says what we build is INSTALLED in every strategy. Whether
-# it is also deployed with an application is a separate question the deploy
-# helper answers, and it only exists under full - under managed, whatever
-# channel the configurer uses to get their build to users is theirs, same
-# as any ordinary CMake project's. `relative` must already be a concrete
+# both sides are always the deploy-layout placeholder, because rule 1 says
+# what we build is always INSTALLED. Whether it is also deployed with an
+# application is a separate question the deploy manifest answers.
+# `relative` must already be a concrete
 # path (no {{ }}): the toolchain side still defers {{ acpp-root }} to the
 # driver's own resolver, but the application side is written by
 # configure_file, so it is computed here, from the runtime library's own
@@ -368,10 +365,10 @@ macro(acpp_declare_owned_provenance var relative)
 endmacro()
 
 # Declare the two sides of a resource that belongs to the machine in plugin
-# mode (rule 2): both sides are the discovered absolute path, in every
-# strategy - nothing is deployed, so the JIT reaches the same machine copy
-# the driver does. Empty when discovery found nothing (a profile that builds
-# no plugin, decision d): that is not an error, it is the honest "this
+# mode (rule 2): both sides are the discovered absolute path - nothing is
+# deployed, so the JIT reaches the same machine copy the driver does.
+# Empty when discovery found nothing (a profile that builds no plugin,
+# decision d): that is not an error, it is the honest "this
 # toolchain has no plugin, so it has no plugin-side compiler either".
 # Override through the underlying find's own cache variable (upstream's
 # CLANG_EXECUTABLE_PATH is one such CACHE STRING), never through
@@ -389,52 +386,12 @@ macro(acpp_declare_machine_resource stem discovered_var discovered)
 endmacro()
 
 # ---------------------------------------------------------------------------
-# Controls
-# ---------------------------------------------------------------------------
-#
-# The strategy decides two things and nothing more: whether a vendor's
-# assets are ours to place (shipped) or the machine's own copy to use
-# in-place (not shipped) - which decides the initial values written into
-# the installed configuration - and whether `cmake --install` copies
-# external assets into the tree at all. It says nothing about how a later
-# deployment behaves - by then the configuration may have been edited or
-# overridden.
-#
-# managed is the ordinary-CMake-project case: nothing is shipped, and
-# whoever configures it sets rpaths etc. with standard CMake variables, as
-# for any project - forcing a layout decision here, in every strategy, was
-# the anti-pattern this replaced. full and full-permissive-only are where we
-# take responsibility for vendor assets instead; they differ only in which
-# vendors that covers (see the gate below).
-
-if(NOT DEFINED ACPP_DEPLOYMENT_STRATEGY)
-  set(ACPP_DEPLOYMENT_STRATEGY "managed")
-endif()
-if(NOT ACPP_DEPLOYMENT_STRATEGY MATCHES "^(managed|full-permissive-only|full)$")
-  message(FATAL_ERROR
-    "ACPP_DEPLOYMENT_STRATEGY must be one of managed, full-permissive-only "
-    "or full, not '${ACPP_DEPLOYMENT_STRATEGY}'.")
-endif()
-
-# Copying NON-PERMISSIVE vendor assets into our own install tree is a
-# redistribution decision. A packager setting this undertakes to have read the
-# vendors' terms and to pass the obligation on to their own users; this
-# comment is the one place they are guaranteed to pass on the way in.
-#
-# Permissive assets - LLVM itself - need no gate, which is why
-# `full-permissive-only` exists: wanting a self-contained toolchain should not
-# require opting into a legal decision you are not making.
-if(NOT DEFINED ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN)
-  set(ACPP_ALLOW_NONPERMISSIVE_SHIPPED_WITH_TOOLCHAIN OFF)
-endif()
-
-# ---------------------------------------------------------------------------
 # OMP: an ordinary vendor, in both build modes
 # ---------------------------------------------------------------------------
 #
 # The OpenMP runtime our OMP backend links, and apps use, is a vendor unit
-# like cuda or hip (principle 3 of the design walkthrough): governed by the
-# strategy, with its own subdir, permissive. The build mode changes only the
+# like cuda or hip (principle 3 of the design walkthrough): governed by
+# ACPP_BUNDLE_LIBOMP, with its own fixed subdir. The build mode changes only the
 # default SOURCE - which library the SHIPPED copy is taken from - not
 # whether it is a vendor unit at all: in toolchain mode, the libomp of the
 # LLVM this build produces (guaranteed to exist, since the product must
@@ -470,9 +427,9 @@ acpp_declare_vendor_root(LIBOMP libomp ACPP_LIBOMP_SOURCE_DIR "${ACPP_LIBOMP_SOU
 
 # In toolchain mode libomp is ours: LLVM's own install puts it into this
 # same prefix (the DLL in bindir on Windows), so the toolchain config
-# points there in every strategy and nothing is copied at install time.
-# Under full, --acpp-deploy still copies it from there into libomp-subdir,
-# where deployed binaries' rpaths and the Windows app config look for it.
+# points there and nothing is copied at install time.
+# --acpp-deploy still copies it from there into libomp-subdir, where
+# deployed binaries' rpaths and the Windows app config look for it.
 if(LLVM_ADAPTIVECPP_LINK_INTO_TOOLS AND "${ACPP_LIBOMP_ROOT}" STREQUAL "")
   if(WIN32)
     set(ACPP_LIBOMP_INSTALL_ROOT "{{ acpp-root }}/{{ acpp-bindir }}")

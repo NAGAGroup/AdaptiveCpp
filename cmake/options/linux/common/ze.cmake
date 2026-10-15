@@ -1,9 +1,9 @@
 # Level Zero options - linux, every architecture.
 #
 # Include after core.cmake, only when the Level Zero backend is enabled; the
-# helpers and the strategy control live in core. A loader-only unit: the
+# helpers live in core. A loader-only unit: the
 # unit is the loader in the vendor's own library directory, nothing else.
-# Two knobs (ACPP_ZE_SUBDIR plus the loader/header hints), everything else
+# Two knobs (ACPP_BUNDLE_ZE plus the loader/header hints), everything else
 # derived - see "Vendor units" in the common core file.
 
 include_guard(GLOBAL)

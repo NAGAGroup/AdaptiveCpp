@@ -15,11 +15,10 @@ set(ACPP_EXTRA_ARGS "${ACPP_EXTRA_ARGS}" CACHE STRING "Arguments to pass through
 set(ACPP_EXTRA_COMPILE_OPTIONS "${ACPP_EXTRA_COMPILE_OPTIONS}" CACHE STRING "Additional compile options for source files listed in add_sycl_to_target.")
 
 # The install rpath add_sycl_to_target appends to a target's INSTALL_RPATH
-# so a deployed app finds this toolchain's shipped vendor libraries - only
-# non-empty for a toolchain built with the full or full-permissive-only
-# deployment strategy (empty for managed: an ordinary CMake project's own
-# rpath is none of our business, so set your own). Assumes the executable
-# installs to <prefix>/bin; override if yours does not.
+# so a deployed app finds this toolchain's bundled vendor libraries first and
+# the real location of vendors that were not bundled after them (empty on
+# Windows, which has no rpath). Assumes the executable installs to
+# <prefix>/bin; override if yours does not.
 set(ACPP_APP_INSTALL_RPATH "@ACPP_APP_INSTALL_RPATH_DEFAULT@" CACHE STRING
   "Install rpath add_sycl_to_target appends to targets, to find this toolchain's shipped vendor libraries after deployment.")
 
@@ -144,7 +143,7 @@ function(add_sycl_to_target)
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_COMPILE "${EXISTING_LAUNCH_COMPILE_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
   set_target_properties("${ADD_SYCL_TARGET}" PROPERTIES RULE_LAUNCH_LINK "${EXISTING_LAUNCH_LINK_RULE} ${ACPP_COMPILER_LAUNCH_RULE}")
 
-  # Empty for a managed toolchain (nothing to append) or an ordinary
+  # Empty on Windows (nothing to append), and an ordinary
   # target whose own build already sets an INSTALL_RPATH it wants kept -
   # APPEND leaves that alone. BUILD_RPATH is left to CMake's own defaults.
   if(NOT "${ACPP_APP_INSTALL_RPATH}" STREQUAL "")

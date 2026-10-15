@@ -1,10 +1,10 @@
 # clspv options - windows, every architecture.
 #
 # Include after core.cmake, only when the Vulkan backend is enabled; the
-# helpers and the strategy control live in core. clspv is an executable the
+# helpers live in core. clspv is an executable the
 # JIT invokes at application run time, so it is a two-sided resource: the
 # driver invokes it from the toolchain while compiling, the JIT invokes it
-# from the deployment while an application runs. Two knobs (ACPP_CLSPV_SUBDIR
+# from the deployment while an application runs. Two knobs (ACPP_BUNDLE_CLSPV
 # plus clspv being found on PATH), everything else derived - see "Vendor
 # units" in the common core file.
 

@@ -1,9 +1,9 @@
 # OpenCL options - windows, every architecture.
 #
 # Include after core.cmake, only when the OpenCL backend is enabled; the
-# helpers and the strategy control live in core. A loader-only unit: the
+# helpers live in core. A loader-only unit: the
 # unit is the ICD loader's DLL, nothing else. On Windows there is no
-# multipass flow for OpenCL. Two knobs (ACPP_OCL_SUBDIR plus the loader
+# multipass flow for OpenCL. Two knobs (ACPP_BUNDLE_OCL plus the loader
 # hints), everything else derived - see "Vendor units" in the common core
 # file.
 

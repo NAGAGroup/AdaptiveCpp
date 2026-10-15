@@ -1,6 +1,6 @@
 # Per-vendor cmake install rules: home (a)+(b) of the three-part manifest
-# (doc/configuration-model.md, "The manifest"). Under full or
-# full-permissive-only, a SHIPPED vendor (ACPP_<STEM>_SHIPPED ON) is copied
+# (doc/configuration-model.md, "The manifest"). A SHIPPED vendor
+# (ACPP_<STEM>_SHIPPED, i.e. its ACPP_BUNDLE_<STEM> option ON) is copied
 # at `cmake --install` time into ${CMAKE_INSTALL_PREFIX}/<ACPP_<STEM>_SUBDIR>
 # /<fact subdir>, in the vendor's own layout. Every helper below is a no-op
 # unless the vendor it names is SHIPPED - not shipped means the driver

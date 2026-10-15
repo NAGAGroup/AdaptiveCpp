@@ -7,7 +7,7 @@
 # The caller has already included the relevant options files (core.cmake
 # plus whichever vendor .cmake files the units in UNITS need), so every
 # @VAR@ the merged templates reference - and LLVM_ADAPTIVECPP_LINK_INTO_
-# TOOLS, ACPP_DEPLOYMENT_STRATEGY, ACPP_DISCOVERED_HIP_HIPRTC where
+# TOOLS, ACPP_BUNDLED_VENDORS, ACPP_DISCOVERED_HIP_HIPRTC where
 # relevant - is already set in the calling scope. This file never guesses
 # a default for any of them itself.
 
@@ -122,10 +122,8 @@ endfunction()
 #                                  OUT_DIR <dir>)
 #
 # core and omp are always merged in, alongside whichever vendor units this
-# build enables (UNITS). Writes OUT_DIR/acpp-toolchain.json and
-# OUT_DIR/acpp-app.cfg always, and OUT_DIR/acpp-deploy.json only when
-# ACPP_DEPLOYMENT_STRATEGY is not managed (managed ships nothing, so there
-# is nothing for a manifest to say).
+# build enables (UNITS). Writes OUT_DIR/acpp-toolchain.json,
+# OUT_DIR/acpp-app.cfg and OUT_DIR/acpp-deploy.json, always.
 # ---------------------------------------------------------------------------
 function(acpp_generate_installed_configs)
   cmake_parse_arguments(ACPP_GEN "" "PLATFORM;ARCH;OUT_DIR" "UNITS" ${ARGN})
@@ -194,13 +192,11 @@ function(acpp_generate_installed_configs)
   file(WRITE "${_tmp_dir}/acpp-app.cfg.in" "${_app_text}")
   configure_file("${_tmp_dir}/acpp-app.cfg.in" "${ACPP_GEN_OUT_DIR}/acpp-app.cfg" @ONLY)
 
-  if(NOT "${ACPP_DEPLOYMENT_STRATEGY}" STREQUAL "managed")
-    file(WRITE "${_tmp_dir}/acpp-deploy.json.in" "${_deploy_json}")
-    configure_file("${_tmp_dir}/acpp-deploy.json.in" "${ACPP_GEN_OUT_DIR}/acpp-deploy.json" @ONLY)
-  endif()
+  file(WRITE "${_tmp_dir}/acpp-deploy.json.in" "${_deploy_json}")
+  configure_file("${_tmp_dir}/acpp-deploy.json.in" "${ACPP_GEN_OUT_DIR}/acpp-deploy.json" @ONLY)
 
   # (e) Every {{ key }} left in the generated toolchain config's own values,
-  # and in the manifest if one was generated, must be acpp-root,
+  # and in the manifest, must be acpp-root,
   # acpp-runtime-root, or a key the generated toolchain config itself
   # defines - nothing else is ever a valid {{ }} name, and an unresolved
   # one would silently reach the driver or the deploy step as literal text.

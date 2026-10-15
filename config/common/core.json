@@ -8,9 +8,8 @@
   "llvm-libdir": {
     "value": "@ACPP_DISCOVERED_LLVM_LIBDIR@"
   },
-  "deployment-strategy": {
-    "value": "@ACPP_DEPLOYMENT_STRATEGY@",
-    "envvar": "ACPP_DEPLOYMENT_STRATEGY"
+  "bundled-vendors": {
+    "value": "@ACPP_BUNDLED_VENDORS@"
   },
   "version-major": {
     "value": "@ACPP_VERSION_MAJOR@"

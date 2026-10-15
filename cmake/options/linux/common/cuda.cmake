@@ -1,7 +1,7 @@
 # CUDA options - linux, every architecture.
 #
 # Include after core.cmake, only when the CUDA backend is enabled; the
-# helpers and the strategy control live in core. Two knobs (ACPP_CUDA_SUBDIR
+# helpers live in core. Two knobs (ACPP_BUNDLE_CUDA
 # plus whatever CUDAToolkit_ROOT and friends steer discovery), everything
 # else derived - see "Vendor units" in the common core file.
 
@@ -39,7 +39,7 @@ acpp_declare_vendor_app_dir(CUDA cuda LIBDEVICE)
 # ---------------------------------------------------------------------------
 #
 # Both strings compose {{ cuda-install-root }} with a subdir fact directly;
-# neither needs to branch on strategy in cmake, because cuda-install-root's
+# neither needs to branch on bundling in cmake, because cuda-install-root's
 # own value already carries the branch (see acpp_declare_vendor_root).
 # libcuda is the driver's, reached separately.
 #
