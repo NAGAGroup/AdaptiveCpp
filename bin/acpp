@@ -259,12 +259,11 @@ ACPP_STATIC_HCF_REGISTRATION({hcf_object_id}ull, __acpp_hcf_object_{hcf_object_i
 
 class deployment_db:
   # Loads the single installed deploy manifest (etc/AdaptiveCpp/
-  # acpp-deploy.json), if present in any of the given directories. It
-  # exists only under full/full-permissive-only
-  # (cmake/acpp-installed-configs.cmake writes it only then) - so, unlike
-  # upstream's per-component manifest files, its absence here is not a
-  # construction-time error: the driver still has to work for compiling
-  # under managed. Rows are exposed raw, still {{ }}-templated - resolving
+  # acpp-deploy.json), if present in any of the given directories.
+  # cmake/acpp-installed-configs.cmake always writes it; unlike upstream's
+  # per-component manifest files, its absence here is not a
+  # construction-time error: the driver still has to work for compiling.
+  # Rows are exposed raw, still {{ }}-templated - resolving
   # and copying is run_deployment()/deployment_engine's job, since only
   # deploy time knows the target (acpp-runtime-root).
   def __init__(self, config_file_dirs):
@@ -287,6 +286,11 @@ class deployment_db:
 
   def rows(self, group):
     return self._groups.get(group, [])
+
+  # The vendor groups of the manifest: every group except the fixed
+  # internal/llvm/app-config ones, in manifest order.
+  def vendor_groups(self):
+    return [g for g in self._groups if g not in ("internal", "llvm", "app-config")]
 
 class deployment_engine:
   # Resolves one deploy row's {{ }} tokens against the toolchain config
@@ -668,14 +672,12 @@ class acpp_config:
       'deploy' : option("--acpp-deploy", "ACPP_DEPLOY", "deploy",
 """  If set, deploys this AdaptiveCpp toolchain's installed manifest - every
     backend and vendor library enabled when it was built - into the given
-    directory, along with its application config. Requires a toolchain
-    built with the full or full-permissive-only deployment strategy. The
-    format is:
-    <ignored-for-compatibility>:/path/to/deploy/to
-    A component list before the ':' is accepted for backwards
-    compatibility only, and otherwise ignored: the installed manifest is
-    already merged across every backend this toolchain was built with, so
-    there is nothing left to select per component.""")
+    directory, along with its application config. The format is:
+    <vendor-list>:/path/to/deploy/to
+    The vendor list is comma-separated, e.g. cuda,hip. Vendors bundled with
+    the toolchain are always included; the list names further vendors to
+    deploy from their installed location. "all" deploys every vendor in the
+    manifest, and "core" adds nothing. The list may be empty (:/path).""")
     }
     self._flags = {
       'use-accelerated-cpu': option("--acpp-use-accelerated-cpu", "ACPP_USE_ACCELERATED_CPU",
@@ -991,12 +993,9 @@ class acpp_config:
 
     return result
 
-  # Returns (components, target_path). The component list before ':' is
-  # accepted for backwards compatibility only - the installed manifest is
-  # already merged across every backend this toolchain was built with, so
-  # there is nothing left to select per component; run_deployment() notes
-  # when a caller named anything other than core/all, so the request is
-  # not silently reinterpreted rather than validated against a whitelist.
+  # Returns (components, target_path). The component list before ':' is a
+  # comma-separated list of vendors to deploy in addition to the bundled
+  # ones; run_deployment() validates it against the manifest's vendor groups.
   def _parse_deployment(self, deployment_arg):
     deployment_components=deployment_arg.replace("'","").replace('"',"").split(':')
 
@@ -2597,23 +2596,32 @@ def deploy_app_config(config, runtime_root):
   shutil.copy(install_cfg, target_cfg)
 
 def run_deployment(config, components, target_path):
-  non_trivial = [c for c in components if c not in ("core", "all")]
-  if non_trivial:
-    print_warning(
-      "--acpp-deploy's component selection ("+",".join(components)+") is accepted for "
-      "compatibility only; the installed manifest is merged and deployed as a whole.")
-
   db = config.deployment_db
-  strategy = config.config_db.get_or_default("deployment-strategy", "managed")
-  if not db.is_loaded or strategy == "managed":
-    print("acpp: deployment requires a toolchain built with the full or full-permissive-only strategy",
-          file=sys.stderr)
+  if not db.is_loaded:
+    print("acpp: no deploy manifest is installed with this toolchain", file=sys.stderr)
     sys.exit(1)
 
+  vendor_groups = db.vendor_groups()
+  bundled = [v.strip() for v in config.config_db.get_or_default("bundled-vendors", "").split(",") if v.strip()]
+
+  requested = []
+  for c in components:
+    if c == "" or c == "core":
+      continue
+    if c == "all":
+      requested.extend(vendor_groups)
+    elif c in vendor_groups:
+      requested.append(c)
+    else:
+      print("acpp: --acpp-deploy: unknown vendor '"+c+"'; valid names are: core, all, "+", ".join(vendor_groups),
+            file=sys.stderr)
+      sys.exit(1)
+
   runtime_root = os.path.abspath(target_path)
-  groups = ["internal", "llvm", "external-permissive"]
-  if strategy == "full":
-    groups.append("external-nonpermissive")
+  groups = []
+  for g in ["internal", "llvm"] + bundled + requested:
+    if g not in groups:
+      groups.append(g)
 
   print("Starting deployment to "+runtime_root+" ...")
   engine = deployment_engine(config.config_db, runtime_root)
