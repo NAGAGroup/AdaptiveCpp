@@ -1128,17 +1128,20 @@ void SubCFG::fixSingleSubCfgValues(
               continue;
             }
 
-          llvm::AllocaInst *Alloca = nullptr;
-          if (auto *RemAlloca = RemappedInstAllocaMap.lookup(OPI))
-            Alloca = RemAlloca;
-          if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI))
-            Alloca = utils::getLoopStateAllocaForLoad(*LInst);
+          // The alloca the original value was arrayified into (keyed by this sub-CFG's clone) takes precedence; only
+          // without one can a load from a loop-state alloca reuse that alloca.
+          llvm::AllocaInst *Alloca = RemappedInstAllocaMap.lookup(OPI);
+          if (!Alloca)
+            if (auto *LInst = llvm::dyn_cast<llvm::LoadInst>(OPI))
+              Alloca = utils::getLoopStateAllocaForLoad(*LInst);
           if (!Alloca) {
             HIPSYCL_DEBUG_INFO << "[SubCFG] No alloca, yet for " << *OPI << "\n";
-            Alloca = utils::arrayifyInstruction(
-                AllocaIP, OPI, ContIdx_,
-                VecInfo.getVectorShape(I).isUniform() ? nullptr : ReqdArrayElements);
-            VecInfo.setVectorShape(*Alloca, VecInfo.getVectorShape(I));
+            // Clones are outside VecInfo's region and have no stored shape: wide unless an in-region OPI is uniform.
+            const VectorShape OPIShape =
+                VecInfo.inRegion(*OPI) ? VecInfo.getVectorShape(*OPI) : VectorShape::varying();
+            Alloca = utils::arrayifyInstruction(AllocaIP, OPI, ContIdx_,
+                                                OPIShape.isUniform() ? nullptr : ReqdArrayElements);
+            VecInfo.setVectorShape(*Alloca, OPIShape);
           }
 
           auto Idx = ContIdx_;
