@@ -33,6 +33,8 @@
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 #include <llvm/Transforms/Utils/SimplifyCFGOptions.h>
 #include <llvm/ADT/APFloat.h>
+#include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/IR/Constants.h>
@@ -59,6 +61,52 @@ namespace hipsycl {
 namespace compiler {
 
 namespace {
+
+// Stage 1 compiles device code as host C++, so the functions that wrap barriers and
+// group functions (e.g. a user's helper around a group barrier) are not marked
+// convergent, even though the builtin they end up calling is. The pre-inline
+// SimplifyCFG below would then treat a call to such a wrapper as freely duplicable
+// and thread branches through it, copying a barrier into divergent paths. Here
+// convergence is propagated up the call graph first: every direct call to a
+// convergent function is a convergent call, and a function containing a convergent
+// call is itself convergent. Indirect calls are left alone; the dynamic-function
+// specialization has made them direct by this point.
+void propagateConvergence(llvm::Module &M) {
+  llvm::SmallVector<llvm::Function *> Worklist;
+  llvm::SmallPtrSet<llvm::Function *, 32> Queued;
+  auto Enqueue = [&](llvm::Function *F) {
+    if (Queued.insert(F).second)
+      Worklist.push_back(F);
+  };
+
+  // Seeds: convergent functions, and the callers of convergent call sites.
+  for (llvm::Function &F : M) {
+    if (F.isConvergent())
+      Enqueue(&F);
+    for (llvm::BasicBlock &BB : F)
+      for (llvm::Instruction &I : BB)
+        if (auto *CB = llvm::dyn_cast<llvm::CallBase>(&I))
+          if (CB->isConvergent()) {
+            F.setConvergent();
+            Enqueue(&F);
+          }
+  }
+
+  while (!Worklist.empty()) {
+    llvm::Function *F = Worklist.pop_back_val();
+    for (llvm::User *U : F->users()) {
+      auto *CB = llvm::dyn_cast<llvm::CallBase>(U);
+      // Only direct calls of F; F used as an argument is not a call.
+      if (!CB || CB->getCalledFunction() != F)
+        continue;
+      CB->setConvergent();
+      llvm::Function *Caller = CB->getFunction();
+      if (!Caller->isConvergent())
+        Caller->setConvergent();
+      Enqueue(Caller);
+    }
+  }
+}
 
 // Simplify each function before it is force-inlined into the kernel, while
 // its parameter attributes (e.g. `dereferenceable` on a `const T&`) still let
@@ -369,6 +417,7 @@ bool LLVMToBackendTranslator::prepareIR(llvm::Module &M) {
     InliningPass.run(M, MAM);
     MAM.clear();
 
+    propagateConvergence(M);
     runPreInlineSimplification(M, MAM);
     MAM.clear();
 
