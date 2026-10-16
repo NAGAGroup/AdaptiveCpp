@@ -6,7 +6,7 @@ AdaptiveCpp provides mechanisms to aid in deploying AdaptiveCpp-compiled binarie
 
 `acpp --acpp-deploy=<path>` populates a directory with what an application needs at run time, for a toolchain built with `ACPP_DEPLOYMENT_STRATEGY=full` or `full-permissive-only` (under `managed`, the default, the toolchain is an ordinary CMake project and deploying is the configurer's business - the command reports that and exits).
 
-The directory mirrors the toolchain's own install layout. Deployed libraries find each other and the shipped vendor libraries through relative rpaths (`$ORIGIN`/`@loader_path`; on Windows, through the DLL directories in the deployed application config), so no `LD_LIBRARY_PATH` is needed. Install your application's executable into the deployment's `bin` directory; CMake applications get the matching rpath from `add_sycl_to_target`. See [the configuration model](configuration-model.md) for the details.
+The directory mirrors the toolchain's own install layout. Deployed libraries find each other and the shipped vendor libraries through relative rpaths (`$ORIGIN`/`@loader_path`; on Windows, through the DLL directories in the deployed application config), so no `LD_LIBRARY_PATH` is needed. Install your application's executable into the deployment's `bin` directory; CMake applications get the matching rpath from `add_sycl_to_target`.
 
 ### Deployment components
 

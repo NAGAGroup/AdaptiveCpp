@@ -137,8 +137,6 @@ The default installation prefix is `/usr/local`. Change this to your liking.
 * `-DACPP_<VENDOR>_ROOT` (under `managed`) sets where a vendor is found, either an absolute path or one relative to the install prefix.
 * Install directories follow CMake's `GNUInstallDirs` (`CMAKE_INSTALL_LIBDIR` etc.), and nothing about the build machine's own paths is recorded in the installed binaries, so an install can be moved afterwards.
 
-See [the configuration model](configuration-model.md) for the details.
-
 ###### generic
 
 * Requires `-DACPP_COMPILER_FEATURE_PROFILE=full`
