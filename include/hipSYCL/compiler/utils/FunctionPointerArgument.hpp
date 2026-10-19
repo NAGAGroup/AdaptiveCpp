@@ -33,6 +33,7 @@
 #include <llvm/IR/InstrTypes.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/IntrinsicInst.h>
+#include <llvm/IR/Intrinsics.h>
 
 #include <set>
 #include <utility>
@@ -79,9 +80,10 @@ inline llvm::Value *lookThroughSpill(llvm::Value *V, unsigned Depth = 8) {
         continue;
       return V;
     }
-    if (llvm::isa<llvm::LifetimeIntrinsic>(U) ||
-        llvm::isa<llvm::DbgInfoIntrinsic>(U))
-      continue;
+    if (auto *II = llvm::dyn_cast<llvm::IntrinsicInst>(U))
+      if (II->getIntrinsicID() == llvm::Intrinsic::lifetime_start ||
+          II->getIntrinsicID() == llvm::Intrinsic::lifetime_end)
+        continue;
     // The slot escapes.
     return V;
   }
