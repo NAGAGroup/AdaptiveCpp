@@ -18,6 +18,7 @@
 #include <llvm/IR/Instructions.h>
 #include <string>
 #include "hipSYCL/compiler/reflection/FunctionNameExtractionPass.hpp"
+#include "hipSYCL/compiler/utils/FunctionPointerArgument.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/GlobalVariable.h>
@@ -54,6 +55,19 @@ bool isAnyUserReflectionAnnotatedFunction(llvm::Function* F, const utils::Proces
       
         if(isReflectionAnnotatedFunction(CalledF, PFA))
           return true;
+
+        // F may be passed to a function that only forwards it on to an
+        // annotated one (e.g. a constructor calling its base-object
+        // constructor on Darwin).
+        for(unsigned j = 0; j < CB->arg_size(); ++j) {
+          if(CB->getArgOperand(j)->stripPointerCasts() != F)
+            continue;
+          if(utils::forwardsArgumentToAnnotated(
+                 CalledF, j, [&](llvm::Function* H) {
+                   return isReflectionAnnotatedFunction(H, PFA);
+                 }))
+            return true;
+        }
       
       }
     }

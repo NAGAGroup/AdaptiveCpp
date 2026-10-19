@@ -12,6 +12,7 @@
 
 
 #include "hipSYCL/compiler/sscp/DynamicFunctionSupport.hpp"
+#include "hipSYCL/compiler/utils/FunctionPointerArgument.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 
 #include <llvm/IR/PassManager.h>
@@ -43,9 +44,11 @@ llvm::PreservedAnalyses DynamicFunctionIdentifactionPass::run(llvm::Module &M, l
       if (F) {
         for (auto *U : F->users()) {
           if (llvm::CallBase *CB = llvm::dyn_cast<llvm::CallBase>(U)) {
-            if (CB->getNumOperands() >= 1) {
-              if (auto *DF = llvm::dyn_cast<llvm::Function>(CB->getOperand(ArgNo))) {
-                Output.push_back(DF->getName().str());
+            if (CB->getNumOperands() >= 1 && ArgNo < CB->arg_size()) {
+              llvm::SmallVector<llvm::Function *, 4> Resolved;
+              if (utils::resolveFunctionPointerArgument(CB, ArgNo, Resolved)) {
+                for (auto *DF : Resolved)
+                  Output.push_back(DF->getName().str());
               } else {
                 M.getContext().emitError(
                     CB, "Detected a dynamic_function or dynamic_function_definition construction "

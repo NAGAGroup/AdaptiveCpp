@@ -29,6 +29,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <future>
 #include <iostream>
@@ -831,6 +832,52 @@ BOOST_AUTO_TEST_CASE(async_host_free_deadlock) {
   });
 }
 
+// An operation that depends on an async_host task must not park the backend
+// queue it is issued to. On OpenCL it used to get a user-event barrier in its
+// in-order queue; if the host task needs work that lands behind that barrier
+// (here: a memcpy submitted from inside the task), nothing can make progress.
+BOOST_AUTO_TEST_CASE(async_host_dependent_does_not_park_queue) {
+  sycl::queue q;
+  if(!q.get_device().has(sycl::aspect::usm_device_allocations))
+    return;
+
+  int* a = sycl::malloc_device<int>(1, q);
+  int* b = sycl::malloc_device<int>(1, q);
+  int host_val = 0;
+  q.memset(a, 0, sizeof(int)).wait();
+  q.memset(b, 0, sizeof(int)).wait();
+
+  std::atomic<bool> body_done{false};
+  // The body submits work and waits on it.
+  auto h = q.async_host([&]() {
+    int v = 7;
+    q.memcpy(a, &v, sizeof(int)).wait();
+    body_done = true;
+  });
+  // Submitted right after h, so it is pending while the body runs.
+  auto k = q.submit([&](sycl::handler& cgh) {
+    cgh.depends_on(h);
+    cgh.single_task([=]() { *b = *a + 1; });
+  });
+
+  auto fut = std::async(std::launch::async, [k]() mutable { k.wait(); });
+  if(fut.wait_for(std::chrono::seconds(20)) == std::future_status::timeout) {
+    std::fprintf(stderr,
+                 "async_host_dependent_does_not_park_queue: deadlock (an "
+                 "operation depending on a host task parked the backend "
+                 "queue)\n");
+    std::fflush(stderr);
+    std::_Exit(3);
+  }
+
+  q.memcpy(&host_val, b, sizeof(int)).wait();
+  BOOST_CHECK(body_done.load());
+  BOOST_CHECK_EQUAL(host_val, 8);
+
+  sycl::free(a, q);
+  sycl::free(b, q);
+}
+
 #ifdef ACPP_EXT_CG_PROPERTY_RETARGET
 // Work on the OpenMP device that depends on a CUDA/HIP kernel queued behind an
 // async_host node must not abort.
@@ -1521,6 +1568,81 @@ BOOST_AUTO_TEST_CASE(sycl_specialized) {
     uint64_t host;
     q.memcpy(&host, data, sizeof(uint64_t)).wait();
     BOOST_CHECK(host == 11);
+  }
+
+  sycl::free(data, q);
+}
+#endif
+
+#if defined(ACPP_EXT_DYNAMIC_FUNCTIONS) && defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
+SYCL_EXTERNAL void acpp_test_dynfn_add_one(int* d) { *d += 1; }
+SYCL_EXTERNAL void acpp_test_dynfn_add_two(int* d) { *d += 2; }
+void acpp_test_dynfn_placeholder(int* d);
+
+template<class Ret, class... Args>
+[[clang::noinline]] sycl::AdaptiveCpp_jit::dynamic_function_definition<Ret, Args...>
+acpp_test_make_dynfn_def(Ret (*f)(Args...)) {
+  return sycl::AdaptiveCpp_jit::dynamic_function_definition<Ret, Args...>{f};
+}
+
+// (a) and (c) construct the objects directly, which on macOS passes through
+// clang's C1->C2 constructor forwarding. (b) and (c) go through an explicit
+// forwarding helper, which reproduces the same pattern on every platform.
+BOOST_AUTO_TEST_CASE(dynamic_function_objects) {
+  sycl::queue q;
+  int* data = sycl::malloc_device<int>(1, q);
+
+  // (a) direct construction
+  {
+    q.memset(data, 0, sizeof(int)).wait();
+    sycl::AdaptiveCpp_jit::dynamic_function_config cfg;
+    cfg.define(
+        sycl::AdaptiveCpp_jit::dynamic_function{&acpp_test_dynfn_placeholder},
+        sycl::AdaptiveCpp_jit::dynamic_function_definition{
+            &acpp_test_dynfn_add_two});
+    q.parallel_for(sycl::range{1}, cfg.apply([=](sycl::item<1>) {
+      acpp_test_dynfn_placeholder(data);
+    }));
+    q.wait();
+    int host = -1;
+    q.memcpy(&host, data, sizeof(int)).wait();
+    BOOST_CHECK_EQUAL(host, 2);
+  }
+
+  // (b) definition built through a forwarding helper
+  {
+    q.memset(data, 0, sizeof(int)).wait();
+    sycl::AdaptiveCpp_jit::dynamic_function_config cfg;
+    cfg.define(
+        sycl::AdaptiveCpp_jit::dynamic_function{&acpp_test_dynfn_placeholder},
+        acpp_test_make_dynfn_def(&acpp_test_dynfn_add_one));
+    q.parallel_for(sycl::range{1}, cfg.apply([=](sycl::item<1>) {
+      acpp_test_dynfn_placeholder(data);
+    }));
+    q.wait();
+    int host = -1;
+    q.memcpy(&host, data, sizeof(int)).wait();
+    BOOST_CHECK_EQUAL(host, 1);
+  }
+
+  // (c) call sequence mixing both
+  {
+    q.memset(data, 0, sizeof(int)).wait();
+    sycl::AdaptiveCpp_jit::dynamic_function_config cfg;
+    cfg.define_as_call_sequence(
+        sycl::AdaptiveCpp_jit::dynamic_function{&acpp_test_dynfn_placeholder}
+            .id(),
+        {sycl::AdaptiveCpp_jit::dynamic_function_definition{
+             &acpp_test_dynfn_add_one}
+             .id(),
+         acpp_test_make_dynfn_def(&acpp_test_dynfn_add_two).id()});
+    q.parallel_for(sycl::range{1}, cfg.apply([=](sycl::item<1>) {
+      acpp_test_dynfn_placeholder(data);
+    }));
+    q.wait();
+    int host = -1;
+    q.memcpy(&host, data, sizeof(int)).wait();
+    BOOST_CHECK_EQUAL(host, 3);
   }
 
   sycl::free(data, q);
