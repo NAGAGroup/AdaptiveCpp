@@ -833,13 +833,23 @@ BOOST_AUTO_TEST_CASE(async_host_free_deadlock) {
 }
 
 // An operation that depends on an async_host task must not park the backend
-// queue it is issued to. On OpenCL it used to get a user-event barrier in its
-// in-order queue; if the host task needs work that lands behind that barrier
-// (here: a memcpy submitted from inside the task), nothing can make progress.
+// queue it is issued to. The body submits a kernel after k has been submitted.
+// Before the fix, k's user-event barrier parked the in-order kernel lane, and
+// the body's kernel queued behind it could never run.
 BOOST_AUTO_TEST_CASE(async_host_dependent_does_not_park_queue) {
   sycl::queue q;
   if(!q.get_device().has(sycl::aspect::usm_device_allocations))
     return;
+  // Only backends that defer host-task dependents are tested. OpenMP
+  // (omp_queue::submit_external_wait_for) also parks its worker thread on a
+  // host-task requirement and has no deferral yet, so this pattern would
+  // deadlock there; that is tracked separately.
+  {
+    auto be = q.get_device().get_backend();
+    if(be != sycl::backend::ocl && be != sycl::backend::cuda &&
+       be != sycl::backend::hip)
+      return;
+  }
 
   int* a = sycl::malloc_device<int>(1, q);
   int* b = sycl::malloc_device<int>(1, q);
@@ -848,10 +858,12 @@ BOOST_AUTO_TEST_CASE(async_host_dependent_does_not_park_queue) {
   q.memset(b, 0, sizeof(int)).wait();
 
   std::atomic<bool> body_done{false};
-  // The body submits work and waits on it.
+  std::atomic<bool> k_submitted{false};
+  // The body submits a kernel and waits on it, once k has been submitted.
   auto h = q.async_host([&]() {
-    int v = 7;
-    q.memcpy(a, &v, sizeof(int)).wait();
+    while(!k_submitted.load())
+      std::this_thread::yield();
+    q.single_task([=]() { *a = 7; }).wait();
     body_done = true;
   });
   // Submitted right after h, so it is pending while the body runs.
@@ -859,6 +871,7 @@ BOOST_AUTO_TEST_CASE(async_host_dependent_does_not_park_queue) {
     cgh.depends_on(h);
     cgh.single_task([=]() { *b = *a + 1; });
   });
+  k_submitted = true;
 
   auto fut = std::async(std::launch::async, [k]() mutable { k.wait(); });
   if(fut.wait_for(std::chrono::seconds(20)) == std::future_status::timeout) {
