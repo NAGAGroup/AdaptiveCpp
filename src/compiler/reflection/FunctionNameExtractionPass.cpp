@@ -20,6 +20,7 @@
 #include "hipSYCL/compiler/reflection/FunctionNameExtractionPass.hpp"
 #include "hipSYCL/compiler/utils/FunctionPointerArgument.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
+#include "hipSYCL/compiler/llvm-to-backend/NameHandling.hpp"
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/Support/Alignment.h>
@@ -102,6 +103,11 @@ llvm::PreservedAnalyses FunctionNameExtractionPass::run(llvm::Module &M, llvm::M
   for(auto& F : M) {
     if(F.hasAddressTaken() && isAnyUserReflectionAnnotatedFunction(&F, PFA)) {
       auto FunctionName = F.getName().str();
+#ifdef _MSC_VER
+      // The device module's symbol names are sanitized the same way
+      // (TargetSeparationPass), and the JIT matches these names against it.
+      replaceInvalidMSABICharsInSymbolName(FunctionName);
+#endif
       llvm::Constant *Initializer = llvm::ConstantDataArray::getRaw(
           FunctionName + '\0', FunctionName.size() + 1, llvm::Type::getInt8Ty(M.getContext()));
       
