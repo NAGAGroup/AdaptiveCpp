@@ -15,7 +15,13 @@
 #include "hipSYCL/compiler/utils/FunctionPointerArgument.hpp"
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 
+#include <llvm/IR/Comdat.h>
 #include <llvm/IR/PassManager.h>
+#if LLVM_VERSION_MAJOR < 16
+#include <llvm/ADT/Triple.h>
+#else
+#include <llvm/TargetParser/Triple.h>
+#endif
 
 namespace hipsycl::compiler {
 
@@ -84,6 +90,11 @@ llvm::PreservedAnalyses HostSideDynamicFunctionHandlerPass::run(llvm::Module &M,
     if (auto *F = M.getFunction(FName)) {
       if (F->isDeclaration()) {
         F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+        // COFF only folds linkonce definitions that sit in a COMDAT; without
+        // one, every translation unit that uses the placeholder defines it and
+        // the link fails with duplicate symbols. ELF and Mach-O fold it as is.
+        if (llvm::Triple{M.getTargetTriple()}.isOSBinFormatCOFF())
+          F->setComdat(M.getOrInsertComdat(F->getName()));
         auto BB = llvm::BasicBlock::Create(M.getContext(), "entry", F);
         // It seems that LLVM handles functions that only have unreachable inst differently
         // if there address is taken - we can no longer get unique function pointer

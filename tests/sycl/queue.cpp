@@ -14,6 +14,14 @@
 
 #include "sycl_test_suite.hpp"
 
+#if defined(ACPP_EXT_DYNAMIC_FUNCTIONS) && defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
+// The same placeholder tests/sycl/extensions.cpp declares inside its suite (so the same symbol,
+// extension_tests::acpp_test_dynfn_placeholder); a declaration inside queue_tests would be a different function.
+namespace extension_tests {
+void acpp_test_dynfn_placeholder(int* d);
+}
+#endif
+
 BOOST_FIXTURE_TEST_SUITE(queue_tests, reset_device_fixture)
 
 BOOST_AUTO_TEST_CASE(queue_wait) {
@@ -155,5 +163,14 @@ BOOST_AUTO_TEST_CASE(two_queues) {
   sycl::free(dev_ptr1, q1);
   sycl::free(dev_ptr2, q2);
 }
+
+#if defined(ACPP_EXT_DYNAMIC_FUNCTIONS) && defined(__ACPP_ENABLE_LLVM_SSCP_TARGET__)
+// A second translation unit that names the same dynamic-function placeholder:
+// each TU gets a host-side dummy definition, which must fold at link time (COFF).
+BOOST_AUTO_TEST_CASE(dynamic_function_placeholder_second_tu) {
+  auto id = sycl::AdaptiveCpp_jit::dynamic_function{&extension_tests::acpp_test_dynfn_placeholder}.id();
+  BOOST_CHECK(id.get_handle() != nullptr);
+}
+#endif
 
 BOOST_AUTO_TEST_SUITE_END()
