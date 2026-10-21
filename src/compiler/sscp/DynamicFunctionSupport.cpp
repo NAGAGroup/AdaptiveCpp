@@ -16,6 +16,8 @@
 #include "hipSYCL/compiler/utils/ProcessFunctionAnnotationsPass.hpp"
 
 #include <llvm/IR/Comdat.h>
+#include <llvm/IR/Metadata.h>
+#include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #if LLVM_VERSION_MAJOR < 16
 #include <llvm/ADT/Triple.h>
@@ -89,21 +91,34 @@ llvm::PreservedAnalyses HostSideDynamicFunctionHandlerPass::run(llvm::Module &M,
   for (const auto &FName : DynamicFunctionNames) {
     if (auto *F = M.getFunction(FName)) {
       if (F->isDeclaration()) {
-        F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
-        // COFF only folds linkonce definitions that sit in a COMDAT; without
-        // one, every translation unit that uses the placeholder defines it and
-        // the link fails with duplicate symbols. ELF and Mach-O fold it as is.
-        if (llvm::Triple{M.getTargetTriple()}.isOSBinFormatCOFF())
-          F->setComdat(M.getOrInsertComdat(F->getName()));
-        auto BB = llvm::BasicBlock::Create(M.getContext(), "entry", F);
-        // It seems that LLVM handles functions that only have unreachable inst differently
-        // if there address is taken - we can no longer get unique function pointer
-        // addresses for those, which breaks reflection. So try to generate a trivial function
-        // instead.
-        if(F->getReturnType()->isVoidTy())
-          llvm::ReturnInst::Create(M.getContext(), BB);
-        else
-          llvm::ReturnInst::Create(M.getContext(), llvm::UndefValue::get(F->getReturnType()), BB);
+        auto BuildDummyBody = [&M](llvm::Function *Dummy) {
+          auto BB = llvm::BasicBlock::Create(M.getContext(), "entry", Dummy);
+          // It seems that LLVM handles functions that only have unreachable inst differently
+          // if there address is taken - we can no longer get unique function pointer
+          // addresses for those, which breaks reflection. So try to generate a trivial function
+          // instead.
+          if(Dummy->getReturnType()->isVoidTy())
+            llvm::ReturnInst::Create(M.getContext(), BB);
+          else
+            llvm::ReturnInst::Create(M.getContext(), llvm::UndefValue::get(Dummy->getReturnType()), BB);
+        };
+        if (llvm::Triple{M.getTargetTriple()}.isOSBinFormatCOFF()) {
+          // COFF: a COMDAT dummy named like the placeholder collides with a real definition in another
+          // translation unit. The dummy gets its own name and /alternatename makes the placeholder resolve
+          // to it only when nothing defines it.
+          std::string DummyName = "__acpp_dynfn_dummy." + F->getName().str();
+          auto *D = llvm::Function::Create(F->getFunctionType(), llvm::GlobalValue::LinkOnceODRLinkage,
+                                           DummyName, M);
+          D->setCallingConv(F->getCallingConv());
+          BuildDummyBody(D);
+          D->setComdat(M.getOrInsertComdat(D->getName()));
+          std::string Directive = "/alternatename:" + F->getName().str() + "=" + DummyName;
+          M.getOrInsertNamedMetadata("llvm.linker.options")
+              ->addOperand(llvm::MDNode::get(M.getContext(), {llvm::MDString::get(M.getContext(), Directive)}));
+        } else {
+          F->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+          BuildDummyBody(F);
+        }
       }
     }
   }

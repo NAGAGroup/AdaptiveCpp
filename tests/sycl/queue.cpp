@@ -19,6 +19,8 @@
 // extension_tests::acpp_test_dynfn_placeholder); a declaration inside queue_tests would be a different function.
 namespace extension_tests {
 void acpp_test_dynfn_placeholder(int* d);
+// Defined here, declared and used in extensions.cpp: on COFF the real definition must win over the dummy.
+void acpp_test_dynfn_defined_elsewhere(int* d) { *d = 42; }
 }
 #endif
 

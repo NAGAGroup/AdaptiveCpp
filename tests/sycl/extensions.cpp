@@ -1531,6 +1531,7 @@ BOOST_AUTO_TEST_CASE(sycl_specialized) {
 SYCL_EXTERNAL void acpp_test_dynfn_add_one(int* d) { *d += 1; }
 SYCL_EXTERNAL void acpp_test_dynfn_add_two(int* d) { *d += 2; }
 void acpp_test_dynfn_placeholder(int* d);
+void acpp_test_dynfn_defined_elsewhere(int* d);
 
 template<class Ret, class... Args>
 [[clang::noinline]] sycl::AdaptiveCpp_jit::dynamic_function_definition<Ret, Args...>
@@ -1599,6 +1600,14 @@ BOOST_AUTO_TEST_CASE(dynamic_function_objects) {
   }
 
   sycl::free(data, q);
+}
+
+// The definition lives in queue.cpp; the declaration here must not be replaced by a dummy.
+BOOST_AUTO_TEST_CASE(dynamic_function_defined_in_other_tu) {
+  BOOST_CHECK(sycl::AdaptiveCpp_jit::dynamic_function{&acpp_test_dynfn_defined_elsewhere}.id().get_handle() != nullptr);
+  int v = 0;
+  acpp_test_dynfn_defined_elsewhere(&v);
+  BOOST_CHECK_EQUAL(v, 42);
 }
 #endif
 #ifdef ACPP_EXT_TARGET_NUMA_NODE_PROPERTY
