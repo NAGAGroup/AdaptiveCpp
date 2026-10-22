@@ -101,10 +101,10 @@ llvm::PreservedAnalyses HostSideDynamicFunctionHandlerPass::run(llvm::Module &M,
                                           llvm::ConstantInt::get(Int8Ty, 0),
                                           "__acpp_dynfn_tag." + F->getName());
         };
-        // The stand-in body, used on both paths: store to the stand-in'"'"'s own tag, then return.
+        // The stand-in body, used on both paths: store to the stand-in's own tag, then return.
         // Each stand-in stores to its own tag so identical-code folding (lld-link /OPT:ICF is on by
         // default without /DEBUG) cannot merge two stand-ins into one address, which would break
-        // reflection'"'"'s address-to-name map.
+        // reflection's address-to-name map.
         auto BuildStandIn = [&](llvm::Function *Dummy, llvm::GlobalVariable *Tag) {
           auto BB = llvm::BasicBlock::Create(Ctx, "entry", Dummy);
           llvm::IRBuilder<> Builder(BB);
@@ -119,7 +119,7 @@ llvm::PreservedAnalyses HostSideDynamicFunctionHandlerPass::run(llvm::Module &M,
             Builder.CreateRet(llvm::UndefValue::get(Dummy->getReturnType()));
         };
         if (llvm::Triple{M.getTargetTriple()}.isOSBinFormatCOFF()) {
-          // COFF: keep the placeholder a declaration. A stand-in with the placeholder'"'"'s own name
+          // COFF: keep the placeholder a declaration. A stand-in with the placeholder's own name
           // would collide with a real definition in another translation unit, so the stand-in D has
           // its own name and /alternatename makes the placeholder resolve to D only when nothing
           // defines it. D is weak_odr, not linkonce_odr: nothing references D in IR, so with

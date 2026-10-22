@@ -263,7 +263,7 @@ if(WITH_SSCP_COMPILER)
       # the separator has to be something other than the semicolon
       # ExternalProject_Add uses to split its own arguments.
       LIST_SEPARATOR |
-      GIT_REPOSITORY https://github.com/NAGAGroup/SPIRV-LLVM-Translator
+      GIT_REPOSITORY https://github.com/NAGALabsOrg/SPIRV-LLVM-Translator
       GIT_TAG ${LLVMSPIRV_GIT_TAG}
       GIT_SHALLOW ${LLVMSPIRV_GIT_SHALLOW}
       GIT_REMOTE_UPDATE_STRATEGY CHECKOUT
