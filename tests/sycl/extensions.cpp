@@ -1532,6 +1532,10 @@ SYCL_EXTERNAL void acpp_test_dynfn_add_one(int* d) { *d += 1; }
 SYCL_EXTERNAL void acpp_test_dynfn_add_two(int* d) { *d += 2; }
 void acpp_test_dynfn_placeholder(int* d);
 void acpp_test_dynfn_defined_elsewhere(int* d);
+SYCL_EXTERNAL void acpp_test_dynfn_def_elsewhere(int* d);
+// Two placeholders with no definition anywhere: they must keep distinct identities.
+void acpp_test_dynfn_twin_a(int* d);
+void acpp_test_dynfn_twin_b(int* d);
 
 template<class Ret, class... Args>
 [[clang::noinline]] sycl::AdaptiveCpp_jit::dynamic_function_definition<Ret, Args...>
@@ -1608,6 +1612,28 @@ BOOST_AUTO_TEST_CASE(dynamic_function_defined_in_other_tu) {
   int v = 0;
   acpp_test_dynfn_defined_elsewhere(&v);
   BOOST_CHECK_EQUAL(v, 42);
+}
+
+// A dynamic_function_definition whose target is defined in queue.cpp: it must not be treated as
+// a dynamic function (and so must not get a stand-in that collides with the real definition).
+BOOST_AUTO_TEST_CASE(dynamic_function_definition_defined_in_other_tu) {
+  BOOST_CHECK(sycl::AdaptiveCpp_jit::dynamic_function_definition{&acpp_test_dynfn_def_elsewhere}.id().get_handle() != nullptr);
+  int v = 0;
+  acpp_test_dynfn_def_elsewhere(&v);
+  BOOST_CHECK_EQUAL(v, 7);
+}
+
+// Two distinct placeholders keep distinct identities (their stand-ins must not be folded together).
+BOOST_AUTO_TEST_CASE(dynamic_function_placeholders_distinct) {
+  auto ida = sycl::AdaptiveCpp_jit::dynamic_function{&acpp_test_dynfn_twin_a}.id();
+  auto idb = sycl::AdaptiveCpp_jit::dynamic_function{&acpp_test_dynfn_twin_b}.id();
+  BOOST_REQUIRE(ida.get_handle() != nullptr);
+  BOOST_REQUIRE(idb.get_handle() != nullptr);
+  std::string a{reinterpret_cast<const char*>(ida.get_handle())};
+  std::string b{reinterpret_cast<const char*>(idb.get_handle())};
+  BOOST_CHECK(a.find("twin_a") != std::string::npos);
+  BOOST_CHECK(b.find("twin_b") != std::string::npos);
+  BOOST_CHECK(a != b);
 }
 #endif
 #ifdef ACPP_EXT_TARGET_NUMA_NODE_PROPERTY

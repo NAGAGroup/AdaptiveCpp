@@ -31,7 +31,7 @@ public:
   }
 
   const std::vector<std::string>& getDynamicFunctionDefinitionNames() const {
-    return DynamicFunctionNames;
+    return DynamicFunctionDefinitionNames;
   }
 private:
   std::vector<std::string> DynamicFunctionNames;

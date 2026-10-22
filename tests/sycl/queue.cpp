@@ -21,6 +21,8 @@ namespace extension_tests {
 void acpp_test_dynfn_placeholder(int* d);
 // Defined here, declared and used in extensions.cpp: on COFF the real definition must win over the dummy.
 void acpp_test_dynfn_defined_elsewhere(int* d) { *d = 42; }
+// A dynamic-function DEFINITION target defined here, declared and used in extensions.cpp.
+SYCL_EXTERNAL void acpp_test_dynfn_def_elsewhere(int* d) { *d = 7; }
 }
 #endif
 
